@@ -71,6 +71,7 @@
 
   const els = {
     todayLabel: document.querySelector('#todayLabel'),
+    newswireViewport: document.querySelector('#newswireViewport'),
     newswireMessage: document.querySelector('#newswireMessage'),
     totalXp: document.querySelector('#totalXp'),
     goalXp: document.querySelector('#goalXp'),
@@ -123,6 +124,8 @@
     newActionType: document.querySelector('#newActionType'),
     addActionButton: document.querySelector('#addActionButton'),
     resetGameButton: document.querySelector('#resetGameButton'),
+    motionFxButton: document.querySelector('#motionFxButton'),
+    motionFxStatus: document.querySelector('#motionFxStatus'),
     settingsMessage: document.querySelector('#settingsMessage')
   };
 
@@ -132,9 +135,25 @@
   let newswireMessages = [];
   let newswireIndex = 0;
   let newswireSignature = '';
-  let newswireTimer = null;
+  let newswireOffset = 0;
+  let newswirePausedUntil = 0;
+  let newswireLastFrame = 0;
+  let newswireSpecialUntil = 0;
+  let visualFrame = null;
   let dayCardTimer = null;
   const categoryScrollPositions = new Map();
+
+  const MOTION_PREF_KEY = 'molife.motionFx.v1';
+  const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const finePointerQuery = window.matchMedia('(pointer: fine)');
+  let motionFxEnabled = false;
+  let orientationListenerAttached = false;
+  let targetRoll = 0;
+  let targetPitch = 0;
+  let targetYaw = 0;
+  let smoothRoll = 0;
+  let smoothPitch = 0;
+  let smoothYaw = 0;
 
   function deepClone(value) {
     return JSON.parse(JSON.stringify(value));
@@ -950,14 +969,23 @@
     return [...new Set(messages)];
   }
 
-  function showNewswireMessage(message) {
+  function resetNewswirePosition(pauseMs = 650) {
+    if (!els.newswireViewport || !els.newswireMessage) return;
+    newswireOffset = Math.max(0, els.newswireViewport.clientWidth);
+    newswirePausedUntil = performance.now() + pauseMs;
+    els.newswireMessage.style.transform = `translate3d(${Math.round(newswireOffset)}px,0,0)`;
+  }
+
+  function showNewswireMessage(message, options = {}) {
     if (!els.newswireMessage || !message) return;
 
     els.newswireMessage.textContent = message;
     els.newswireMessage.title = message;
-    els.newswireMessage.classList.remove('newswire-swap');
-    void els.newswireMessage.offsetWidth;
-    els.newswireMessage.classList.add('newswire-swap');
+    resetNewswirePosition(options.pauseMs ?? 650);
+
+    if (options.special) {
+      newswireSpecialUntil = performance.now() + (options.holdMs ?? 2600);
+    }
   }
 
   function refreshNewswire(summary, specialMessage = '') {
@@ -970,26 +998,247 @@
       newswireIndex = messages.length
         ? stringHash(`${state.current.date}|${summary.totalXp}|${state.history.length}`) % messages.length
         : 0;
+
+      if (!specialMessage && newswireMessages.length) {
+        showNewswireMessage(newswireMessages[newswireIndex], { pauseMs: 450 });
+      }
     }
 
     if (specialMessage) {
-      showNewswireMessage(specialMessage);
+      showNewswireMessage(specialMessage, { special: true, holdMs: 3000, pauseMs: 150 });
       return;
     }
 
-    if (newswireMessages.length) {
+    if (!els.newswireMessage.textContent && newswireMessages.length) {
       showNewswireMessage(newswireMessages[newswireIndex]);
     }
   }
 
-  function startNewswireRotation() {
-    if (newswireTimer) return;
+  function advanceNewswire() {
+    if (!newswireMessages.length) return;
+    newswireIndex = (newswireIndex + 1) % newswireMessages.length;
+    showNewswireMessage(newswireMessages[newswireIndex], { pauseMs: 750 });
+  }
 
-    newswireTimer = window.setInterval(() => {
-      if (document.hidden || !newswireMessages.length) return;
-      newswireIndex = (newswireIndex + 1) % newswireMessages.length;
-      showNewswireMessage(newswireMessages[newswireIndex]);
-    }, 12000);
+  function normalizeAngle(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0;
+    return ((numeric % 360) + 360) % 360;
+  }
+
+  function handleDeviceOrientation(event) {
+    if (!motionFxEnabled || reducedMotionQuery.matches) return;
+
+    const gamma = Number(event.gamma);
+    const beta = Number(event.beta);
+    const alpha = Number(event.alpha);
+
+    if (Number.isFinite(gamma)) targetRoll = clampNumber(gamma / 42, -1, 1, 0);
+    if (Number.isFinite(beta)) targetPitch = clampNumber(beta / 55, -1, 1, 0);
+    if (Number.isFinite(alpha)) targetYaw = normalizeAngle(alpha);
+  }
+
+  function attachOrientationListener() {
+    if (orientationListenerAttached) return;
+    window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+    orientationListenerAttached = true;
+  }
+
+  function detachOrientationListener() {
+    if (!orientationListenerAttached) return;
+    window.removeEventListener('deviceorientation', handleDeviceOrientation, true);
+    orientationListenerAttached = false;
+  }
+
+  function updateMotionFxUi(message = '') {
+    if (!els.motionFxButton || !els.motionFxStatus) return;
+
+    if (reducedMotionQuery.matches) {
+      els.motionFxButton.disabled = true;
+      els.motionFxButton.textContent = 'Motion reduced';
+      els.motionFxStatus.textContent = 'Disabled because your device requests reduced motion.';
+      return;
+    }
+
+    const supported = typeof window.DeviceOrientationEvent !== 'undefined';
+    els.motionFxButton.disabled = !supported;
+    els.motionFxButton.textContent = motionFxEnabled ? 'Disable Motion FX' : 'Enable Motion FX';
+
+    if (message) {
+      els.motionFxStatus.textContent = message;
+    } else if (!supported) {
+      els.motionFxStatus.textContent = 'Device orientation is not available in this browser.';
+    } else if (motionFxEnabled) {
+      els.motionFxStatus.textContent = 'Active · tilt changes shimmer and Newswire speed.';
+    } else {
+      els.motionFxStatus.textContent = 'Optional · orientation data stays on this device.';
+    }
+  }
+
+  function disableMotionFx() {
+    motionFxEnabled = false;
+    detachOrientationListener();
+    targetRoll = 0;
+    targetPitch = 0;
+    targetYaw = 0;
+    document.body.classList.remove('motion-fx-enabled');
+    try {
+      localStorage.setItem(MOTION_PREF_KEY, '0');
+    } catch (error) {
+      // Preference storage is optional.
+    }
+    updateMotionFxUi();
+  }
+
+  async function enableMotionFx({ fromSavedPreference = false } = {}) {
+    if (reducedMotionQuery.matches) {
+      updateMotionFxUi();
+      return;
+    }
+
+    if (typeof window.DeviceOrientationEvent === 'undefined') {
+      updateMotionFxUi('Device orientation is not available in this browser.');
+      return;
+    }
+
+    const permissionApi = typeof window.DeviceOrientationEvent.requestPermission === 'function';
+
+    if (permissionApi) {
+      if (fromSavedPreference) {
+        updateMotionFxUi('Tap Enable Motion FX to re-authorize tilt effects on this device.');
+        return;
+      }
+
+      try {
+        const permission = await window.DeviceOrientationEvent.requestPermission();
+        if (permission !== 'granted') {
+          updateMotionFxUi('Motion permission was not granted.');
+          return;
+        }
+      } catch (error) {
+        updateMotionFxUi('Motion permission could not be requested.');
+        return;
+      }
+    }
+
+    motionFxEnabled = true;
+    attachOrientationListener();
+    document.body.classList.add('motion-fx-enabled', 'ambient-fx-enabled');
+    try {
+      localStorage.setItem(MOTION_PREF_KEY, '1');
+    } catch (error) {
+      // Preference storage is optional.
+    }
+    updateMotionFxUi();
+  }
+
+  async function toggleMotionFx() {
+    if (motionFxEnabled) {
+      disableMotionFx();
+    } else {
+      await enableMotionFx();
+    }
+  }
+
+  function setupPointerShimmer() {
+    if (reducedMotionQuery.matches || !finePointerQuery.matches) return;
+
+    document.body.classList.add('ambient-fx-enabled');
+    window.addEventListener('pointermove', event => {
+      if (motionFxEnabled) return;
+      const x = event.clientX / Math.max(1, window.innerWidth);
+      const y = event.clientY / Math.max(1, window.innerHeight);
+      targetRoll = clampNumber((x - 0.5) * 1.15, -0.65, 0.65, 0);
+      targetPitch = clampNumber((y - 0.5) * 1.05, -0.55, 0.55, 0);
+      targetYaw = normalizeAngle((x * 80) + (y * 35));
+    }, { passive: true });
+  }
+
+  function updateAmbientFx() {
+    const smoothing = 0.07;
+    smoothRoll += (targetRoll - smoothRoll) * smoothing;
+    smoothPitch += (targetPitch - smoothPitch) * smoothing;
+
+    let yawDelta = targetYaw - smoothYaw;
+    if (yawDelta > 180) yawDelta -= 360;
+    if (yawDelta < -180) yawDelta += 360;
+    smoothYaw = normalizeAngle(smoothYaw + (yawDelta * 0.045));
+
+    const root = document.documentElement;
+    root.style.setProperty('--motion-x', `${50 + (smoothRoll * 22)}%`);
+    root.style.setProperty('--motion-y', `${18 + (smoothPitch * 20)}%`);
+    root.style.setProperty('--motion-x-2', `${78 - (smoothRoll * 18)}%`);
+    root.style.setProperty('--motion-y-2', `${8 - (smoothPitch * 14)}%`);
+    root.style.setProperty('--motion-hue', `${Math.round(smoothYaw)}deg`);
+    root.style.setProperty('--motion-tilt', smoothRoll.toFixed(3));
+  }
+
+  function animateVisuals(timestamp) {
+    visualFrame = requestAnimationFrame(animateVisuals);
+
+    if (document.hidden) {
+      newswireLastFrame = timestamp;
+      return;
+    }
+
+    updateAmbientFx();
+
+    if (!els.newswireViewport || !els.newswireMessage || reducedMotionQuery.matches) {
+      newswireLastFrame = timestamp;
+      return;
+    }
+
+    if (!newswireLastFrame) newswireLastFrame = timestamp;
+    const deltaSeconds = Math.min(0.05, Math.max(0, (timestamp - newswireLastFrame) / 1000));
+    newswireLastFrame = timestamp;
+
+    if (timestamp < newswireSpecialUntil || timestamp < newswirePausedUntil) {
+      return;
+    }
+
+    const tiltFactor = motionFxEnabled
+      ? clampNumber(1 + (smoothRoll * 0.95), 0.35, 1.95, 1)
+      : 1;
+    const speed = 24 * tiltFactor;
+
+    newswireOffset -= speed * deltaSeconds;
+    els.newswireMessage.style.transform = `translate3d(${Math.round(newswireOffset)}px,0,0)`;
+
+    const messageWidth = els.newswireMessage.scrollWidth;
+    if (newswireOffset + messageWidth < 0) {
+      advanceNewswire();
+    }
+  }
+
+  function startVisualLoop() {
+    if (visualFrame) return;
+    visualFrame = requestAnimationFrame(animateVisuals);
+  }
+
+  function initializeMotionFx() {
+    updateMotionFxUi();
+    setupPointerShimmer();
+
+    let saved = false;
+    try {
+      saved = localStorage.getItem(MOTION_PREF_KEY) === '1';
+    } catch (error) {
+      saved = false;
+    }
+
+    if (saved) {
+      enableMotionFx({ fromSavedPreference: true });
+    }
+
+    reducedMotionQuery.addEventListener?.('change', () => {
+      if (reducedMotionQuery.matches) {
+        disableMotionFx();
+        document.body.classList.remove('ambient-fx-enabled');
+      } else {
+        setupPointerShimmer();
+        updateMotionFxUi();
+      }
+    });
   }
 
   function updateActionDeckState(deck, list) {
@@ -1694,6 +1943,7 @@
   els.addCategoryButton.addEventListener('click', addCategoryFromForm);
   els.addActionButton.addEventListener('click', addActionFromForm);
   els.resetGameButton.addEventListener('click', resetGameData);
+  els.motionFxButton?.addEventListener('click', toggleMotionFx);
   els.settingsForm.addEventListener('submit', saveSettingsFromDialog);
   els.viewDayCardButton.addEventListener('click', () => openDayCard(state.current.dayCard));
   els.closeDayCardButton.addEventListener('click', () => els.dayCardDialog.close());
@@ -1716,6 +1966,13 @@
     }
   });
 
+  window.addEventListener('resize', () => {
+    document.querySelectorAll('.action-deck').forEach(deck => {
+      updateActionDeckState(deck, deck.querySelector('.actions-list'));
+    });
+    resetNewswirePosition(250);
+  }, { passive: true });
+
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('./service-worker.js').catch(error => {
       console.warn('Service worker registration failed:', error);
@@ -1724,5 +1981,6 @@
 
   ensureToday();
   render();
-  startNewswireRotation();
+  initializeMotionFx();
+  startVisualLoop();
 })();
