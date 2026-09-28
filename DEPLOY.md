@@ -1,50 +1,61 @@
-# Dalli deployment on lima-city
+# Self-hosting Dalli
 
-The public Dalli site is expected to live at:
+Dalli can be hosted on a conventional PHP + MySQL/MariaDB web host. The public repository intentionally does not contain any production-specific hostnames, account identifiers, credentials or infrastructure details.
 
-```
-apps/dalli/
-```
+## Requirements
 
-The real secret configuration lives outside that public directory:
+- HTTPS
+- PHP 8.0+
+- PDO MySQL
+- MySQL or MariaDB with JSON-column support
+- ability to keep one PHP config file outside the public document root
+- writable PHP session storage
 
-```
-apps/dalli-config.php
-```
+## 1. Public app and private config
 
-Do not put real database credentials in GitHub.
+Serve the repository contents from a dedicated document root.
 
-## 1. Upload the public app
-
-Upload the repository contents into `apps/dalli/`.
-
-Important files include:
-
-- `api/`
-- `cloud.js`
-- `.htaccess`
-- `.user.ini`
-
-The old `setup.php` account-creation page is no longer used and should not exist on the server.
-
-## 2. Private configuration
-
-Copy the structure from `config.example.php` into:
+Keep the real configuration **outside** that public directory. The backend expects:
 
 ```
-apps/dalli-config.php
+parent-of-public-root/
+├── dalli-config.php
+└── public-root/
+    ├── index.html
+    ├── api/
+    ├── app.js
+    └── ...
 ```
+
+Do not commit the real config file.
+
+## 2. Database
+
+Create the schema in [schema.sql](schema.sql).
+
+Use a dedicated application database user with only the permissions Dalli needs at runtime:
+
+- SELECT
+- INSERT
+- UPDATE
+- DELETE
+
+Schema-changing and administrative permissions are not required for normal operation.
+
+## 3. Private configuration
+
+Use [config.example.php](config.example.php) as the template for the private `dalli-config.php`.
 
 Fill in:
 
-- the exact MySQL host shown by lima-city
-- database name `db_430902_10`
-- the dedicated restricted Dalli database username
-- its password
-- `https://dalli.mentalgrounds.com` as the app origin
+- database host
+- database name
+- restricted database username
+- database password
+- the public HTTPS origin of your Dalli installation
 - one long random owner setup token
 
-Example shape:
+Example:
 
 ```php
 <?php
@@ -57,21 +68,19 @@ if (realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__) {
 
 return [
     'database' => [
-        'host' => 'YOUR_LIMA_DB_HOST',
-        'name' => 'db_430902_10',
-        'user' => 'YOUR_RESTRICTED_DALLI_DB_USER',
+        'host' => 'YOUR_DATABASE_HOST',
+        'name' => 'YOUR_DATABASE_NAME',
+        'user' => 'YOUR_DATABASE_USER',
         'password' => 'YOUR_DATABASE_PASSWORD',
     ],
     'app' => [
-        'origin' => 'https://dalli.mentalgrounds.com',
+        'origin' => 'https://dalli.example.com',
         'owner_setup_token' => 'A_LONG_RANDOM_SECRET',
     ],
 ];
 ```
 
-The code also accepts the older `setup_token` key for compatibility, so an existing private config does not have to be changed immediately.
-
-## 3. Create the owner account
+## 4. First account
 
 Open Dalli normally.
 
@@ -81,139 +90,115 @@ If the database has no users yet, **Create account** becomes the owner-account f
 - password
 - the private owner setup code
 
-That first account automatically becomes the Dalli owner.
+The first account automatically becomes the Dalli owner. Once an owner exists, later registrations require owner-created invite links instead of the setup code.
 
-No database row needs to be inserted manually.
-
-After the owner exists, the owner setup token is ignored by registration. It can remain in the private config, though clearing it afterwards is harmless if preferred.
-
-## 4. Invite another person
+## 5. Invite another person
 
 While signed in as the owner:
 
 1. Open the Account screen.
 2. Select **Create invite link**.
-3. Copy the generated link and send it to the person.
+3. Send the generated link to the person.
 
-The link:
+Invite links:
 
-- works once
-- expires after 7 days
-- contains its secret after `#invite=`, so the secret is not sent to the web server in the initial HTTP request
+- work once
+- expire after 7 days
+- keep their secret after `#invite=`, so it is not sent in the initial HTTP request
 
-Opening the link takes the person directly to the Create account flow. They only choose a username and password.
+The invitee only chooses a username and password.
 
-No PHP editing, database editing or setup-token rotation is needed.
-
-## 5. Staying signed in
+## 6. Staying signed in
 
 **Stay signed in on this device** is enabled by default.
 
-When enabled, Dalli creates a random 30-day persistent token:
+Persistent device tokens:
 
-- the raw validator stays only in the Secure + HttpOnly browser cookie
-- MySQL stores only its SHA-256 hash
-- each browser/device gets a separate token
-- the token rotates when it restores a session
-- signing out revokes the current device token
+- use a Secure + HttpOnly cookie
+- store only the validator hash server-side
+- are independent per browser/device
+- rotate when restoring a session
+- are revoked for the current device on logout
 
 Passwords are never stored in browser storage.
 
-## Existing local Dalli data
+## 7. Existing local data
 
 When an account has no cloud state yet, Dalli checks whether the current browser has meaningful local Dalli data.
 
 - If it does, Dalli asks whether to import it.
-- If it does not, the account simply starts with the default setup.
+- Otherwise the account starts with the default setup.
 
-## Database schema
+## 8. Security headers and PHP settings
 
-The existing two tables are sufficient:
+The repository includes:
 
-- `users`
-- `user_state`
+- `.htaccess` for browser/security headers where supported
+- `.user.ini` for hardened PHP/session defaults where supported
 
-The account/invite upgrade does **not** require an SQL migration. Authentication metadata is kept in a server-only envelope inside `user_state.state_json`, while the browser still sees only the normal Dalli app state.
+Hosts that do not support these files should configure equivalent settings at the web-server/PHP level.
 
-The permanent Dalli DB user can therefore remain read/write only with no schema-changing permissions.
+## 9. Optional GitHub Actions deployment
 
-## Security model
-
-- no unrestricted public registration
-- owner-only invitation creation
-- single-use expiring invites
-- no uploads
-- no email/password-reset attack surface
-- no third-party PHP packages
-- PDO prepared statements
-- server-side PHP sessions
-- Secure + HttpOnly + SameSite=Strict cookies
-- session ID regeneration after login
-- CSRF protection on authenticated writes
-- same-origin validation
-- per-IP/per-username login throttling
-- per-IP registration throttling
-- strict server-side state validation and payload limits
-- optimistic revision checking for multi-device state
-- API data never cached by the service worker
-- private config outside the public document root
-- restrictive browser security headers
-
-## If the backend is unavailable
-
-Dalli still keeps a local browser copy. Guest/local mode continues to work, and signed-in changes can remain local until the backend becomes reachable again.
-
-
-## Automatic GitHub deployment
-
-Dalli can deploy automatically to lima-city whenever `main` changes.
-
-The workflow is stored in:
+The repository includes a generic FTPS deployment workflow at:
 
 ```
 .github/workflows/deploy.yml
 ```
 
-It deploys only the public application to:
+It looks for exactly one repository-secret trio whose names end with:
 
 ```
-apps/dalli/
+_FTP_HOST
+_FTP_USER
+_FTP_PASSWORD
 ```
 
-The private configuration at `apps/dalli-config.php` sits outside that directory and is never touched.
-
-### One-time GitHub secrets
-
-In the GitHub repository, open:
+Recommended names for a fork are:
 
 ```
-Settings → Secrets and variables → Actions → New repository secret
+DEPLOY_FTP_HOST
+DEPLOY_FTP_USER
+DEPLOY_FTP_PASSWORD
 ```
 
-Create these three secrets:
+An optional secret ending in `_FTP_PATH` can override the remote directory. Without one, the workflow uses a repository-name-based default.
 
-- `LIMA_FTP_HOST` — the FTP host from lima-city's FTP access page (normally `<ftp-user>.lima-ftp.de`)
-- `LIMA_FTP_USER` — the lima-city FTP username
-- `LIMA_FTP_PASSWORD` — the FTP password
-
-Do not store the MySQL password here; deployment needs only the FTP credentials.
-
-After the secrets exist, run:
+Configure secrets under:
 
 ```
-Actions → Deploy Dalli → Run workflow
+Repository → Settings → Secrets and variables → Actions
 ```
-
-Once that first deployment succeeds, every future push to `main` deploys automatically.
 
 The workflow:
 
-- runs syntax checks before uploading
-- uses explicit TLS (FTPS)
-- mirrors GitHub's public app files into `apps/dalli/`
-- removes live files that were deleted from GitHub
-- includes hidden public files such as `.htaccess` and `.user.ini`
-- excludes GitHub metadata, documentation, schema files, config examples and secrets
-- refuses to deploy anywhere except the hard-coded `apps/dalli` target
+- runs JavaScript and PHP syntax checks
+- prepares a clean public deployment directory
+- excludes repository documentation, schema/config examples and secret-file patterns
+- deploys with explicit TLS (FTPS)
+- mirrors deletions as well as additions
+- never commits or uploads the private `dalli-config.php`
 
-If the three GitHub secrets are missing, the workflow exits successfully without deploying anything.
+Adapt the workflow if your hosting provider uses SSH/SFTP, rsync, a platform CLI, containers or another deployment mechanism.
+
+## 10. PWA cache/versioning
+
+A successful deployment can still appear stale if an older service worker controls the page.
+
+For frontend releases, update both:
+
+- the visible app version / cache-busted asset URLs in `index.html`
+- the cache name in `service-worker.js`
+
+Authenticated `/api/` traffic must never enter the service-worker cache.
+
+## 11. Production checks
+
+After deployment:
+
+1. confirm the expected visible Dalli version
+2. load the app over HTTPS
+3. verify `/api/session.php` returns JSON
+4. create/login to a test account if appropriate
+5. confirm the private config is not web-addressable
+6. confirm no credential file exists inside the public document root
