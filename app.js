@@ -164,10 +164,14 @@
     actionSortSelect: document.querySelector('#actionSortSelect'),
     newActionName: document.querySelector('#newActionName'),
     newActionCategory: document.querySelector('#newActionCategory'),
-    newActionXp: document.querySelector('#newActionXp'),
+    newActionDamage: document.querySelector('#newActionDamage'),
     newActionType: document.querySelector('#newActionType'),
     newActionVisible: document.querySelector('#newActionVisible'),
     addActionButton: document.querySelector('#addActionButton'),
+    combosEditor: document.querySelector('#combosEditor'),
+    newComboName: document.querySelector('#newComboName'),
+    newComboMultiplier: document.querySelector('#newComboMultiplier'),
+    addComboButton: document.querySelector('#addComboButton'),
     resetGameButton: document.querySelector('#resetGameButton'),
     motionFxButton: document.querySelector('#motionFxButton'),
     motionFxStatus: document.querySelector('#motionFxStatus'),
@@ -2392,11 +2396,13 @@
     );
   }
 
+
   function openSettings() {
     settingsDraft = deepClone(state.settings);
     settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
-    els.goalInput.value = settingsDraft.goal;
-    els.settingsMessage.textContent = 'Changes save automatically.';
+    settingsDraft.combos = Array.isArray(settingsDraft.combos) ? settingsDraft.combos : [];
+    els.goalInput.value = settingsDraft.fullEnemyHp;
+    els.settingsMessage.textContent = 'Changes save automatically. Enemy HP changes apply to the next fight.';
     settingsTriggeredClear = false;
     if (els.newCategoryColor) {
       const customCount = settingsDraft.categories.filter(
@@ -2407,6 +2413,7 @@
     updateGoalRampPreview();
     renderCategoriesEditor();
     renderActionsEditor();
+    renderCombosEditor();
     populateCategorySelect();
 
     if (typeof els.settingsDialog.showModal === 'function') {
@@ -2421,22 +2428,22 @@
 
     const temporarySettings = {
       ...settingsDraft,
-      goal: clampInt(els.goalInput.value, 20, 1000, settingsDraft.goal)
+      fullEnemyHp: clampInt(els.goalInput.value, 20, 1000, settingsDraft.fullEnemyHp)
     };
-    const ramp = getGoalRampInfo(temporarySettings);
+    const ramp = getHpRampInfo(temporarySettings);
 
     els.goalRampPreview.textContent = ramp.active
-      ? `Current target: ${ramp.currentGoal} XP · ${ramp.clearCount}/${ramp.clearsToMature} cleared days toward the full ${ramp.matureGoal} XP goal.`
-      : `Current target: ${ramp.currentGoal} XP · starter ramp complete.`;
+      ? `Next fight: ${ramp.nextFightHp} HP · ${ramp.victoryCount}/${ramp.victoriesToMature} victories toward full ${ramp.fullEnemyHp} HP strength. Today's ${state.current.maxHp} HP is already locked.`
+      : `Next fight: ${ramp.nextFightHp} HP · full-strength ramp complete. Today's ${state.current.maxHp} HP is already locked.`;
   }
 
   function previewBandText(category) {
-    if (category.id === UNCATEGORIZED_ID) return 'Fixed 50% payout';
+    if (category.id === UNCATEGORIZED_ID) return 'Fixed 50% damage';
     const temporarySettings = {
       ...settingsDraft,
-      goal: clampInt(els.goalInput.value, 20, 1000, settingsDraft.goal)
+      fullEnemyHp: clampInt(els.goalInput.value, 20, 1000, settingsDraft.fullEnemyHp)
     };
-    return `≈ ${Math.round(getFocusBand(category.id, temporarySettings))} base XP at 100%`;
+    return `≈ ${Math.round(getFocusBand(category.id, temporarySettings))} base DMG at 100%`;
   }
 
   function renderCategoriesEditor() {
@@ -2456,7 +2463,7 @@
         const strong = document.createElement('strong');
         strong.textContent = category.name;
         const note = document.createElement('span');
-        note.textContent = 'Permanent fallback · fixed 50% payout';
+        note.textContent = 'Permanent fallback · fixed 50% damage';
         copy.append(strong, note);
         main.append(icon, copy);
         row.append(main);
