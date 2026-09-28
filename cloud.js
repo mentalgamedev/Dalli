@@ -113,7 +113,12 @@
   accountButton.hidden = true;
 
   accountZone.append(syncStatus, signInButton, createAccountButton, accountButton);
-  document.querySelector('.topbar')?.append(accountZone);
+  const settingsButton = document.querySelector('#settingsButton');
+  if (settingsButton) {
+    settingsButton.before(accountZone);
+  } else {
+    document.querySelector('.topbar')?.append(accountZone);
+  }
 
   function setSyncStatus(text, kind = '') {
     syncStatus.textContent = text;
