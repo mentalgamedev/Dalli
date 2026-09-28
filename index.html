@@ -8,26 +8,27 @@
   <title>MoLife</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=3.5.0">
+  <link rel="stylesheet" href="styles.css?v=3.6.0">
 </head>
 <body>
   <div class="motion-shimmer" aria-hidden="true"></div>
   <div class="city-noise" aria-hidden="true"></div>
 
   <div class="app-shell">
+    <div class="newswire newswire-wide" aria-label="Crestfallen Newswire">
+      <span class="newswire-live"><i aria-hidden="true"></i> LIVE</span>
+      <span class="newswire-label">CRESTFALLEN NEWSWIRE</span>
+      <span class="newswire-chevron" aria-hidden="true">›</span>
+      <span id="newswireViewport" class="newswire-viewport">
+        <span id="newswireMessage" class="newswire-message" aria-live="polite">LOCAL PRODUCTIVITY STATUS CURRENTLY UNDER REVIEW</span>
+      </span>
+    </div>
+
     <header class="topbar">
       <div class="brand-block">
-        <div class="newswire" aria-label="Crestfallen Newswire">
-          <span class="newswire-live"><i aria-hidden="true"></i> LIVE</span>
-          <span class="newswire-label">CRESTFALLEN NEWSWIRE</span>
-          <span class="newswire-chevron" aria-hidden="true">›</span>
-          <span id="newswireViewport" class="newswire-viewport">
-            <span id="newswireMessage" class="newswire-message" aria-live="polite">LOCAL PRODUCTIVITY STATUS CURRENTLY UNDER REVIEW</span>
-          </span>
-        </div>
         <h1 class="brand-title" aria-label="MoLife"><span class="brand-mo">Mo</span><span class="brand-life">Life</span><span class="brand-tm">™</span></h1>
         <div class="brand-subline">Gains for citizens with nothing to lose</div>
-        <div class="app-version" aria-label="MoLife version 3.5.0">v3.5.0 · Crestfallen build</div>
+        <div class="app-version" aria-label="MoLife version 3.6.0">v3.6.0 · Chromatic Compliance build</div>
         <div id="todayLabel" class="muted"></div>
       </div>
       <button id="settingsButton" class="icon-button" type="button" aria-label="Open settings" title="Settings">⚙</button>
@@ -208,7 +209,7 @@
         <div class="settings-section-head">
           <div>
             <h3>Categories & Focus</h3>
-            <p>Higher Focus means a category can produce full-value XP for longer before diminishing returns kick in.</p>
+            <p>Higher Focus means a category can produce full-value XP for longer before diminishing returns kick in. Color tints the category throughout Track-o-Tron.</p>
           </div>
         </div>
         <div id="categoriesEditor" class="categories-editor"></div>
@@ -227,6 +228,10 @@
             <label>
               <span>Focus</span>
               <input id="newCategoryFocus" type="number" min="0.25" max="10" step="0.25" value="1" inputmode="decimal">
+            </label>
+            <label class="category-color-field">
+              <span>Color</span>
+              <input id="newCategoryColor" type="color" value="#69d5ff" aria-label="New category color">
             </label>
           </div>
           <button id="addCategoryButton" class="secondary-button" type="button">+ Add category</button>
@@ -317,7 +322,7 @@
     </article>
   </template>
 
-  <script src="app.js?v=3.5.0" defer></script>
-  <script src="cloud.js?v=3.5.0" defer></script>
+  <script src="app.js?v=3.6.0" defer></script>
+  <script src="cloud.js?v=3.6.0" defer></script>
 </body>
 </html>

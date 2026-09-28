@@ -58,7 +58,7 @@ Reports are deterministic local content; they do not require an AI service.
 
 ## Crestfallen Newswire
 
-The header contains a reactive fake news feed that comments on actual game state: current XP, remaining XP, yesterday's result, rank, streak, level and category saturation. Before the daily goal is reached it mostly mocks the lack or insufficiency of progress; after clearance it becomes reluctantly congratulatory.
+The header contains a reactive fake news feed that comments on actual game state: current XP, remaining XP, yesterday's result, rank, streak, level and category saturation. Before the daily goal is reached it mostly mocks the lack or insufficiency of progress; after clearance it becomes reluctantly congratulatory. On wider layouts the Newswire spans the full app width instead of staying inside the brand column.
 
 
 ## Motion FX
@@ -74,6 +74,8 @@ The main action area is branded **Track-o-Tron**. Category action decks keep a c
 ## Categories and actions
 
 - categories are fully editable
+- every regular category has a user-selectable **Color**
+- MoLife derives a safe bright accent plus darker/desaturated panel, action, border and glow variants from that one color
 - category **Focus** controls diminishing returns
 - default Focus is **Wellbeing 1 / Work 1.5 / Chores 0.75** so focused work has a larger natural daily budget than chores
 - actions have editable base XP values
@@ -81,7 +83,7 @@ The main action area is branded **Track-o-Tron**. Category action decks keep a c
 - every action has a **Show in Track-o-Tron** toggle; hiding it keeps the action and its configuration without showing it on the main board
 - default action wording is intentionally qualitative rather than timed: **Quick movement / stretch**, **Walk / fresh air**, **Proper workout**, **Proper healthy meal**, **Focus session**, **Deep focus session**, **Practice / skill**, **Annoying admin task**, **Tiny chore**, **Proper chore / cleaning**, **Laundry**, **Big chore / deep clean**
 - deleting a category moves its actions to **Uncategorized**
-- Uncategorized is a permanent fallback with a fixed 50% payout
+- Uncategorized is a permanent fallback with a fixed 50% payout and fixed neutral slate color
 
 ## History and statistics foundation
 

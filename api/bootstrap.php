@@ -241,7 +241,7 @@ function dalli_validate_state(mixed $state): array
 
     $categoryIds = [];
     foreach ($categories as $category) {
-        if (!is_array($category) || !dalli_keys_allowed($category, ['id', 'name', 'icon', 'focus'])) {
+        if (!is_array($category) || !dalli_keys_allowed($category, ['id', 'name', 'icon', 'focus', 'color'])) {
             dalli_fail('Invalid category.', 422);
         }
 
@@ -255,9 +255,14 @@ function dalli_validate_state(mixed $state): array
             ? (is_int($focus) || is_float($focus)) && (float) $focus === 0.0
             : dalli_number_between($focus, 0.25, 10);
 
+        $color = $category['color'] ?? null;
+        $validColor = $color === null
+            || (is_string($color) && preg_match('/^#[0-9a-fA-F]{6}$/', $color) === 1);
+
         if (!dalli_string_ok($category['name'] ?? null, 1, 80)
             || !dalli_string_ok($category['icon'] ?? null, 1, 24)
-            || !$validFocus) {
+            || !$validFocus
+            || !$validColor) {
             dalli_fail('Invalid category data.', 422);
         }
 

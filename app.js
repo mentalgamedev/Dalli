@@ -26,12 +26,21 @@
   let activeStorageKey = STORAGE_KEY;
   let suppressCloudSave = false;
 
-  const CATEGORY_COLORS = {
+  const DEFAULT_CATEGORY_COLORS = Object.freeze({
     wellbeing: '#49d89b',
     work: '#818bff',
     chores: '#ffb35f',
     uncategorized: '#8b93a4'
-  };
+  });
+
+  const CUSTOM_CATEGORY_COLORS = Object.freeze([
+    '#69d5ff',
+    '#d37cff',
+    '#e9d96b',
+    '#ff7daf',
+    '#8fd56a',
+    '#65cfc8'
+  ]);
 
   const RANKS = [
     { name: 'Nobody', min: 0 },
@@ -48,10 +57,10 @@
     settings: {
       goal: 100,
       categories: [
-        { id: 'wellbeing', name: 'Wellbeing', icon: '♥', focus: 1 },
-        { id: 'work', name: 'Work', icon: '◆', focus: 1.5 },
-        { id: 'chores', name: 'Chores', icon: '⌂', focus: 0.75 },
-        { id: UNCATEGORIZED_ID, name: 'Uncategorized', icon: '•', focus: 0 }
+        { id: 'wellbeing', name: 'Wellbeing', icon: '♥', focus: 1, color: '#49d89b' },
+        { id: 'work', name: 'Work', icon: '◆', focus: 1.5, color: '#818bff' },
+        { id: 'chores', name: 'Chores', icon: '⌂', focus: 0.75, color: '#ffb35f' },
+        { id: UNCATEGORIZED_ID, name: 'Uncategorized', icon: '•', focus: 0, color: '#8b93a4' }
       ],
       actions: [
         { id: 'wellbeing-workout-30', categoryId: 'wellbeing', name: 'Proper workout', baseXp: 20, type: 'repeatable', trackVisible: true },
@@ -131,6 +140,7 @@
     newCategoryName: document.querySelector('#newCategoryName'),
     newCategoryIcon: document.querySelector('#newCategoryIcon'),
     newCategoryFocus: document.querySelector('#newCategoryFocus'),
+    newCategoryColor: document.querySelector('#newCategoryColor'),
     addCategoryButton: document.querySelector('#addCategoryButton'),
     actionsEditor: document.querySelector('#actionsEditor'),
     newActionName: document.querySelector('#newActionName'),
@@ -202,6 +212,67 @@
     return `${prefix}-${Date.now().toString(36)}-${random}`;
   }
 
+  function normalizeHexColor(value, fallback = '#8b93a4') {
+    const text = String(value || '').trim().toLowerCase();
+    return /^#[0-9a-f]{6}$/.test(text) ? text : fallback;
+  }
+
+  function fallbackCategoryColor(categoryId, index = 0) {
+    if (DEFAULT_CATEGORY_COLORS[categoryId]) return DEFAULT_CATEGORY_COLORS[categoryId];
+    return CUSTOM_CATEGORY_COLORS[index % CUSTOM_CATEGORY_COLORS.length];
+  }
+
+  function hexToRgb(hex) {
+    const normalized = normalizeHexColor(hex);
+    return {
+      r: parseInt(normalized.slice(1, 3), 16),
+      g: parseInt(normalized.slice(3, 5), 16),
+      b: parseInt(normalized.slice(5, 7), 16)
+    };
+  }
+
+  function rgbToHsl({ r, g, b }) {
+    const rr = r / 255;
+    const gg = g / 255;
+    const bb = b / 255;
+    const max = Math.max(rr, gg, bb);
+    const min = Math.min(rr, gg, bb);
+    let h = 0;
+    let s = 0;
+    const l = (max + min) / 2;
+
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === rr) h = ((gg - bb) / d) + (gg < bb ? 6 : 0);
+      else if (max === gg) h = ((bb - rr) / d) + 2;
+      else h = ((rr - gg) / d) + 4;
+      h /= 6;
+    }
+
+    return { h: h * 360, s: s * 100, l: l * 100 };
+  }
+
+  function categoryPalette(color) {
+    const source = normalizeHexColor(color);
+    const hsl = rgbToHsl(hexToRgb(source));
+    const chromatic = hsl.s >= 8;
+    const hue = chromatic ? hsl.h : 220;
+    const accentS = chromatic ? Math.min(92, Math.max(60, hsl.s)) : 12;
+    const accentL = chromatic ? Math.min(72, Math.max(60, hsl.l)) : 72;
+    const panelS = chromatic ? Math.min(32, Math.max(18, hsl.s * 0.34)) : 8;
+
+    return {
+      source,
+      accent: `hsl(${hue.toFixed(1)} ${accentS.toFixed(1)}% ${accentL.toFixed(1)}%)`,
+      panel: `hsl(${hue.toFixed(1)} ${panelS.toFixed(1)}% 11.2%)`,
+      panelAlt: `hsl(${hue.toFixed(1)} ${Math.min(38, panelS + 5).toFixed(1)}% 14.2%)`,
+      surface: `hsl(${hue.toFixed(1)} ${Math.min(42, panelS + 7).toFixed(1)}% 17%)`,
+      border: `hsla(${hue.toFixed(1)}, ${Math.min(54, panelS + 14).toFixed(1)}%, 58%, .24)`,
+      glow: `hsla(${hue.toFixed(1)}, ${accentS.toFixed(1)}%, ${accentL.toFixed(1)}%, .13)`
+    };
+  }
+
   function localDateKey(date = new Date()) {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -229,7 +300,13 @@
   }
 
   function uncategorizedCategory() {
-    return { id: UNCATEGORIZED_ID, name: 'Uncategorized', icon: '•', focus: 0 };
+    return {
+      id: UNCATEGORIZED_ID,
+      name: 'Uncategorized',
+      icon: '•',
+      focus: 0,
+      color: DEFAULT_CATEGORY_COLORS.uncategorized
+    };
   }
 
   function ensureUncategorizedCategory(categories) {
@@ -260,7 +337,8 @@
         id,
         name: String(category?.name || `Category ${index + 1}`).slice(0, 80),
         icon: String(category?.icon || '•').slice(0, 24),
-        focus: clampNumber(category?.focus, 0.25, 10, 1)
+        focus: clampNumber(category?.focus, 0.25, 10, 1),
+        color: normalizeHexColor(category?.color, fallbackCategoryColor(id, index))
       });
     });
     next.settings.categories = ensureUncategorizedCategory(categories);
@@ -935,10 +1013,10 @@
     render();
   }
 
-  function categoryColor(categoryId, index = 0) {
-    if (CATEGORY_COLORS[categoryId]) return CATEGORY_COLORS[categoryId];
-    const fallbacks = ['#69d5ff', '#d37cff', '#e9d96b', '#ff7daf', '#8fd56a', '#65cfc8'];
-    return fallbacks[index % fallbacks.length];
+  function categoryColor(category, index = 0) {
+    if (!category) return fallbackCategoryColor('', index);
+    if (category.id === UNCATEGORIZED_ID) return DEFAULT_CATEGORY_COLORS.uncategorized;
+    return normalizeHexColor(category.color, fallbackCategoryColor(category.id, index));
   }
 
   function getDominantCategory(summary) {
@@ -1676,9 +1754,16 @@
       const usedBase = summary.categoryBaseXp[category.id] || 0;
       const earnedXp = summary.categoryXp[category.id] || 0;
       const efficiency = getCategoryEfficiency(category.id, usedBase);
-      const color = categoryColor(category.id, index);
+      const color = categoryColor(category, index);
+      const palette = categoryPalette(color);
 
-      card.style.setProperty('--category-color', color);
+      card.style.setProperty('--category-color', palette.accent);
+      card.style.setProperty('--category-source', palette.source);
+      card.style.setProperty('--category-panel', palette.panel);
+      card.style.setProperty('--category-panel-alt', palette.panelAlt);
+      card.style.setProperty('--category-surface', palette.surface);
+      card.style.setProperty('--category-border', palette.border);
+      card.style.setProperty('--category-glow', palette.glow);
       card.dataset.categoryId = category.id;
       if (category.id === UNCATEGORIZED_ID) card.classList.add('is-fallback-category');
 
@@ -1891,6 +1976,12 @@
     settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
     els.goalInput.value = settingsDraft.goal;
     els.settingsMessage.textContent = '';
+    if (els.newCategoryColor) {
+      const customCount = settingsDraft.categories.filter(
+        category => category.id !== UNCATEGORIZED_ID && !DEFAULT_CATEGORY_COLORS[category.id]
+      ).length;
+      els.newCategoryColor.value = CUSTOM_CATEGORY_COLORS[customCount % CUSTOM_CATEGORY_COLORS.length];
+    }
     updateGoalRampPreview();
     renderCategoriesEditor();
     renderActionsEditor();
@@ -1992,6 +2083,19 @@
       });
       focusLabel.append(focusInput);
 
+      const colorLabel = document.createElement('label');
+      colorLabel.className = 'category-color-field';
+      colorLabel.innerHTML = '<span>Color</span>';
+      const colorInput = document.createElement('input');
+      colorInput.type = 'color';
+      colorInput.value = categoryColor(category);
+      colorInput.setAttribute('aria-label', `Color for ${category.name}`);
+      colorInput.addEventListener('input', () => {
+        category.color = normalizeHexColor(colorInput.value, category.color);
+        row.style.setProperty('--editor-category-color', category.color);
+      });
+      colorLabel.append(colorInput);
+
       const band = document.createElement('div');
       band.className = 'category-band-preview';
       band.textContent = previewBandText(category);
@@ -2016,7 +2120,8 @@
           : 'Category removed.';
       });
 
-      grid.append(nameLabel, iconLabel, focusLabel, band, remove);
+      row.style.setProperty('--editor-category-color', categoryColor(category));
+      grid.append(nameLabel, iconLabel, focusLabel, colorLabel, band, remove);
       row.append(grid);
       els.categoriesEditor.append(row);
     });
@@ -2144,6 +2249,10 @@
     const name = els.newCategoryName.value.trim();
     const icon = els.newCategoryIcon.value.trim() || '•';
     const focus = clampNumber(els.newCategoryFocus.value, 0.25, 10, 1);
+    const color = normalizeHexColor(
+      els.newCategoryColor?.value,
+      CUSTOM_CATEGORY_COLORS[settingsDraft.categories.length % CUSTOM_CATEGORY_COLORS.length]
+    );
 
     if (!name) {
       els.settingsMessage.textContent = 'Give the category a name first.';
@@ -2162,13 +2271,19 @@
       return;
     }
 
-    const category = { id: makeId('category'), name, icon, focus };
+    const category = { id: makeId('category'), name, icon, focus, color };
     const fallbackIndex = settingsDraft.categories.findIndex(item => item.id === UNCATEGORIZED_ID);
     settingsDraft.categories.splice(fallbackIndex < 0 ? settingsDraft.categories.length : fallbackIndex, 0, category);
 
     els.newCategoryName.value = '';
     els.newCategoryIcon.value = '';
     els.newCategoryFocus.value = '1';
+    if (els.newCategoryColor) {
+      const customCount = settingsDraft.categories.filter(
+        item => item.id !== UNCATEGORIZED_ID && !DEFAULT_CATEGORY_COLORS[item.id]
+      ).length;
+      els.newCategoryColor.value = CUSTOM_CATEGORY_COLORS[customCount % CUSTOM_CATEGORY_COLORS.length];
+    }
 
     renderCategoriesEditor();
     renderActionsEditor();
