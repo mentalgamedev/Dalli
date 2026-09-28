@@ -2265,3 +2265,123 @@ body {
     max-width: none;
   }
 }
+
+
+/* -------------------------------------------------------------------------- */
+/* MoLife action ordering v3.8                                                */
+/* -------------------------------------------------------------------------- */
+
+.action-settings-head {
+  align-items: flex-end;
+}
+
+.action-sort-control {
+  flex: 0 0 auto;
+  min-width: 150px;
+}
+
+.action-sort-control > span {
+  display: block;
+  margin: 0 0 5px 2px;
+  color: var(--muted);
+  font-size: .67rem;
+}
+
+.action-sort-control select {
+  width: 100%;
+  min-width: 150px;
+}
+
+.action-editor-row {
+  --category-panel: var(--panel);
+  --category-panel-alt: var(--panel-2);
+  --category-surface: #1a2029;
+  --category-border: rgba(255,255,255,.09);
+  --category-glow: rgba(122,108,255,.10);
+  position: relative;
+  padding: 12px 12px 12px 48px;
+  border-color: var(--category-border);
+  background:
+    radial-gradient(circle at 100% 0, var(--category-glow), transparent 10rem),
+    linear-gradient(135deg, color-mix(in srgb, var(--category-color) 5%, transparent), transparent 65%),
+    var(--category-panel-alt);
+  transition:
+    transform .14s ease,
+    border-color .14s ease,
+    box-shadow .14s ease,
+    opacity .14s ease;
+}
+
+.action-editor-row.is-track-hidden {
+  opacity: .58;
+}
+
+.action-editor-row.is-dragging {
+  z-index: 8;
+  opacity: .94;
+  border-color: color-mix(in srgb, var(--category-color) 48%, rgba(255,255,255,.12));
+  box-shadow:
+    0 16px 38px rgba(0,0,0,.38),
+    0 0 0 1px color-mix(in srgb, var(--category-color) 20%, transparent);
+  transform: scale(1.012);
+}
+
+.action-drag-handle {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  width: 28px;
+  height: 46px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 1px solid color-mix(in srgb, var(--category-color) 20%, rgba(255,255,255,.07));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--category-color) 7%, rgba(255,255,255,.03));
+  color: color-mix(in srgb, var(--category-color) 76%, white 24%);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  font-size: .8rem;
+  font-weight: 900;
+  letter-spacing: -.18em;
+  line-height: 1;
+}
+
+.action-drag-handle:hover {
+  background: color-mix(in srgb, var(--category-color) 13%, rgba(255,255,255,.05));
+}
+
+.action-drag-handle:active,
+.is-reordering-actions .action-drag-handle {
+  cursor: grabbing;
+}
+
+.is-reordering-actions {
+  user-select: none;
+}
+
+@media (max-width: 760px) {
+  .action-settings-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .action-sort-control {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .action-sort-control select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .action-editor-row {
+    padding-left: 48px;
+  }
+
+  .action-drag-handle {
+    top: 13px;
+    transform: none;
+  }
+}
