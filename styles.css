@@ -480,3 +480,200 @@ input, select {
     margin-left: 0;
   }
 }
+
+
+/* Friendly account flow */
+.account-button-secondary {
+  background: transparent;
+  color: var(--muted);
+}
+
+.account-button:disabled,
+.primary-button:disabled,
+.secondary-button:disabled,
+.danger-button:disabled,
+.small-button:disabled {
+  opacity: .5;
+  cursor: default;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: rgba(255,255,255,.025);
+}
+
+.auth-tab {
+  min-height: 38px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.auth-tab.is-active {
+  background: rgba(122,108,255,.16);
+  color: var(--text);
+}
+
+.remember-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted);
+  font-size: .8rem;
+  cursor: pointer;
+}
+
+.remember-row input {
+  width: 17px;
+  height: 17px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.account-dialog {
+  width: min(500px, calc(100% - 24px));
+}
+
+.invite-section {
+  display: grid;
+  gap: 11px;
+  margin-top: 2px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(255,255,255,.025);
+}
+
+.invite-section h3 {
+  font-size: .95rem;
+}
+
+.invite-section p {
+  margin-bottom: 0;
+  font-size: .78rem;
+}
+
+.invite-section > .secondary-button {
+  width: fit-content;
+  margin-top: 0;
+}
+
+.generated-invite {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.generated-invite[hidden] {
+  display: none;
+}
+
+.generated-invite input {
+  width: 100%;
+  min-width: 0;
+  font-size: .76rem;
+}
+
+.generated-invite .secondary-button {
+  margin-top: 0;
+}
+
+.generated-invite small {
+  grid-column: 1 / -1;
+}
+
+.invite-list {
+  display: grid;
+  gap: 7px;
+}
+
+.invite-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(255,255,255,.055);
+}
+
+.invite-row-copy {
+  min-width: 0;
+}
+
+.invite-row-copy strong,
+.invite-row-copy span {
+  display: block;
+}
+
+.invite-row-copy strong {
+  font-size: .8rem;
+}
+
+.invite-row-copy span {
+  margin-top: 2px;
+  font-size: .7rem;
+}
+
+.small-button,
+.danger-button {
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.small-button {
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid rgba(255,255,255,.09);
+  background: rgba(255,255,255,.04);
+  color: var(--muted);
+}
+
+.small-button:hover {
+  background: rgba(255,255,255,.075);
+  color: var(--text);
+}
+
+.danger-button {
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255,109,122,.20);
+  background: rgba(255,109,122,.08);
+  color: #ff9da7;
+}
+
+.danger-button:hover {
+  background: rgba(255,109,122,.14);
+}
+
+@media (max-width: 620px) {
+  .account-zone {
+    flex-wrap: wrap;
+  }
+
+  .account-zone .sync-status {
+    margin-right: auto;
+  }
+
+  .generated-invite {
+    grid-template-columns: 1fr;
+  }
+
+  .generated-invite .secondary-button {
+    width: 100%;
+  }
+
+  .invite-row {
+    align-items: flex-start;
+  }
+}
