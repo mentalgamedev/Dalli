@@ -71,6 +71,7 @@
 
   const els = {
     todayLabel: document.querySelector('#todayLabel'),
+    newswireMessage: document.querySelector('#newswireMessage'),
     totalXp: document.querySelector('#totalXp'),
     goalXp: document.querySelector('#goalXp'),
     statusBadge: document.querySelector('#statusBadge'),
@@ -128,6 +129,12 @@
   let state = loadState();
   let settingsDraft = null;
   let wasVictory = false;
+  let newswireMessages = [];
+  let newswireIndex = 0;
+  let newswireSignature = '';
+  let newswireTimer = null;
+  let dayCardTimer = null;
+  const categoryScrollPositions = new Map();
 
   function deepClone(value) {
     return JSON.parse(JSON.stringify(value));
@@ -799,7 +806,7 @@
     state.progression.lifetimeXp += reward.effectiveXp;
     const justCleared = finalizeClearIfNeeded();
     saveState();
-    render({ showDayCard: justCleared });
+    render({ showDayCard: justCleared, justCleared });
   }
 
   function undoTransaction(transactionId) {
@@ -819,6 +826,184 @@
     return fallbacks[index % fallbacks.length];
   }
 
+  function getDominantCategory(summary) {
+    return state.settings.categories
+      .filter(category => category.id !== UNCATEGORIZED_ID)
+      .map(category => ({
+        ...category,
+        baseXp: summary.categoryBaseXp[category.id] || 0
+      }))
+      .sort((a, b) => b.baseXp - a.baseXp)[0] || null;
+  }
+
+  function getNewswireMessages(summary) {
+    const messages = [];
+    const goal = state.settings.goal;
+    const remaining = Math.max(0, goal - summary.totalXp);
+    const ratio = summary.totalXp / Math.max(1, goal);
+    const cred = getStreetCred();
+    const rank = getRank(cred);
+    const streak = getCurrentStreak();
+    const best = Math.max(state.progression.bestStreak, streak);
+    const yesterdayKey = addDays(localDateKey(), -1);
+    const yesterday = state.history.find(day => day.date === yesterdayKey);
+    const dominant = getDominantCategory(summary);
+    const hour = new Date().getHours();
+
+    if (summary.isVictory) {
+      messages.push(
+        'FINE. YOU DID IT.',
+        'DAILY TARGET CLEARED; NEWSROOM FORCED TO RETRACT EARLIER COMMENTS',
+        'MO.LIFE CONFIRMS USER WAS, AGAINST EXPECTATIONS, PRODUCTIVE',
+        `${summary.totalXp} XP RECORDED; EXCUSES DEPARTMENT CLOSED FOR THE DAY`
+      );
+
+      if (streak >= 3) {
+        messages.push(`${streak}-DAY STREAK CONTINUES; SITUATION NOW TOO EXPENSIVE TO ABANDON`);
+      }
+
+      if (rank.name !== 'Nobody') {
+        messages.push(`STREET CRED OFFICE RELUCTANTLY CONFIRMS ${rank.name.toUpperCase()} STATUS`);
+      }
+    } else if (summary.totalXp === 0) {
+      messages.push(
+        'BREAKING: DAILY PRODUCTIVITY REMAINS ENTIRELY THEORETICAL',
+        'USER HAS OPENED MOLIFE. FURTHER ACTION UNCONFIRMED.',
+        'STREET CRED OFFICIALS REPORT NO NEW EVIDENCE AT THIS TIME',
+        'TRACK-O-TRON STANDING BY. IT CANNOT, LEGALLY, DO THE TASKS FOR YOU.'
+      );
+
+      if (hour >= 18) {
+        messages.push('EVENING UPDATE: ZERO XP CONTINUES ITS UNPRECEDENTED RUN');
+      }
+    } else if (ratio < 0.25) {
+      messages.push(
+        `CITIZEN EARNS ${summary.totalXp} XP, IMMEDIATELY EXPECTS RECOGNITION`,
+        `PRODUCTIVITY INCREASES FROM “NONE” TO “TECHNICALLY SOME”`,
+        `${remaining} XP STILL MISSING; AUTHORITIES DESCRIBE PROGRESS AS ADORABLE`
+      );
+    } else if (ratio < 0.5) {
+      messages.push(
+        `DAILY TARGET NOW ${Math.round(ratio * 100)}% COMPLETE; CONFIDENCE REMAINS UNAUTHORIZED`,
+        `${remaining} XP REMAIN. NEWSROOM ADVISES AGAINST PREMATURE CELEBRATION`,
+        'PRODUCTIVITY DETECTED. EXPERTS CAUTION AGAINST CALLING IT A HABIT.'
+      );
+    } else if (ratio < 0.75) {
+      messages.push(
+        'DEVELOPING: FINISHING TODAY HAS BECOME AN EMBARRASSINGLY REALISTIC POSSIBILITY',
+        `${remaining} XP REMAIN; LOCAL EXCUSES BEGIN LOSING CREDIBILITY`,
+        `USER CROSSES HALFWAY MARK, NOW PERSONALLY RESPONSIBLE FOR WHAT HAPPENS NEXT`
+      );
+    } else {
+      messages.push(
+        `ONLY ${remaining} XP REMAIN. EXCUSES DEPARTMENT RUNNING OUT OF OPTIONS.`,
+        'NEWSROOM PREPARES RELUCTANT “YOU DID IT” GRAPHIC',
+        `DAILY TARGET WITHIN REACH; ABANDONING NOW WOULD REQUIRE EXPLANATION`
+      );
+    }
+
+    if (!summary.isVictory && hour >= 22) {
+      messages.push('LATE BULLETIN: THE GOAL HAS NOT GONE TO BED JUST BECAUSE YOU WANT TO');
+    }
+
+    if (yesterday) {
+      messages.push(
+        yesterday.won
+          ? 'ARCHIVES CONFIRM YESTERDAY WAS PRODUCTIVE. TODAY HAS BEEN INFORMED.'
+          : 'ARCHIVES CONFIRM YESTERDAY WAS MOSTLY A CONCEPT'
+      );
+    }
+
+    if (streak >= 7) {
+      messages.push(`LOCAL OVERACHIEVER'S ${streak}-DAY STREAK ENTERS “THIS IS GETTING PERSONAL” TERRITORY`);
+    } else if (!streak && best >= 7) {
+      messages.push(`FORMER ${best}-DAY STREAK NOW PRESERVED IN MUSEUM CONDITIONS`);
+    }
+
+    if (cred === 0) {
+      messages.push('STREET CRED REMAINS WITHIN LEGAL DEFINITION OF “NONE”');
+    } else if (rank.next) {
+      messages.push(`${rank.name.toUpperCase()} STATUS ACTIVE; ${Math.max(0, rank.next.min - cred)} MORE CLEARED DAYS TO NEXT BAD DECISION`);
+    } else {
+      messages.push('HEAD HONCHO STATUS CONFIRMED; POWER APPEARS TO HAVE GONE TO USER’S HEAD');
+    }
+
+    if (dominant && dominant.baseXp > 0) {
+      const efficiency = getCategoryEfficiency(dominant.id, dominant.baseXp);
+      if (efficiency.multiplier <= 0.6) {
+        messages.push(`TRACK-O-TRON REPORTS ${dominant.name.toUpperCase()} SATURATION; OTHER PARTS OF LIFE STILL AVAILABLE`);
+      } else if (summary.totalXp > 0) {
+        messages.push(`${dominant.name.toUpperCase()} CURRENTLY LEADS LOCAL XP MARKETS`);
+      }
+    }
+
+    const level = getLevelProgress();
+    if (level.level >= 2) {
+      messages.push(`LEVEL ${level.level} CITIZEN STILL RECEIVES NO ADDITIONAL SALARY OR PARKING PRIVILEGES`);
+    }
+
+    messages.push(
+      'MO.LES.TECH DENIES REPORTS THAT EMPLOYEES REQUIRE SLEEP',
+      'CITY COUNCIL ANNOUNCES NEW INITIATIVE TO ANNOUNCE MORE INITIATIVES'
+    );
+
+    return [...new Set(messages)];
+  }
+
+  function showNewswireMessage(message) {
+    if (!els.newswireMessage || !message) return;
+
+    els.newswireMessage.textContent = message;
+    els.newswireMessage.title = message;
+    els.newswireMessage.classList.remove('newswire-swap');
+    void els.newswireMessage.offsetWidth;
+    els.newswireMessage.classList.add('newswire-swap');
+  }
+
+  function refreshNewswire(summary, specialMessage = '') {
+    const messages = getNewswireMessages(summary);
+    const signature = JSON.stringify(messages);
+
+    if (signature !== newswireSignature) {
+      newswireSignature = signature;
+      newswireMessages = messages;
+      newswireIndex = messages.length
+        ? stringHash(`${state.current.date}|${summary.totalXp}|${state.history.length}`) % messages.length
+        : 0;
+    }
+
+    if (specialMessage) {
+      showNewswireMessage(specialMessage);
+      return;
+    }
+
+    if (newswireMessages.length) {
+      showNewswireMessage(newswireMessages[newswireIndex]);
+    }
+  }
+
+  function startNewswireRotation() {
+    if (newswireTimer) return;
+
+    newswireTimer = window.setInterval(() => {
+      if (document.hidden || !newswireMessages.length) return;
+      newswireIndex = (newswireIndex + 1) % newswireMessages.length;
+      showNewswireMessage(newswireMessages[newswireIndex]);
+    }, 12000);
+  }
+
+  function updateActionDeckState(deck, list) {
+    if (!deck || !list) return;
+
+    const overflow = list.scrollHeight > list.clientHeight + 2;
+    const atTop = list.scrollTop <= 2;
+    const atBottom = list.scrollTop + list.clientHeight >= list.scrollHeight - 2;
+
+    deck.classList.toggle('is-scrollable', overflow);
+    deck.classList.toggle('can-scroll-up', overflow && !atTop);
+    deck.classList.toggle('can-scroll-down', overflow && !atBottom);
+  }
+
   function render(options = {}) {
     ensureToday();
     const summary = getSummary();
@@ -829,6 +1014,11 @@
     renderLog();
     renderHistory();
 
+    refreshNewswire(
+      summary,
+      options.justCleared ? '…WE HAVE RECEIVED UPDATED INFORMATION. FINE. YOU DID IT.' : ''
+    );
+
     if (summary.isVictory && !wasVictory) {
       els.victoryBanner.classList.remove('victory-pop');
       requestAnimationFrame(() => els.victoryBanner.classList.add('victory-pop'));
@@ -837,7 +1027,16 @@
     wasVictory = summary.isVictory;
 
     if (options.showDayCard && state.current.dayCard) {
-      requestAnimationFrame(() => openDayCard(state.current.dayCard));
+      window.clearTimeout(dayCardTimer);
+      document.body.classList.remove('day-cleared-flash');
+      void document.body.offsetWidth;
+      document.body.classList.add('day-cleared-flash');
+
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      dayCardTimer = window.setTimeout(() => {
+        document.body.classList.remove('day-cleared-flash');
+        openDayCard(state.current.dayCard);
+      }, reducedMotion ? 0 : 850);
     }
   }
 
@@ -919,6 +1118,7 @@
       const efficiencyValue = fragment.querySelector('.efficiency-value');
       const fill = fragment.querySelector('.category-meter-fill');
       const next = fragment.querySelector('.efficiency-next');
+      const actionDeck = fragment.querySelector('.action-deck');
       const actionsList = fragment.querySelector('.actions-list');
 
       const usedBase = summary.categoryBaseXp[category.id] || 0;
@@ -927,6 +1127,7 @@
       const color = categoryColor(category.id, index);
 
       card.style.setProperty('--category-color', color);
+      card.dataset.categoryId = category.id;
       if (category.id === UNCATEGORIZED_ID) card.classList.add('is-fallback-category');
 
       icon.textContent = category.icon;
@@ -994,7 +1195,17 @@
         });
       }
 
+      actionsList.addEventListener('scroll', () => {
+        categoryScrollPositions.set(category.id, actionsList.scrollTop);
+        updateActionDeckState(actionDeck, actionsList);
+      }, { passive: true });
+
       els.categoriesGrid.append(fragment);
+
+      requestAnimationFrame(() => {
+        actionsList.scrollTop = categoryScrollPositions.get(category.id) || 0;
+        updateActionDeckState(actionDeck, actionsList);
+      });
     });
   }
 
@@ -1508,4 +1719,5 @@
 
   ensureToday();
   render();
+  startNewswireRotation();
 })();
