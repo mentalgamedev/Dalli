@@ -137,6 +137,12 @@ function dalli_require_same_origin(): void
         }
     }
 
+    // Modern browsers provide Sec-Fetch-Site even when privacy settings suppress
+    // Origin/Referer. Accept only an explicit same-origin browser signal.
+    if ($fetchSite === 'same-origin') {
+        return;
+    }
+
     dalli_fail('Request origin could not be verified.', 403);
 }
 

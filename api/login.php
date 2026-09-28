@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__ . '/bootstrap.php';
+require __DIR__ . '/auth-store.php';
 
 dalli_require_method('POST');
 dalli_require_same_origin();
@@ -8,6 +9,7 @@ dalli_require_same_origin();
 $body = dalli_read_json_body();
 $username = trim((string) ($body['username'] ?? ''));
 $password = (string) ($body['password'] ?? '');
+$remember = ($body['remember'] ?? true) !== false;
 
 if (strlen($username) < 1 || strlen($username) > 64 || strlen($password) < 1 || strlen($password) > 200) {
     dalli_fail('Invalid username or password.', 401);
@@ -40,17 +42,29 @@ if (password_needs_rehash($hash, PASSWORD_DEFAULT)) {
     }
 }
 
-session_regenerate_id(true);
-$_SESSION['user_id'] = (int) $user['id'];
-$_SESSION['username'] = (string) $user['username'];
-$_SESSION['csrf'] = bin2hex(random_bytes(32));
+$userPayload = dalli_start_user_session(
+    $pdo,
+    (int) $user['id'],
+    (string) $user['username']
+);
+
+$remembered = false;
+try {
+    if ($remember) {
+        dalli_issue_remember($pdo, (int) $user['id']);
+        $remembered = true;
+    } else {
+        dalli_revoke_current_remember($pdo);
+    }
+} catch (Throwable $e) {
+    error_log('Dalli persistent login setup failed: ' . $e->getMessage());
+    dalli_clear_remember_cookie();
+}
 
 dalli_json_response([
     'ok' => true,
     'authenticated' => true,
-    'user' => [
-        'id' => (int) $user['id'],
-        'username' => (string) $user['username'],
-    ],
+    'user' => $userPayload,
     'csrfToken' => $_SESSION['csrf'],
+    'remembered' => $remembered,
 ]);

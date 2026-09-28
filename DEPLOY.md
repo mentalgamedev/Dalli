@@ -1,4 +1,4 @@
-# Dalli V2 deployment on lima-city
+# Dalli deployment on lima-city
 
 The public Dalli site is expected to live at:
 
@@ -6,29 +6,28 @@ The public Dalli site is expected to live at:
 apps/dalli/
 ```
 
-and the real secret configuration must live **outside** that public directory:
+The real secret configuration lives outside that public directory:
 
 ```
 apps/dalli-config.php
 ```
 
-Do not put real database credentials in this GitHub repository.
+Do not put real database credentials in GitHub.
 
-## 1. Upload the public files
+## 1. Upload the public app
 
 Upload the repository contents into `apps/dalli/`.
 
-The important new files are:
+Important files include:
 
 - `api/`
 - `cloud.js`
-- `setup.php`
 - `.htaccess`
 - `.user.ini`
 
-Do **not** upload `config.example.php` as the live configuration.
+The old `setup.php` account-creation page is no longer used and should not exist on the server.
 
-## 2. Create the private configuration
+## 2. Private configuration
 
 Copy the structure from `config.example.php` into:
 
@@ -43,80 +42,123 @@ Fill in:
 - the dedicated restricted Dalli database username
 - its password
 - `https://dalli.mentalgrounds.com` as the app origin
+- one long random owner setup token
 
-Use a long random `setup_token` temporarily.
-
-The repository's PHP code intentionally resolves the configuration with:
-
-```
-dirname(Dalli public root) / dalli-config.php
-```
-
-so the password is not web-addressable.
-
-## 3. Create the first account
-
-With a temporary `setup_token` configured, open:
-
-```
-https://dalli.mentalgrounds.com/setup.php
-```
-
-Enter:
-
-- the setup token
-- a username
-- a password of at least 12 characters
-
-The password is hashed server-side with PHP `password_hash(PASSWORD_DEFAULT)` before it is written to MySQL.
-
-Immediately after account creation, edit `apps/dalli-config.php` and set:
+Example shape:
 
 ```php
-'setup_token' => '',
+<?php
+declare(strict_types=1);
+
+if (realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__) {
+    http_response_code(404);
+    exit;
+}
+
+return [
+    'database' => [
+        'host' => 'YOUR_LIMA_DB_HOST',
+        'name' => 'db_430902_10',
+        'user' => 'YOUR_RESTRICTED_DALLI_DB_USER',
+        'password' => 'YOUR_DATABASE_PASSWORD',
+    ],
+    'app' => [
+        'origin' => 'https://dalli.mentalgrounds.com',
+        'owner_setup_token' => 'A_LONG_RANDOM_SECRET',
+    ],
+];
 ```
 
-With an empty token, `setup.php` returns 404 and cannot create accounts.
+The code also accepts the older `setup_token` key for compatibility, so an existing private config does not have to be changed immediately.
 
-To create another private account later, temporarily set a new random setup token, create the account, then clear the token again.
+## 3. Create the owner account
 
-## 4. Sign in
+Open Dalli normally.
 
-Open Dalli normally and use the **Sign in** button.
+If the database has no users yet, **Create account** becomes the owner-account flow. Enter:
 
-On the first login to an empty account, Dalli asks whether to import the current local Dalli state or start fresh.
+- username
+- password
+- the private owner setup code
 
-Each account has:
+That first account automatically becomes the Dalli owner.
 
-- its own actions
-- its own categories and weights
-- its own daily target
-- its own XP log and history
+No database row needs to be inserted manually.
+
+After the owner exists, the owner setup token is ignored by registration. It can remain in the private config, though clearing it afterwards is harmless if preferred.
+
+## 4. Invite another person
+
+While signed in as the owner:
+
+1. Open the Account screen.
+2. Select **Create invite link**.
+3. Copy the generated link and send it to the person.
+
+The link:
+
+- works once
+- expires after 7 days
+- contains its secret after `#invite=`, so the secret is not sent to the web server in the initial HTTP request
+
+Opening the link takes the person directly to the Create account flow. They only choose a username and password.
+
+No PHP editing, database editing or setup-token rotation is needed.
+
+## 5. Staying signed in
+
+**Stay signed in on this device** is enabled by default.
+
+When enabled, Dalli creates a random 30-day persistent token:
+
+- the raw validator stays only in the Secure + HttpOnly browser cookie
+- MySQL stores only its SHA-256 hash
+- each browser/device gets a separate token
+- the token rotates when it restores a session
+- signing out revokes the current device token
+
+Passwords are never stored in browser storage.
+
+## Existing local Dalli data
+
+When an account has no cloud state yet, Dalli checks whether the current browser has meaningful local Dalli data.
+
+- If it does, Dalli asks whether to import it.
+- If it does not, the account simply starts with the default setup.
+
+## Database schema
+
+The existing two tables are sufficient:
+
+- `users`
+- `user_state`
+
+The account/invite upgrade does **not** require an SQL migration. Authentication metadata is kept in a server-only envelope inside `user_state.state_json`, while the browser still sees only the normal Dalli app state.
+
+The permanent Dalli DB user can therefore remain read/write only with no schema-changing permissions.
 
 ## Security model
 
-The V2 backend deliberately has a small attack surface:
-
-- no public registration
-- no password-reset system
-- no email
+- no unrestricted public registration
+- owner-only invitation creation
+- single-use expiring invites
 - no uploads
+- no email/password-reset attack surface
 - no third-party PHP packages
-- PDO prepared statements only
+- PDO prepared statements
 - server-side PHP sessions
-- Secure + HttpOnly + SameSite=Strict session cookies
+- Secure + HttpOnly + SameSite=Strict cookies
 - session ID regeneration after login
-- CSRF tokens on authenticated writes
-- same-origin validation on state-changing requests
+- CSRF protection on authenticated writes
+- same-origin validation
 - per-IP/per-username login throttling
-- strict server-side validation and a 256 KiB state limit
-- optimistic revision checks so stale devices cannot silently overwrite newer cloud data
-- API responses are never cached by the service worker
-- configuration is expected outside the public document root
-- restrictive browser security headers in `.htaccess`
-
-The Dalli database user should remain limited to the Dalli database and should not have schema-changing privileges.
+- per-IP registration throttling
+- strict server-side state validation and payload limits
+- optimistic revision checking for multi-device state
+- API data never cached by the service worker
+- private config outside the public document root
+- restrictive browser security headers
 
 ## If the backend is unavailable
 
-The browser copy still writes to local storage. When signed out, Dalli works as a local-only app. When signed in and the server becomes temporarily unreachable, changes remain local and Dalli retries cloud saving.
+Dalli still keeps a local browser copy. Guest/local mode continues to work, and signed-in changes can remain local until the backend becomes reachable again.

@@ -1,4 +1,4 @@
-const CACHE = 'dalli-v2-0';
+const CACHE = 'dalli-v2-1';
 const ASSETS = [
   './',
   './index.html',
@@ -31,7 +31,7 @@ self.addEventListener('fetch', event => {
   if (url.origin !== self.location.origin) return;
 
   // Authentication and user state must never enter the service-worker cache.
-  if (url.pathname.includes('/api/') || url.pathname.endsWith('/setup.php')) {
+  if (url.pathname.includes('/api/')) {
     return;
   }
 
