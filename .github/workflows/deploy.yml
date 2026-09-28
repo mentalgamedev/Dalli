@@ -97,18 +97,18 @@ jobs:
             exit 1
           fi
 
-          lftp -u "${LIMA_FTP_USER}","${LIMA_FTP_PASSWORD}" "ftp://${LIMA_FTP_HOST}" <<LFTP
-          set cmd:fail-exit yes
-          set ftp:ssl-force yes
-          set ftp:ssl-protect-data yes
-          set ssl:verify-certificate yes
-          set net:max-retries 2
-          set net:timeout 20
-          set net:reconnect-interval-base 5
-          mkdir -p ${REMOTE_DIR}
-          mirror --reverse --delete --verbose --parallel=4 --no-perms _deploy/ ${REMOTE_DIR}/
-          bye
-LFTP
+          lftp -u "${LIMA_FTP_USER}","${LIMA_FTP_PASSWORD}" "ftp://${LIMA_FTP_HOST}" -e "
+            set cmd:fail-exit yes;
+            set ftp:ssl-force yes;
+            set ftp:ssl-protect-data yes;
+            set ssl:verify-certificate yes;
+            set net:max-retries 2;
+            set net:timeout 20;
+            set net:reconnect-interval-base 5;
+            mkdir -p ${REMOTE_DIR};
+            mirror --reverse --delete --verbose --parallel=4 --no-perms _deploy/ ${REMOTE_DIR}/;
+            bye;
+          "
 
       - name: Deployment summary
         if: steps.preflight.outputs.configured == 'true'
