@@ -144,6 +144,7 @@
     newCategoryColor: document.querySelector('#newCategoryColor'),
     addCategoryButton: document.querySelector('#addCategoryButton'),
     actionsEditor: document.querySelector('#actionsEditor'),
+    actionSortSelect: document.querySelector('#actionSortSelect'),
     newActionName: document.querySelector('#newActionName'),
     newActionCategory: document.querySelector('#newActionCategory'),
     newActionXp: document.querySelector('#newActionXp'),
@@ -170,6 +171,7 @@
   let dayCardTimer = null;
   let settingsSaveTimer = null;
   let settingsTriggeredClear = false;
+  let actionDrag = null;
   const categoryScrollPositions = new Map();
 
   const MOTION_PREF_KEY = 'molife.motionFx.v1';
@@ -1022,6 +1024,19 @@
     return normalizeHexColor(category.color, fallbackCategoryColor(category.id, index));
   }
 
+  function applyCategoryPaletteVars(element, category, index = 0) {
+    if (!element) return;
+    const palette = categoryPalette(categoryColor(category, index));
+    element.style.setProperty('--category-color', palette.accent);
+    element.style.setProperty('--category-source', palette.source);
+    element.style.setProperty('--category-panel', palette.panel);
+    element.style.setProperty('--category-panel-alt', palette.panelAlt);
+    element.style.setProperty('--category-surface', palette.surface);
+    element.style.setProperty('--category-border', palette.border);
+    element.style.setProperty('--category-glow', palette.glow);
+  }
+
+
   function getDominantCategory(summary) {
     return state.settings.categories
       .filter(category => category.id !== UNCATEGORIZED_ID)
@@ -1757,16 +1772,7 @@
       const usedBase = summary.categoryBaseXp[category.id] || 0;
       const earnedXp = summary.categoryXp[category.id] || 0;
       const efficiency = getCategoryEfficiency(category.id, usedBase);
-      const color = categoryColor(category, index);
-      const palette = categoryPalette(color);
-
-      card.style.setProperty('--category-color', palette.accent);
-      card.style.setProperty('--category-source', palette.source);
-      card.style.setProperty('--category-panel', palette.panel);
-      card.style.setProperty('--category-panel-alt', palette.panelAlt);
-      card.style.setProperty('--category-surface', palette.surface);
-      card.style.setProperty('--category-border', palette.border);
-      card.style.setProperty('--category-glow', palette.glow);
+      applyCategoryPaletteVars(card, category, index);
       card.dataset.categoryId = category.id;
       if (category.id === UNCATEGORIZED_ID) card.classList.add('is-fallback-category');
 
@@ -2097,6 +2103,7 @@
       colorInput.addEventListener('input', () => {
         category.color = normalizeHexColor(colorInput.value, category.color);
         row.style.setProperty('--editor-category-color', category.color);
+        renderActionsEditor();
       });
       colorLabel.append(colorInput);
 
@@ -2132,12 +2139,165 @@
     });
   }
 
+  function syncActionOrderFromEditor() {
+    if (!settingsDraft) return;
+
+    const byId = new Map(settingsDraft.actions.map(action => [action.id, action]));
+    const ordered = [...els.actionsEditor.querySelectorAll('.action-editor-row[data-action-id]')]
+      .map(row => byId.get(row.dataset.actionId))
+      .filter(Boolean);
+
+    if (ordered.length === settingsDraft.actions.length) {
+      settingsDraft.actions = ordered;
+    }
+  }
+
+  function finishActionDrag({ cancelled = false } = {}) {
+    if (!actionDrag) return;
+
+    const { row, handle, pointerId } = actionDrag;
+    row.classList.remove('is-dragging');
+    document.body.classList.remove('is-reordering-actions');
+
+    try {
+      if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId);
+    } catch (error) {
+      // Capture may already have been released by the browser.
+    }
+
+    actionDrag = null;
+
+    if (cancelled) {
+      renderActionsEditor();
+      return;
+    }
+
+    syncActionOrderFromEditor();
+    commitSettingsDraft({ announce: false });
+    els.settingsMessage.textContent = 'Action order updated.';
+  }
+
+  function beginActionDrag(event, row, handle) {
+    if (!settingsDraft || event.button > 0) return;
+
+    event.preventDefault();
+    actionDrag = {
+      row,
+      handle,
+      pointerId: event.pointerId
+    };
+
+    row.classList.add('is-dragging');
+    document.body.classList.add('is-reordering-actions');
+    handle.setPointerCapture?.(event.pointerId);
+
+    const move = moveEvent => {
+      if (!actionDrag || moveEvent.pointerId !== actionDrag.pointerId) return;
+      moveEvent.preventDefault();
+
+      const target = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY)
+        ?.closest('.action-editor-row[data-action-id]');
+
+      if (target && target !== row && target.parentElement === els.actionsEditor) {
+        const rect = target.getBoundingClientRect();
+        if (moveEvent.clientY < rect.top + (rect.height / 2)) {
+          target.before(row);
+        } else {
+          target.after(row);
+        }
+      }
+
+      const dialogRect = els.settingsDialog.getBoundingClientRect();
+      if (moveEvent.clientY < dialogRect.top + 72) {
+        els.settingsDialog.scrollBy({ top: -14, behavior: 'auto' });
+      } else if (moveEvent.clientY > dialogRect.bottom - 72) {
+        els.settingsDialog.scrollBy({ top: 14, behavior: 'auto' });
+      }
+    };
+
+    const end = endEvent => {
+      if (!actionDrag || endEvent.pointerId !== actionDrag.pointerId) return;
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', end);
+      handle.removeEventListener('pointercancel', cancel);
+      finishActionDrag();
+    };
+
+    const cancel = cancelEvent => {
+      if (!actionDrag || cancelEvent.pointerId !== actionDrag.pointerId) return;
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', end);
+      handle.removeEventListener('pointercancel', cancel);
+      finishActionDrag({ cancelled: true });
+    };
+
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', end);
+    handle.addEventListener('pointercancel', cancel);
+  }
+
+  function sortActions(mode) {
+    if (!settingsDraft || !mode) return;
+
+    const categoryOrder = new Map(
+      settingsDraft.categories.map((category, index) => [category.id, index])
+    );
+
+    const indexed = settingsDraft.actions.map((action, index) => ({ action, index }));
+
+    if (mode === 'category') {
+      indexed.sort((a, b) => (
+        (categoryOrder.get(a.action.categoryId) ?? 999)
+        - (categoryOrder.get(b.action.categoryId) ?? 999)
+        || a.index - b.index
+      ));
+    } else if (mode === 'xp') {
+      indexed.sort((a, b) => (
+        b.action.baseXp - a.action.baseXp
+        || a.action.name.localeCompare(b.action.name, undefined, { sensitivity: 'base' })
+        || a.index - b.index
+      ));
+    } else if (mode === 'name') {
+      indexed.sort((a, b) => (
+        a.action.name.localeCompare(b.action.name, undefined, { sensitivity: 'base' })
+        || a.index - b.index
+      ));
+    } else {
+      return;
+    }
+
+    settingsDraft.actions = indexed.map(item => item.action);
+    renderActionsEditor();
+    commitSettingsDraft({ announce: false });
+    if (els.actionSortSelect) els.actionSortSelect.value = '';
+
+    const labels = {
+      category: 'category',
+      xp: 'XP',
+      name: 'name'
+    };
+    els.settingsMessage.textContent = `Actions sorted by ${labels[mode]}.`;
+  }
+
   function renderActionsEditor() {
     els.actionsEditor.replaceChildren();
 
     settingsDraft.actions.forEach(action => {
       const row = document.createElement('div');
       row.className = 'action-editor-row';
+      row.dataset.actionId = action.id;
+
+      const categoryIndex = settingsDraft.categories.findIndex(category => category.id === action.categoryId);
+      const category = settingsDraft.categories[categoryIndex] || uncategorizedCategory();
+      applyCategoryPaletteVars(row, category, Math.max(0, categoryIndex));
+
+      const dragHandle = document.createElement('button');
+      dragHandle.type = 'button';
+      dragHandle.className = 'action-drag-handle';
+      dragHandle.textContent = '⋮⋮';
+      dragHandle.title = 'Drag to reorder';
+      dragHandle.setAttribute('aria-label', `Drag ${action.name} to reorder`);
+      dragHandle.addEventListener('pointerdown', event => beginActionDrag(event, row, dragHandle));
 
       const grid = document.createElement('div');
       grid.className = 'action-direct-editor';
@@ -2165,6 +2325,9 @@
       categorySelect.value = action.categoryId;
       categorySelect.addEventListener('change', () => {
         action.categoryId = categorySelect.value;
+        const nextIndex = settingsDraft.categories.findIndex(category => category.id === action.categoryId);
+        const nextCategory = settingsDraft.categories[nextIndex] || uncategorizedCategory();
+        applyCategoryPaletteVars(row, nextCategory, Math.max(0, nextIndex));
       });
       categoryLabel.append(categorySelect);
 
@@ -2227,7 +2390,7 @@
       });
 
       grid.append(nameLabel, categoryLabel, xpLabel, typeLabel, visibilityLabel, remove);
-      row.append(grid);
+      row.append(dragHandle, grid);
       els.actionsEditor.append(row);
     });
   }
@@ -2504,6 +2667,11 @@
   els.settingsForm.addEventListener('submit', event => {
     event.preventDefault();
     if (settingsDraft) commitSettingsDraft();
+  });
+
+  els.actionSortSelect?.addEventListener('change', () => {
+    const mode = els.actionSortSelect.value;
+    if (mode) sortActions(mode);
   });
 
   els.addCategoryButton.addEventListener('click', addCategoryFromForm);

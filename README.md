@@ -80,6 +80,9 @@ The main action area is branded **Track-o-Tron**. Category action decks keep a c
 - MoLife derives a safe bright accent plus darker/desaturated panel, action, border and glow variants from that one color
 - category **Focus** controls diminishing returns
 - default Focus is **Wellbeing 1 / Work 1.5 / Chores 0.75** so focused work has a larger natural daily budget than chores
+- action order is editable by dragging the reorder handle; this order is reflected inside each Track-o-Tron category
+- the Actions section has one-shot sorting by **category**, **XP (high to low)** or **name (A to Z)**
+- action editor rows inherit the same derived category tint system as the front-page action area
 - actions have editable base XP values
 - actions can be repeatable or once-per-day
 - every action has a **Show in Track-o-Tron** toggle; hiding it keeps the action and its configuration without showing it on the main board
