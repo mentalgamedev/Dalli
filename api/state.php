@@ -40,10 +40,10 @@ $body = dalli_read_json_body();
 $operation = $body['operation'] ?? '';
 
 if ($operation === 'read') {
-    dalli_json_response([
-        'ok' => true,
-        ...dalli_state_snapshot($pdo, $userId),
-    ]);
+    dalli_json_response(array_merge(
+        ['ok' => true],
+        dalli_state_snapshot($pdo, $userId)
+    ));
 }
 
 if ($operation !== 'save') {
@@ -95,9 +95,11 @@ try {
     dalli_fail('Could not save state.', 500);
 }
 
-dalli_json_response([
-    'ok' => false,
-    'error' => 'Cloud state changed on another device.',
-    'conflict' => true,
-    ...dalli_state_snapshot($pdo, $userId),
-], 409);
+dalli_json_response(array_merge(
+    [
+        'ok' => false,
+        'error' => 'Cloud state changed on another device.',
+        'conflict' => true,
+    ],
+    dalli_state_snapshot($pdo, $userId)
+), 409);
