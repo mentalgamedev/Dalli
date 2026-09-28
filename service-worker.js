@@ -1,10 +1,10 @@
-const CACHE = 'dalli-v2-1';
+const CACHE = 'dalli-v2-2';
 const ASSETS = [
   './',
   './index.html',
-  './styles.css',
-  './app.js',
-  './cloud.js',
+  './styles.css?v=2.2.0',
+  './app.js?v=2.2.0',
+  './cloud.js?v=2.2.0',
   './manifest.webmanifest',
   './icon.svg'
 ];
