@@ -2004,7 +2004,7 @@
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       dayCardTimer = window.setTimeout(() => {
         document.body.classList.remove('day-cleared-flash');
-        openDayCard(state.current.dayCard);
+        openDayCard(state.current.dayCard, { celebrate: true });
       }, reducedMotion ? 0 : 850);
     }
   }
@@ -2359,8 +2359,10 @@
     });
   }
 
-  function openDayCard(card) {
+  function openDayCard(card, { celebrate = false } = {}) {
     if (!card) return;
+
+    els.dayCardDialog.classList.toggle('is-victory-reveal', celebrate);
 
     els.dayCardDate.textContent = formatDate(card.date, {
       weekday: 'long',
