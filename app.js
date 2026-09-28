@@ -570,6 +570,18 @@
     );
   }
 
+  function compactHistoryPayload() {
+    const softLimit = 210000;
+    let encoded = JSON.stringify(state);
+
+    for (let index = state.history.length - 1; index >= 0 && encoded.length > softLimit; index -= 1) {
+      if (state.history[index].transactions?.length) {
+        state.history[index].transactions = [];
+        encoded = JSON.stringify(state);
+      }
+    }
+  }
+
   function archiveCurrentDay() {
     if (!state.current.date) return;
 
@@ -596,6 +608,7 @@
         ? day
         : { ...day, transactions: [] }
     ));
+    compactHistoryPayload();
   }
 
   function ensureToday() {
