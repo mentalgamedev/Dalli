@@ -6,11 +6,14 @@
   let suppressCloudSave = false;
   const BALANCE_FACTOR = 0.70;
   const HISTORY_LIMIT = 30;
+  const UNCATEGORIZED_ID = 'uncategorized';
 
   const CATEGORY_COLORS = {
+    wellbeing: '#48d99a',
     health: '#48d99a',
     work: '#7f8cff',
-    chores: '#ffb45f'
+    chores: '#ffb45f',
+    uncategorized: '#8a93a3'
   };
 
   const DEFAULT_STATE = {
@@ -18,15 +21,16 @@
     settings: {
       goal: 100,
       categories: [
-        { id: 'health', name: 'Health', icon: '♥', weight: 1 },
+        { id: 'wellbeing', name: 'Wellbeing', icon: '♥', weight: 1 },
         { id: 'work', name: 'Work', icon: '◆', weight: 1 },
-        { id: 'chores', name: 'Chores', icon: '⌂', weight: 1 }
+        { id: 'chores', name: 'Chores', icon: '⌂', weight: 1 },
+        { id: UNCATEGORIZED_ID, name: 'Uncategorized', icon: '•', weight: 0 }
       ],
       actions: [
-        { id: 'health-workout-30', categoryId: 'health', name: 'Workout — 30 min', xp: 20, type: 'repeatable' },
-        { id: 'health-walk-20', categoryId: 'health', name: 'Walk — 20 min', xp: 10, type: 'repeatable' },
-        { id: 'health-mobility-10', categoryId: 'health', name: 'Stretch / mobility — 10 min', xp: 5, type: 'repeatable' },
-        { id: 'health-good-meal', categoryId: 'health', name: 'Proper healthy meal', xp: 10, type: 'once' },
+        { id: 'health-workout-30', categoryId: 'wellbeing', name: 'Workout — 30 min', xp: 20, type: 'repeatable' },
+        { id: 'health-walk-20', categoryId: 'wellbeing', name: 'Walk — 20 min', xp: 10, type: 'repeatable' },
+        { id: 'health-mobility-10', categoryId: 'wellbeing', name: 'Stretch / mobility — 10 min', xp: 5, type: 'repeatable' },
+        { id: 'health-good-meal', categoryId: 'wellbeing', name: 'Proper healthy meal', xp: 10, type: 'once' },
         { id: 'work-focus-25', categoryId: 'work', name: 'Focused work — 25 min', xp: 15, type: 'repeatable' },
         { id: 'work-focus-50', categoryId: 'work', name: 'Focused work — 50 min', xp: 30, type: 'repeatable' },
         { id: 'work-practice-20', categoryId: 'work', name: 'Practice / skill — 20 min', xp: 10, type: 'repeatable' },
@@ -62,7 +66,11 @@
     settingsDialog: document.querySelector('#settingsDialog'),
     settingsForm: document.querySelector('#settingsForm'),
     goalInput: document.querySelector('#goalInput'),
-    weightsEditor: document.querySelector('#weightsEditor'),
+    categoriesEditor: document.querySelector('#categoriesEditor'),
+    newCategoryName: document.querySelector('#newCategoryName'),
+    newCategoryIcon: document.querySelector('#newCategoryIcon'),
+    newCategoryWeight: document.querySelector('#newCategoryWeight'),
+    addCategoryButton: document.querySelector('#addCategoryButton'),
     actionsEditor: document.querySelector('#actionsEditor'),
     newActionName: document.querySelector('#newActionName'),
     newActionCategory: document.querySelector('#newActionCategory'),
@@ -74,6 +82,7 @@
 
   let state = loadState();
   let settingsDraft = null;
+  let editingCategoryId = null;
   let editingActionId = null;
   let wasVictory = false;
 
@@ -112,52 +121,100 @@
     }
   }
 
+  function normalizeCategoryId(value) {
+    const id = String(value || '');
+    return id === 'health' ? 'wellbeing' : id;
+  }
+
+  function uncategorizedCategory() {
+    return { id: UNCATEGORIZED_ID, name: 'Uncategorized', icon: '•', weight: 0 };
+  }
+
+  function ensureUncategorizedCategory(categories) {
+    const result = categories.filter(category => category.id !== UNCATEGORIZED_ID);
+    result.push(uncategorizedCategory());
+    return result;
+  }
+
   function normalizeState(candidate) {
     const next = deepClone(DEFAULT_STATE);
     next.settings.goal = clampInt(candidate.settings?.goal, 20, 1000, 100);
 
-    if (Array.isArray(candidate.settings?.categories) && candidate.settings.categories.length) {
-      next.settings.categories = candidate.settings.categories.map((category, index) => ({
-        id: String(category.id || `category-${index + 1}`),
-        name: String(category.name || `Category ${index + 1}`),
-        icon: String(category.icon || '•'),
-        weight: clampNumber(category.weight, 0.25, 10, 1)
-      }));
-    }
+    const categorySource = Array.isArray(candidate.settings?.categories)
+      ? candidate.settings.categories
+      : DEFAULT_STATE.settings.categories;
 
-    if (Array.isArray(candidate.settings?.actions)) {
-      const categoryIds = new Set(next.settings.categories.map(c => c.id));
-      next.settings.actions = candidate.settings.actions
-        .filter(action => categoryIds.has(String(action.categoryId)))
-        .map((action, index) => ({
-          id: String(action.id || `action-${index + 1}`),
-          categoryId: String(action.categoryId),
-          name: String(action.name || 'Unnamed action'),
-          xp: clampInt(action.xp, 1, 200, 10),
-          type: action.type === 'once' ? 'once' : 'repeatable'
-        }));
-    }
+    const seenCategoryIds = new Set();
+    const normalizedCategories = [];
+
+    categorySource.forEach((category, index) => {
+      const rawId = normalizeCategoryId(category?.id || `category-${index + 1}`);
+      if (!rawId || seenCategoryIds.has(rawId) || rawId === UNCATEGORIZED_ID) return;
+
+      seenCategoryIds.add(rawId);
+      const legacyHealth = String(category?.id || '') === 'health';
+      normalizedCategories.push({
+        id: rawId,
+        name: legacyHealth && String(category?.name || '') === 'Health'
+          ? 'Wellbeing'
+          : String(category?.name || `Category ${index + 1}`),
+        icon: String(category?.icon || '•'),
+        weight: clampNumber(category?.weight, 0.25, 10, 1)
+      });
+    });
+
+    next.settings.categories = ensureUncategorizedCategory(normalizedCategories);
+
+    const categoryIds = new Set(next.settings.categories.map(category => category.id));
+    const actionSource = Array.isArray(candidate.settings?.actions)
+      ? candidate.settings.actions
+      : DEFAULT_STATE.settings.actions;
+
+    next.settings.actions = actionSource.map((action, index) => {
+      const requestedCategoryId = normalizeCategoryId(action?.categoryId);
+      return {
+        id: String(action?.id || `action-${index + 1}`),
+        categoryId: categoryIds.has(requestedCategoryId) ? requestedCategoryId : UNCATEGORIZED_ID,
+        name: String(action?.name || 'Unnamed action'),
+        xp: clampInt(action?.xp, 1, 200, 10),
+        type: action?.type === 'once' ? 'once' : 'repeatable'
+      };
+    });
 
     next.current.date = String(candidate.current?.date || '');
     next.current.transactions = Array.isArray(candidate.current?.transactions)
-      ? candidate.current.transactions.map(tx => ({
-          id: String(tx.id || makeId('tx')),
-          actionId: String(tx.actionId || ''),
-          actionName: String(tx.actionName || 'Action'),
-          categoryId: String(tx.categoryId || ''),
-          xp: clampInt(tx.xp, 0, 200, 0),
-          timestamp: Number.isFinite(Number(tx.timestamp)) ? Number(tx.timestamp) : Date.now()
-        })).filter(tx => tx.xp > 0)
+      ? candidate.current.transactions.map(tx => {
+          const requestedCategoryId = normalizeCategoryId(tx?.categoryId);
+          return {
+            id: String(tx?.id || makeId('tx')),
+            actionId: String(tx?.actionId || ''),
+            actionName: String(tx?.actionName || 'Action'),
+            categoryId: categoryIds.has(requestedCategoryId) ? requestedCategoryId : UNCATEGORIZED_ID,
+            xp: clampInt(tx?.xp, 0, 200, 0),
+            timestamp: Number.isFinite(Number(tx?.timestamp)) ? Number(tx.timestamp) : Date.now()
+          };
+        }).filter(tx => tx.xp > 0)
       : [];
 
     next.history = Array.isArray(candidate.history)
-      ? candidate.history.slice(0, HISTORY_LIMIT).map(day => ({
-          date: String(day.date || ''),
-          xp: clampInt(day.xp, 0, 100000, 0),
-          goal: clampInt(day.goal, 20, 1000, 100),
-          won: Boolean(day.won),
-          categoryXp: typeof day.categoryXp === 'object' && day.categoryXp ? day.categoryXp : {}
-        })).filter(day => /^\d{4}-\d{2}-\d{2}$/.test(day.date))
+      ? candidate.history.slice(0, HISTORY_LIMIT).map(day => {
+          const categoryXp = {};
+          if (day?.categoryXp && typeof day.categoryXp === 'object') {
+            Object.entries(day.categoryXp).forEach(([categoryId, xp]) => {
+              const normalizedId = normalizeCategoryId(categoryId);
+              const amount = clampInt(xp, 0, 100000, 0);
+              categoryXp[normalizedId] = (categoryXp[normalizedId] || 0) + amount;
+            });
+          }
+
+          return {
+            date: String(day?.date || ''),
+            xp: clampInt(day?.xp, 0, 100000, 0),
+            goal: clampInt(day?.goal, 20, 1000, 100),
+            won: Boolean(day?.won),
+            categoryXp
+          };
+        }).filter(day => /^\d{4}-\d{2}-\d{2}$/.test(day.date))
       : [];
 
     return next;
@@ -247,11 +304,16 @@
     state.history = state.history.slice(0, HISTORY_LIMIT);
   }
 
-  function getCategoryRequirements() {
-    const categories = state.settings.categories;
-    const weightTotal = categories.reduce((sum, category) => sum + category.weight, 0) || 1;
-    return Object.fromEntries(categories.map(category => {
-      const weightedShare = state.settings.goal * (category.weight / weightTotal);
+  function balancedCategories(categories = state.settings.categories) {
+    return categories.filter(category => category.id !== UNCATEGORIZED_ID);
+  }
+
+  function getCategoryRequirements(categories = state.settings.categories, goal = state.settings.goal) {
+    const balanced = balancedCategories(categories);
+    const weightTotal = balanced.reduce((sum, category) => sum + category.weight, 0) || 1;
+
+    return Object.fromEntries(balanced.map(category => {
+      const weightedShare = goal * (category.weight / weightTotal);
       const minimum = Math.max(1, Math.round(weightedShare * BALANCE_FACTOR));
       return [category.id, minimum];
     }));
@@ -260,12 +322,18 @@
   function getSummary() {
     const categoryXp = Object.fromEntries(state.settings.categories.map(c => [c.id, 0]));
     let totalXp = 0;
+
     for (const tx of state.current.transactions) {
       totalXp += tx.xp;
       if (tx.categoryId in categoryXp) categoryXp[tx.categoryId] += tx.xp;
+      else categoryXp[UNCATEGORIZED_ID] = (categoryXp[UNCATEGORIZED_ID] || 0) + tx.xp;
     }
+
     const requirements = getCategoryRequirements();
-    const allMinimumsMet = state.settings.categories.every(category => (categoryXp[category.id] || 0) >= requirements[category.id]);
+    const allMinimumsMet = balancedCategories().every(
+      category => (categoryXp[category.id] || 0) >= requirements[category.id]
+    );
+
     return {
       totalXp,
       categoryXp,
@@ -357,34 +425,53 @@
   function renderCategories(summary) {
     els.categoriesGrid.replaceChildren();
 
-    state.settings.categories.forEach((category, index) => {
+    const visibleCategories = state.settings.categories.filter(category => {
+      if (category.id !== UNCATEGORIZED_ID) return true;
+      const hasActions = state.settings.actions.some(action => action.categoryId === UNCATEGORIZED_ID);
+      const hasXp = (summary.categoryXp[UNCATEGORIZED_ID] || 0) > 0;
+      return hasActions || hasXp;
+    });
+
+    visibleCategories.forEach((category, index) => {
       const fragment = els.categoryTemplate.content.cloneNode(true);
       const card = fragment.querySelector('.category-card');
       const icon = fragment.querySelector('.category-icon');
       const title = fragment.querySelector('.category-title');
       const subtitle = fragment.querySelector('.category-subtitle');
       const score = fragment.querySelector('.category-score');
+      const meter = fragment.querySelector('.category-meter');
       const fill = fragment.querySelector('.category-meter-fill');
       const actionsList = fragment.querySelector('.actions-list');
 
       const currentXp = summary.categoryXp[category.id] || 0;
-      const requiredXp = summary.requirements[category.id] || 0;
-      const completed = currentXp >= requiredXp;
+      const isFallback = category.id === UNCATEGORIZED_ID;
+      const requiredXp = isFallback ? 0 : (summary.requirements[category.id] || 0);
+      const completed = !isFallback && currentXp >= requiredXp;
       const color = categoryColor(category.id, index);
 
       card.style.setProperty('--category-color', color);
+      if (isFallback) card.classList.add('is-fallback-category');
       icon.textContent = category.icon;
       title.textContent = category.name;
-      subtitle.textContent = `${category.weight}× weight · ${requiredXp} XP minimum`;
-      score.textContent = `${currentXp} / ${requiredXp}${completed ? ' ✓' : ''}`;
-      if (completed) score.style.color = color;
-      fill.style.width = `${Math.min(100, (currentXp / Math.max(requiredXp, 1)) * 100)}%`;
+
+      if (isFallback) {
+        subtitle.textContent = 'Fallback · does not affect balance';
+        score.textContent = `${currentXp} XP`;
+        meter.hidden = true;
+      } else {
+        subtitle.textContent = `${category.weight}× weight · ${requiredXp} XP minimum`;
+        score.textContent = `${currentXp} / ${requiredXp}${completed ? ' ✓' : ''}`;
+        if (completed) score.style.color = color;
+        fill.style.width = `${Math.min(100, (currentXp / Math.max(requiredXp, 1)) * 100)}%`;
+      }
 
       const actions = state.settings.actions.filter(action => action.categoryId === category.id);
       if (!actions.length) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
-        empty.textContent = 'No actions yet. Add one in Settings.';
+        empty.textContent = isFallback
+          ? 'Deleted-category actions will appear here.'
+          : 'No actions yet. Add one in Settings.';
         actionsList.append(empty);
       } else {
         actions.forEach(action => {
@@ -462,6 +549,8 @@
 
   function openSettings() {
     settingsDraft = deepClone(state.settings);
+    settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
+    editingCategoryId = null;
     editingActionId = null;
     populateSettings();
     if (typeof els.settingsDialog.showModal === 'function') els.settingsDialog.showModal();
@@ -471,46 +560,260 @@
   function populateSettings() {
     els.settingsMessage.textContent = '';
     els.goalInput.value = settingsDraft.goal;
-    renderWeightsEditor();
+    renderCategoriesEditor();
     renderActionsEditor();
     populateCategorySelect();
   }
 
-  function renderWeightsEditor() {
-    els.weightsEditor.replaceChildren();
-    const weightTotal = settingsDraft.categories.reduce((sum, category) => sum + category.weight, 0) || 1;
-    const requirements = Object.fromEntries(settingsDraft.categories.map(category => [
-      category.id,
-      Math.max(1, Math.round(settingsDraft.goal * (category.weight / weightTotal) * BALANCE_FACTOR))
-    ]));
+  function getPreviewCategories() {
+    const weightOverrides = new Map();
 
-    settingsDraft.categories.forEach(category => {
-      const row = document.createElement('div');
-      row.className = 'weight-row';
-      row.innerHTML = `
-        <div class="weight-name"><span class="weight-icon"></span><strong></strong></div>
-        <div class="weight-controls"><input type="number" min="0.25" max="10" step="0.25" inputmode="decimal"></div>
-        <div class="weight-requirement"></div>`;
-      row.querySelector('.weight-icon').textContent = category.icon;
-      row.querySelector('.weight-name strong').textContent = category.name;
-      const input = row.querySelector('input');
-      input.value = category.weight;
-      input.dataset.categoryId = category.id;
-      row.querySelector('.weight-requirement').textContent = `${requirements[category.id]} XP minimum`;
-      input.addEventListener('input', previewWeightRequirements);
-      els.weightsEditor.append(row);
+    [...els.categoriesEditor.querySelectorAll('.category-editor-row')].forEach(row => {
+      const input = row.querySelector('.edit-category-weight');
+      if (input) {
+        weightOverrides.set(
+          row.dataset.categoryId,
+          clampNumber(input.value, 0.25, 10, 1)
+        );
+      }
+    });
+
+    return settingsDraft.categories.map(category => ({
+      ...category,
+      weight: category.id === UNCATEGORIZED_ID
+        ? 0
+        : (weightOverrides.get(category.id) ?? category.weight)
+    }));
+  }
+
+  function previewCategoryRequirements() {
+    if (!settingsDraft) return;
+
+    const goal = clampInt(els.goalInput.value, 20, 1000, settingsDraft.goal);
+    const requirements = getCategoryRequirements(getPreviewCategories(), goal);
+
+    [...els.categoriesEditor.querySelectorAll('.category-editor-row')].forEach(row => {
+      const requirement = row.querySelector('.category-requirement');
+      if (!requirement) return;
+
+      requirement.textContent = row.dataset.categoryId === UNCATEGORIZED_ID
+        ? 'Fallback'
+        : `${requirements[row.dataset.categoryId] || 0} XP minimum`;
     });
   }
 
-  function previewWeightRequirements() {
+  function categoryNameExists(name, exceptId = '') {
+    const normalized = name.trim().toLocaleLowerCase();
+    if (normalized === 'uncategorized') return exceptId !== UNCATEGORIZED_ID;
+
+    return settingsDraft.categories.some(category =>
+      category.id !== exceptId
+      && category.name.trim().toLocaleLowerCase() === normalized
+    );
+  }
+
+  function renderCategoriesEditor() {
+    els.categoriesEditor.replaceChildren();
+
     const goal = clampInt(els.goalInput.value, 20, 1000, settingsDraft.goal);
-    const rows = [...els.weightsEditor.querySelectorAll('.weight-row')];
-    const values = rows.map(row => clampNumber(row.querySelector('input').value, 0.25, 10, 1));
-    const total = values.reduce((sum, value) => sum + value, 0) || 1;
-    rows.forEach((row, index) => {
-      const req = Math.max(1, Math.round(goal * (values[index] / total) * BALANCE_FACTOR));
-      row.querySelector('.weight-requirement').textContent = `${req} XP minimum`;
+    const requirements = getCategoryRequirements(settingsDraft.categories, goal);
+
+    settingsDraft.categories.forEach(category => {
+      const row = document.createElement('div');
+      row.dataset.categoryId = category.id;
+      row.className = `category-editor-row${editingCategoryId === category.id ? ' is-editing' : ''}`;
+
+      if (category.id === UNCATEGORIZED_ID) {
+        row.classList.add('is-fallback');
+        row.innerHTML = `
+          <div class="category-editor-main">
+            <span class="category-editor-icon"></span>
+            <div><strong></strong><span>Permanent fallback for orphaned actions</span></div>
+          </div>
+          <div class="category-editor-controls">
+            <span class="category-requirement">Fallback</span>
+          </div>`;
+        row.querySelector('.category-editor-icon').textContent = category.icon;
+        row.querySelector('.category-editor-main strong').textContent = category.name;
+        els.categoriesEditor.append(row);
+        return;
+      }
+
+      if (editingCategoryId === category.id) {
+        row.innerHTML = `
+          <div class="category-inline-editor">
+            <label>
+              <span>Name</span>
+              <input class="edit-category-name" type="text" maxlength="40">
+            </label>
+            <label>
+              <span>Icon</span>
+              <input class="edit-category-icon" type="text" maxlength="8">
+            </label>
+            <label>
+              <span>Weight</span>
+              <input class="edit-category-weight" type="number" min="0.25" max="10" step="0.25" inputmode="decimal">
+            </label>
+            <div class="category-edit-summary">
+              <span class="category-requirement"></span>
+            </div>
+            <div class="category-edit-buttons">
+              <button class="action-edit-cancel" type="button">Cancel</button>
+              <button class="action-edit-apply" type="button">Apply</button>
+            </div>
+          </div>`;
+
+        const nameInput = row.querySelector('.edit-category-name');
+        const iconInput = row.querySelector('.edit-category-icon');
+        const weightInput = row.querySelector('.edit-category-weight');
+
+        nameInput.value = category.name;
+        iconInput.value = category.icon;
+        weightInput.value = category.weight;
+        weightInput.addEventListener('input', previewCategoryRequirements);
+
+        const applyEdit = () => {
+          const name = nameInput.value.trim();
+          if (!name) {
+            els.settingsMessage.textContent = 'Give the category a name first.';
+            nameInput.focus();
+            return;
+          }
+
+          if (categoryNameExists(name, category.id)) {
+            els.settingsMessage.textContent = 'That category name is already in use.';
+            nameInput.focus();
+            return;
+          }
+
+          category.name = name;
+          category.icon = iconInput.value.trim() || '•';
+          category.weight = clampNumber(weightInput.value, 0.25, 10, category.weight);
+          editingCategoryId = null;
+          renderCategoriesEditor();
+          renderActionsEditor();
+          populateCategorySelect();
+          els.settingsMessage.textContent = 'Category updated. Its actions follow the renamed category automatically.';
+        };
+
+        row.querySelector('.action-edit-apply').addEventListener('click', applyEdit);
+        row.querySelector('.action-edit-cancel').addEventListener('click', () => {
+          editingCategoryId = null;
+          renderCategoriesEditor();
+          els.settingsMessage.textContent = '';
+        });
+
+        row.addEventListener('keydown', event => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            editingCategoryId = null;
+            renderCategoriesEditor();
+            els.settingsMessage.textContent = '';
+          } else if (event.key === 'Enter') {
+            event.preventDefault();
+            applyEdit();
+          }
+        });
+
+        els.categoriesEditor.append(row);
+        previewCategoryRequirements();
+        requestAnimationFrame(() => nameInput.focus());
+        return;
+      }
+
+      row.innerHTML = `
+        <div class="category-editor-main">
+          <span class="category-editor-icon"></span>
+          <div><strong></strong><span></span></div>
+        </div>
+        <div class="category-editor-controls">
+          <span class="category-requirement"></span>
+          <button class="edit-action edit-category" type="button">Edit</button>
+          <button class="delete-action delete-category" type="button" aria-label="Delete category">×</button>
+        </div>`;
+
+      row.querySelector('.category-editor-icon').textContent = category.icon;
+      row.querySelector('.category-editor-main strong').textContent = category.name;
+      row.querySelector('.category-editor-main span').textContent = `${category.weight}× weight`;
+      row.querySelector('.category-requirement').textContent = `${requirements[category.id] || 0} XP minimum`;
+
+      row.querySelector('.edit-category').addEventListener('click', () => {
+        editingCategoryId = category.id;
+        renderCategoriesEditor();
+        els.settingsMessage.textContent = '';
+      });
+
+      row.querySelector('.delete-category').addEventListener('click', () => {
+        const movedActions = settingsDraft.actions.filter(action => action.categoryId === category.id).length;
+
+        settingsDraft.actions.forEach(action => {
+          if (action.categoryId === category.id) {
+            action.categoryId = UNCATEGORIZED_ID;
+          }
+        });
+
+        settingsDraft.categories = settingsDraft.categories.filter(item => item.id !== category.id);
+        settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
+        if (editingCategoryId === category.id) editingCategoryId = null;
+        if (editingActionId && !settingsDraft.actions.some(action => action.id === editingActionId)) {
+          editingActionId = null;
+        }
+
+        renderCategoriesEditor();
+        renderActionsEditor();
+        populateCategorySelect();
+
+        els.settingsMessage.textContent = movedActions
+          ? `Category removed. ${movedActions} action${movedActions === 1 ? '' : 's'} moved to Uncategorized. Save settings to keep the change.`
+          : 'Category removed. Save settings to keep the change.';
+      });
+
+      els.categoriesEditor.append(row);
     });
+  }
+
+  function addCategoryFromForm() {
+    const name = els.newCategoryName.value.trim();
+    const icon = els.newCategoryIcon.value.trim() || '•';
+    const weight = clampNumber(els.newCategoryWeight.value, 0.25, 10, 1);
+
+    if (!name) {
+      els.settingsMessage.textContent = 'Give the category a name first.';
+      els.newCategoryName.focus();
+      return;
+    }
+
+    if (categoryNameExists(name)) {
+      els.settingsMessage.textContent = 'That category name is already in use.';
+      els.newCategoryName.focus();
+      return;
+    }
+
+    if (settingsDraft.categories.length >= 20) {
+      els.settingsMessage.textContent = 'Dalli supports up to 20 categories including Uncategorized.';
+      return;
+    }
+
+    const category = {
+      id: makeId('category'),
+      name,
+      icon,
+      weight
+    };
+
+    const fallbackIndex = settingsDraft.categories.findIndex(item => item.id === UNCATEGORIZED_ID);
+    const insertIndex = fallbackIndex >= 0 ? fallbackIndex : settingsDraft.categories.length;
+    settingsDraft.categories.splice(insertIndex, 0, category);
+
+    els.newCategoryName.value = '';
+    els.newCategoryIcon.value = '';
+    els.newCategoryWeight.value = '1';
+
+    renderCategoriesEditor();
+    renderActionsEditor();
+    populateCategorySelect();
+    els.newActionCategory.value = category.id;
+    els.settingsMessage.textContent = 'Category added. Save settings to keep the change.';
   }
 
   function renderActionsEditor() {
@@ -638,13 +941,22 @@
   }
 
   function populateCategorySelect() {
+    const previous = els.newActionCategory.value;
     els.newActionCategory.replaceChildren();
+
     settingsDraft.categories.forEach(category => {
       const option = document.createElement('option');
       option.value = category.id;
       option.textContent = category.name;
       els.newActionCategory.append(option);
     });
+
+    if (settingsDraft.categories.some(category => category.id === previous)) {
+      els.newActionCategory.value = previous;
+    } else {
+      const preferred = settingsDraft.categories.find(category => category.id !== UNCATEGORIZED_ID);
+      els.newActionCategory.value = preferred?.id || UNCATEGORIZED_ID;
+    }
   }
 
   function addActionFromForm() {
@@ -675,18 +987,29 @@
   function saveSettingsFromDialog(event) {
     if (event.submitter && event.submitter.value === 'cancel') {
       settingsDraft = null;
+      editingCategoryId = null;
       editingActionId = null;
       return;
     }
 
     settingsDraft.goal = clampInt(els.goalInput.value, 20, 1000, 100);
-    const inputs = els.weightsEditor.querySelectorAll('input[data-category-id]');
-    inputs.forEach(input => {
-      const category = settingsDraft.categories.find(c => c.id === input.dataset.categoryId);
-      if (category) category.weight = clampNumber(input.value, 0.25, 10, 1);
+    settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
+
+    const validCategoryIds = new Set(settingsDraft.categories.map(category => category.id));
+    settingsDraft.actions.forEach(action => {
+      if (!validCategoryIds.has(action.categoryId)) {
+        action.categoryId = UNCATEGORIZED_ID;
+      }
     });
+
+    state.current.transactions = state.current.transactions.map(tx => ({
+      ...tx,
+      categoryId: validCategoryIds.has(tx.categoryId) ? tx.categoryId : UNCATEGORIZED_ID
+    }));
+
     state.settings = settingsDraft;
     settingsDraft = null;
+    editingCategoryId = null;
     editingActionId = null;
     saveState();
     render();
@@ -703,7 +1026,8 @@
   });
 
   els.settingsButton.addEventListener('click', openSettings);
-  els.goalInput.addEventListener('input', previewWeightRequirements);
+  els.goalInput.addEventListener('input', previewCategoryRequirements);
+  els.addCategoryButton.addEventListener('click', addCategoryFromForm);
   els.addActionButton.addEventListener('click', addActionFromForm);
   els.settingsForm.addEventListener('submit', saveSettingsFromDialog);
 

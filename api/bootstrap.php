@@ -248,9 +248,14 @@ function dalli_validate_state(mixed $state): array
         if (!is_string($id) || preg_match('/^[A-Za-z0-9_-]{1,64}$/', $id) !== 1 || isset($categoryIds[$id])) {
             dalli_fail('Invalid category id.', 422);
         }
+        $weight = $category['weight'] ?? null;
+        $validWeight = $id === 'uncategorized'
+            ? (is_int($weight) || is_float($weight)) && (float) $weight === 0.0
+            : dalli_number_between($weight, 0.25, 10);
+
         if (!dalli_string_ok($category['name'] ?? null, 1, 80)
             || !dalli_string_ok($category['icon'] ?? null, 1, 24)
-            || !dalli_number_between($category['weight'] ?? null, 0.25, 10)) {
+            || !$validWeight) {
             dalli_fail('Invalid category data.', 422);
         }
         $categoryIds[$id] = true;
@@ -321,7 +326,8 @@ function dalli_validate_state(mixed $state): array
             dalli_fail('Invalid history data.', 422);
         }
         foreach ($day['categoryXp'] as $categoryId => $xp) {
-            if (!is_string($categoryId) || !isset($categoryIds[$categoryId])
+            if (!is_string($categoryId)
+                || preg_match('/^[A-Za-z0-9_-]{1,64}$/', $categoryId) !== 1
                 || !is_int($xp) || $xp < 0 || $xp > 100000) {
                 dalli_fail('Invalid history category data.', 422);
             }
