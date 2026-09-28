@@ -604,9 +604,10 @@
 
   function categoryNameExists(name, exceptId = '') {
     const normalized = name.trim().toLocaleLowerCase();
+    if (normalized === 'uncategorized') return exceptId !== UNCATEGORIZED_ID;
+
     return settingsDraft.categories.some(category =>
       category.id !== exceptId
-      && category.id !== UNCATEGORIZED_ID
       && category.name.trim().toLocaleLowerCase() === normalized
     );
   }
