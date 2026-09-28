@@ -8,7 +8,7 @@
   <title>MoLife</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=3.6.0">
+  <link rel="stylesheet" href="styles.css?v=3.7.0">
 </head>
 <body>
   <div class="motion-shimmer" aria-hidden="true"></div>
@@ -28,7 +28,7 @@
       <div class="brand-block">
         <h1 class="brand-title" aria-label="MoLife"><span class="brand-mo">Mo</span><span class="brand-life">Life</span><span class="brand-tm">™</span></h1>
         <div class="brand-subline">Gains for citizens with nothing to lose</div>
-        <div class="app-version" aria-label="MoLife version 3.6.0">v3.6.0 · Chromatic Compliance build</div>
+        <div class="app-version" aria-label="MoLife version 3.7.0">v3.7.0 · Autonomous Bureaucracy build</div>
         <div id="todayLabel" class="muted"></div>
       </div>
       <button id="settingsButton" class="icon-button" type="button" aria-label="Open settings" title="Settings">⚙</button>
@@ -174,7 +174,7 @@
           <div class="eyebrow">QUESTIONABLE LIFE CONFIGURATION</div>
           <h2>Settings</h2>
         </div>
-        <button class="icon-button" value="cancel" aria-label="Close settings" type="submit">×</button>
+        <button id="closeSettingsButton" class="icon-button" aria-label="Close settings" type="button">×</button>
       </div>
 
       <section class="settings-section">
@@ -290,11 +290,7 @@
         <button id="resetGameButton" class="danger-button" type="button">Reset game data</button>
       </section>
 
-      <div id="settingsMessage" class="settings-message" role="status" aria-live="polite"></div>
-
-      <div class="settings-footer">
-        <button id="saveSettingsButton" class="primary-button" value="default" type="submit">Save settings</button>
-      </div>
+      <div id="settingsMessage" class="settings-message" role="status" aria-live="polite">Changes save automatically.</div>
     </form>
   </dialog>
 
@@ -322,7 +318,7 @@
     </article>
   </template>
 
-  <script src="app.js?v=3.6.0" defer></script>
-  <script src="cloud.js?v=3.6.0" defer></script>
+  <script src="app.js?v=3.7.0" defer></script>
+  <script src="cloud.js?v=3.7.0" defer></script>
 </body>
 </html>
