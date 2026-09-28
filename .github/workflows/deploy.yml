@@ -52,42 +52,18 @@ jobs:
 
       - name: Deploy
         env:
-          DEPLOY_SECRETS_JSON: ${{ toJSON(secrets) }}
+          DEPLOY_FTP_HOST: ${{ secrets.DEPLOY_FTP_HOST || secrets.LIMA_FTP_HOST }}
+          DEPLOY_FTP_USER: ${{ secrets.DEPLOY_FTP_USER || secrets.LIMA_FTP_USER }}
+          DEPLOY_FTP_PASSWORD: ${{ secrets.DEPLOY_FTP_PASSWORD || secrets.LIMA_FTP_PASSWORD }}
+          DEPLOY_FTP_PATH: ${{ secrets.DEPLOY_FTP_PATH }}
         shell: bash
         run: |
           set -euo pipefail
 
-          readarray -t DEPLOY_VALUES < <(
-            python3 - <<'PY'
-          import json
-          import os
-
-          data = json.loads(os.environ.get("DEPLOY_SECRETS_JSON", "{}"))
-
-          def unique_value(suffix):
-              matches = [str(value) for key, value in data.items() if key.endswith(suffix) and value]
-              return matches[0] if len(matches) == 1 else ""
-
-          print(unique_value("_FTP_HOST"))
-          print(unique_value("_FTP_USER"))
-          print(unique_value("_FTP_PASSWORD"))
-          print(unique_value("_FTP_PATH"))
-          PY
-          )
-
-          DEPLOY_FTP_HOST="${DEPLOY_VALUES[0]:-}"
-          DEPLOY_FTP_USER="${DEPLOY_VALUES[1]:-}"
-          DEPLOY_FTP_PASSWORD="${DEPLOY_VALUES[2]:-}"
-          DEPLOY_FTP_PATH="${DEPLOY_VALUES[3]:-}"
-
           if [[ -z "${DEPLOY_FTP_HOST}" || -z "${DEPLOY_FTP_USER}" || -z "${DEPLOY_FTP_PASSWORD}" ]]; then
-            echo "::notice::Automatic deployment is disabled because exactly one *_FTP_HOST, *_FTP_USER and *_FTP_PASSWORD secret trio was not found."
+            echo "::notice::Automatic deployment is disabled because FTP deployment secrets are not configured."
             exit 0
           fi
-
-          echo "::add-mask::${DEPLOY_FTP_HOST}"
-          echo "::add-mask::${DEPLOY_FTP_USER}"
-          echo "::add-mask::${DEPLOY_FTP_PASSWORD}"
 
           REPO_NAME="${GITHUB_REPOSITORY#*/}"
           REPO_NAME="${REPO_NAME,,}"
