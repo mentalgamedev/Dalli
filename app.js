@@ -1214,10 +1214,9 @@
     };
   }
 
-  function claimVictoryLoot() {
-    const summary = getSummary();
+  function stashPendingVictoryLoot() {
     const loot = state.current.loot;
-    if (!summary.isVictory || !loot?.available || loot.claimed || !loot.pendingWeapon) return;
+    if (!loot?.available || loot.claimed || !loot.pendingWeapon) return null;
 
     if (!state.armory.weapons.some(item => item.id === loot.pendingWeapon.id)) {
       state.armory.weapons.push(deepClone(loot.pendingWeapon));
@@ -1225,8 +1224,18 @@
 
     loot.available = false;
     loot.claimed = true;
+    return loot.pendingWeapon;
+  }
+
+  function claimVictoryLoot() {
+    const summary = getSummary();
+    if (!summary.isVictory) return;
+
+    const claimed = stashPendingVictoryLoot();
+    if (!claimed) return;
+
     saveState();
-    render({ lootClaimed: loot.pendingWeapon });
+    render({ lootClaimed: claimed });
   }
 
   function useWeapon(itemId) {
@@ -1373,6 +1382,10 @@
 
   function archiveCurrentDay() {
     if (!state.current.date) return;
+
+    if (state.current.defeatedAt && state.current.loot?.available) {
+      stashPendingVictoryLoot();
+    }
 
     const summary = getSummary();
     const record = {
