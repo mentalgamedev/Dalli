@@ -2,6 +2,8 @@
   'use strict';
 
   const STORAGE_KEY = 'dailyXpGame.v1';
+  let activeStorageKey = STORAGE_KEY;
+  let suppressCloudSave = false;
   const BALANCE_FACTOR = 0.70;
   const HISTORY_LIMIT = 30;
 
@@ -97,9 +99,9 @@
     return `${prefix}-${Date.now().toString(36)}-${random}`;
   }
 
-  function loadState() {
+  function loadState(storageKey = activeStorageKey) {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(storageKey);
       if (!raw) return deepClone(DEFAULT_STATE);
       const parsed = JSON.parse(raw);
       if (!parsed || parsed.version !== 1) return deepClone(DEFAULT_STATE);
@@ -172,7 +174,48 @@
   }
 
   function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(activeStorageKey, JSON.stringify(state));
+    if (!suppressCloudSave && window.DalliCloud && typeof window.DalliCloud.queueSave === 'function') {
+      window.DalliCloud.queueSave(deepClone(state));
+    }
+  }
+
+  function readStoredState(storageKey) {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || parsed.version !== 1) return null;
+      return normalizeState(parsed);
+    } catch (error) {
+      console.warn('Could not read cached Dalli data:', error);
+      return null;
+    }
+  }
+
+  function replaceState(candidate, storageKey = activeStorageKey) {
+    suppressCloudSave = true;
+    try {
+      activeStorageKey = storageKey;
+      state = normalizeState(candidate);
+      ensureToday();
+      localStorage.setItem(activeStorageKey, JSON.stringify(state));
+      render();
+    } finally {
+      suppressCloudSave = false;
+    }
+  }
+
+  function useStorageKey(storageKey) {
+    suppressCloudSave = true;
+    try {
+      activeStorageKey = storageKey;
+      state = loadState(activeStorageKey);
+      ensureToday();
+      render();
+    } finally {
+      suppressCloudSave = false;
+    }
   }
 
   function ensureToday() {
@@ -648,6 +691,16 @@
     saveState();
     render();
   }
+
+  window.DalliApp = Object.freeze({
+    getState: () => deepClone(state),
+    getDefaultState: () => deepClone(DEFAULT_STATE),
+    getStorageKey: () => activeStorageKey,
+    readStoredState,
+    replaceState,
+    useStorageKey,
+    guestStorageKey: STORAGE_KEY
+  });
 
   els.settingsButton.addEventListener('click', openSettings);
   els.goalInput.addEventListener('input', previewWeightRequirements);

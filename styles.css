@@ -381,3 +381,102 @@ input, select {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }
+
+
+/* Account + cloud sync */
+.account-zone {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sync-status {
+  color: var(--muted);
+  font-size: .72rem;
+  white-space: nowrap;
+}
+
+.sync-status[data-kind="ok"] { color: #69dfc6; }
+.sync-status[data-kind="warning"] { color: #e8c56c; }
+.sync-status[data-kind="error"] { color: #ff9da7; }
+
+.account-button {
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255,255,255,.045);
+  color: var(--text);
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.account-button:hover { background: rgba(255,255,255,.08); }
+
+.login-dialog {
+  width: min(420px, calc(100% - 24px));
+  padding: 0;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 22px;
+  background: #10131a;
+  color: var(--text);
+  box-shadow: 0 30px 90px rgba(0,0,0,.6);
+}
+
+.login-dialog::backdrop {
+  background: rgba(3,5,9,.72);
+  backdrop-filter: blur(6px);
+}
+
+.login-card {
+  display: grid;
+  gap: 15px;
+  padding: 24px;
+}
+
+.login-card h2,
+.login-card p {
+  margin-bottom: 0;
+}
+
+.login-field span {
+  display: block;
+  margin: 0 0 6px 2px;
+  color: var(--muted);
+  font-size: .75rem;
+}
+
+.login-field input {
+  width: 100%;
+}
+
+.login-message {
+  min-height: 18px;
+  color: #ff9da7;
+  font-size: .78rem;
+}
+
+.login-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.login-buttons .secondary-button {
+  margin-top: 0;
+}
+
+@media (max-width: 620px) {
+  .topbar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .account-zone {
+    order: 3;
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: 0;
+  }
+}

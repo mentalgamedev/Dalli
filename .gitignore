@@ -1,0 +1,11 @@
+# Never commit live credentials or local secrets
+dalli-config.php
+.env
+.env.*
+*.local.php
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
