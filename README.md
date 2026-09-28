@@ -1,18 +1,73 @@
 # Dalli
 
-Dalli is a small daily XP game that turns everyday tasks into a balanced daily challenge.
+Dalli is a small daily XP game from the deeply questionable civic ecosystem of **Crestfallen**. It turns everyday tasks into a daily challenge without requiring every part of life to receive attention every single day.
 
-## Core features
+## Core loop
 
-- configurable daily XP goal
-- weighted category minimums
-- editable categories and actions
-- repeatable and once-per-day actions
-- undo
-- automatic daily rollover
-- history
-- PWA/offline support
-- optional private accounts and cross-device sync
+1. Do actions to earn XP.
+2. Each action has a base XP value.
+3. A category's **Focus** determines how long it stays at full XP efficiency.
+4. Repeating the same category gradually drops its payout through 100% → 80% → 60% → 40%.
+5. Reach the daily effective-XP goal to clear the day.
+6. Receive an official *Crestfallen Daily* report about whatever you just did.
+
+There are no mandatory categories. A work-only day is valid; it simply becomes less XP-efficient as that category gets saturated.
+
+## Progression
+
+Dalli tracks three different kinds of progress:
+
+- **Level** — permanent lifetime progress from all effective XP, even on days that are not cleared. Every new level costs more XP than the last.
+- **Street Cred / Rank** — consistency over the rolling last 30 days. A cleared day counts; grinding extra XP on one day does not.
+- **Streak** — consecutive cleared calendar days, plus the best streak.
+
+Current ranks:
+
+- Nobody
+- Low-Life
+- Hustler
+- Thug
+- Gangsta
+- Kingpin
+- Head Honcho
+
+## Crestfallen Daily
+
+Clearing a day creates a persistent newspaper-style report based on how the day went.
+
+Dalli can classify days as things such as:
+
+- Corporate Drone
+- Domestic Menace
+- Wellness Criminal
+- One-Track Mind
+- Suspiciously Functional Adult
+- Technically Victorious
+- Needs Intervention
+
+Reports are deterministic local content; they do not require an AI service.
+
+## Categories and actions
+
+- categories are fully editable
+- category **Focus** controls diminishing returns
+- actions have editable base XP values
+- actions can be repeatable or once-per-day
+- deleting a category moves its actions to **Uncategorized**
+- Uncategorized is a permanent fallback with a fixed 50% payout
+
+## History and statistics foundation
+
+Each XP transaction records enough immutable information for later statistics:
+
+- timestamp and date
+- action ID and action name at the time
+- category ID and category name at the time
+- base XP
+- effective XP
+- efficiency multiplier
+
+Detailed events are retained for recent history while compact daily summaries can remain longer.
 
 ## Accounts and sync
 
@@ -21,7 +76,7 @@ Dalli has a deliberately small private account system:
 - the **first account becomes the owner**
 - the owner creates one-use invite links from the Account screen
 - invited people choose their own username and password
-- each user has separate categories, actions, settings, XP and history
+- each user has separate game state
 - users can stay signed in for 30 days on each device
 - remembered devices have independent revocable tokens
 - cloud state uses optimistic revisions so stale devices cannot silently overwrite newer data
@@ -29,29 +84,18 @@ Dalli has a deliberately small private account system:
 
 Invite secrets live in the URL fragment (`#invite=...`), so the secret is not sent in the initial HTTP request or normal access logs. Invite links are single-use and expire after 7 days.
 
-## Scoring
-
-For each weighted category:
-
-```
-weightedShare = dailyGoal * categoryWeight / sumOfAllWeightedCategoryWeights
-minimumXP    = round(weightedShare * 0.70)
-```
-
-A day is won only when the overall XP goal is reached **and** every weighted category reaches its minimum.
-
-`Uncategorized` is a fallback category. Its XP counts toward the daily total but it does not add a balance requirement.
-
 ## Storage
 
 Guest/local mode uses browser `localStorage`.
 
 Signed-in users store their validated Dalli state in MySQL/MariaDB-compatible storage. Server-owned authentication metadata is kept in a protected envelope in `user_state.state_json` and is never accepted from, or returned to, the browser as app state.
 
-The database schema is intentionally small:
+The database schema remains intentionally small:
 
 - `users`
 - `user_state`
+
+Dalli v3 intentionally starts a fresh gameplay state when it encounters an older incompatible game-state version. Accounts and authentication remain intact.
 
 ## Security
 
@@ -76,4 +120,4 @@ Highlights:
 
 ## Self-hosting
 
-See [DEPLOY.md](DEPLOY.md) for a provider-neutral self-hosting guide.
+See [DEPLOY.md](DEPLOY.md) for the provider-neutral self-hosting guide.

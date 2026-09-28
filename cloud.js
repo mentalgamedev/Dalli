@@ -2,7 +2,7 @@
   'use strict';
 
   const API_ROOT = './api';
-  const USER_STORAGE_PREFIX = 'dailyXpGame.v1.user.';
+  const USER_STORAGE_PREFIX = 'dailyXpGame.v2.user.';
   const INVITE_SESSION_KEY = 'dalli.pendingInvite.v1';
   const SAVE_DELAY_MS = 450;
   const RETRY_DELAY_MS = 5000;
@@ -575,10 +575,21 @@
     const cachedUserState = window.DalliApp.readStoredState(storageKey);
 
     if (remote.state) {
+      const remoteVersion = Number(remote.state.version || 0);
       revision = remote.revision;
       cloudReady = true;
       window.DalliApp.replaceState(remote.state, storageKey);
-      setSyncStatus('Synced', 'ok');
+
+      if (remoteVersion !== window.DalliApp.stateVersion) {
+        try {
+          await saveNow(window.DalliApp.getState());
+          setSyncStatus('Fresh v3 game · synced', 'ok');
+        } catch (error) {
+          handleSaveError(error, window.DalliApp.getState());
+        }
+      } else {
+        setSyncStatus('Synced', 'ok');
+      }
       return;
     }
 

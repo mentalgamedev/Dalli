@@ -216,14 +216,14 @@ function dalli_keys_allowed(array $value, array $allowed): bool
 
 function dalli_validate_state(mixed $state): array
 {
-    if (!is_array($state) || !dalli_keys_allowed($state, ['version', 'settings', 'current', 'history'])) {
-        dalli_fail('Invalid Dalli state.', 422);
-    }
-    if (($state['version'] ?? null) !== 1) {
-        dalli_fail('Unsupported Dalli state version.', 422);
+    if (!is_array($state)
+        || !dalli_keys_allowed($state, ['version', 'settings', 'progression', 'current', 'history'])
+        || ($state['version'] ?? null) !== 2) {
+        dalli_fail('Unsupported Dalli state.', 422);
     }
 
     $settings = $state['settings'] ?? null;
+    $progression = $state['progression'] ?? null;
     $current = $state['current'] ?? null;
     $history = $state['history'] ?? null;
 
@@ -241,23 +241,26 @@ function dalli_validate_state(mixed $state): array
 
     $categoryIds = [];
     foreach ($categories as $category) {
-        if (!is_array($category) || !dalli_keys_allowed($category, ['id', 'name', 'icon', 'weight'])) {
+        if (!is_array($category) || !dalli_keys_allowed($category, ['id', 'name', 'icon', 'focus'])) {
             dalli_fail('Invalid category.', 422);
         }
+
         $id = $category['id'] ?? null;
         if (!is_string($id) || preg_match('/^[A-Za-z0-9_-]{1,64}$/', $id) !== 1 || isset($categoryIds[$id])) {
             dalli_fail('Invalid category id.', 422);
         }
-        $weight = $category['weight'] ?? null;
-        $validWeight = $id === 'uncategorized'
-            ? (is_int($weight) || is_float($weight)) && (float) $weight === 0.0
-            : dalli_number_between($weight, 0.25, 10);
+
+        $focus = $category['focus'] ?? null;
+        $validFocus = $id === 'uncategorized'
+            ? (is_int($focus) || is_float($focus)) && (float) $focus === 0.0
+            : dalli_number_between($focus, 0.25, 10);
 
         if (!dalli_string_ok($category['name'] ?? null, 1, 80)
             || !dalli_string_ok($category['icon'] ?? null, 1, 24)
-            || !$validWeight) {
+            || !$validFocus) {
             dalli_fail('Invalid category data.', 422);
         }
+
         $categoryIds[$id] = true;
     }
 
@@ -265,13 +268,16 @@ function dalli_validate_state(mixed $state): array
     if (!is_array($actions) || count($actions) > 500) {
         dalli_fail('Invalid actions.', 422);
     }
+
     $actionIds = [];
     foreach ($actions as $action) {
-        if (!is_array($action) || !dalli_keys_allowed($action, ['id', 'categoryId', 'name', 'xp', 'type'])) {
+        if (!is_array($action) || !dalli_keys_allowed($action, ['id', 'categoryId', 'name', 'baseXp', 'type'])) {
             dalli_fail('Invalid action.', 422);
         }
+
         $id = $action['id'] ?? null;
         $categoryId = $action['categoryId'] ?? null;
+
         if (!is_string($id) || strlen($id) < 1 || strlen($id) > 128 || isset($actionIds[$id])) {
             dalli_fail('Invalid action id.', 422);
         }
@@ -279,57 +285,153 @@ function dalli_validate_state(mixed $state): array
             dalli_fail('Invalid action category.', 422);
         }
         if (!dalli_string_ok($action['name'] ?? null, 1, 100)
-            || !is_int($action['xp'] ?? null) || $action['xp'] < 1 || $action['xp'] > 200
+            || !is_int($action['baseXp'] ?? null) || $action['baseXp'] < 1 || $action['baseXp'] > 200
             || !in_array($action['type'] ?? null, ['repeatable', 'once'], true)) {
             dalli_fail('Invalid action data.', 422);
         }
+
         $actionIds[$id] = true;
     }
 
-    if (!is_array($current) || !dalli_keys_allowed($current, ['date', 'transactions'])) {
+    if (!is_array($progression)
+        || !dalli_keys_allowed($progression, ['lifetimeXp', 'bestStreak', 'archivedStreak', 'streakThrough'])
+        || !is_int($progression['lifetimeXp'] ?? null)
+        || $progression['lifetimeXp'] < 0 || $progression['lifetimeXp'] > 1000000000
+        || !is_int($progression['bestStreak'] ?? null)
+        || $progression['bestStreak'] < 0 || $progression['bestStreak'] > 1000000
+        || !is_int($progression['archivedStreak'] ?? null)
+        || $progression['archivedStreak'] < 0 || $progression['archivedStreak'] > 1000000) {
+        dalli_fail('Invalid progression data.', 422);
+    }
+
+    $streakThrough = $progression['streakThrough'] ?? '';
+    if (!is_string($streakThrough)
+        || ($streakThrough !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $streakThrough) !== 1)) {
+        dalli_fail('Invalid streak date.', 422);
+    }
+
+    $validTimestamp = static function (mixed $value): bool {
+        return $value === null
+            || ((is_int($value) || is_float($value)) && (float) $value > 0);
+    };
+
+    $validateTransaction = static function (mixed $tx): bool {
+        if (!is_array($tx)
+            || !dalli_keys_allowed($tx, [
+                'id', 'actionId', 'actionName', 'categoryId', 'categoryName',
+                'baseXp', 'effectiveXp', 'efficiency', 'timestamp'
+            ])) {
+            return false;
+        }
+
+        $categoryId = $tx['categoryId'] ?? null;
+        return dalli_string_ok($tx['id'] ?? null, 1, 128)
+            && dalli_string_ok($tx['actionId'] ?? null, 0, 128)
+            && dalli_string_ok($tx['actionName'] ?? null, 1, 100)
+            && is_string($categoryId)
+            && preg_match('/^[A-Za-z0-9_-]{1,64}$/', $categoryId) === 1
+            && dalli_string_ok($tx['categoryName'] ?? null, 1, 80)
+            && is_int($tx['baseXp'] ?? null) && $tx['baseXp'] >= 1 && $tx['baseXp'] <= 200
+            && is_int($tx['effectiveXp'] ?? null) && $tx['effectiveXp'] >= 1 && $tx['effectiveXp'] <= 200
+            && dalli_number_between($tx['efficiency'] ?? null, 0.01, 1)
+            && (is_int($tx['timestamp'] ?? null) || is_float($tx['timestamp'] ?? null))
+            && (float) $tx['timestamp'] > 0;
+    };
+
+    $validateDayCard = static function (mixed $card): bool {
+        if ($card === null) {
+            return true;
+        }
+
+        if (!is_array($card)
+            || !dalli_keys_allowed($card, ['date', 'type', 'headline', 'copy', 'xp', 'rank', 'streak'])) {
+            return false;
+        }
+
+        return is_string($card['date'] ?? null)
+            && preg_match('/^\d{4}-\d{2}-\d{2}$/', $card['date']) === 1
+            && dalli_string_ok($card['type'] ?? null, 1, 80)
+            && dalli_string_ok($card['headline'] ?? null, 1, 220)
+            && dalli_string_ok($card['copy'] ?? null, 0, 500)
+            && is_int($card['xp'] ?? null) && $card['xp'] >= 0 && $card['xp'] <= 100000
+            && dalli_string_ok($card['rank'] ?? null, 1, 40)
+            && is_int($card['streak'] ?? null) && $card['streak'] >= 0 && $card['streak'] <= 1000000;
+    };
+
+    $validateXpMap = static function (mixed $map): bool {
+        if (!is_array($map)) {
+            return false;
+        }
+
+        foreach ($map as $categoryId => $xp) {
+            if (!is_string($categoryId)
+                || preg_match('/^[A-Za-z0-9_-]{1,64}$/', $categoryId) !== 1
+                || !is_int($xp) || $xp < 0 || $xp > 100000) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    if (!is_array($current)
+        || !dalli_keys_allowed($current, ['date', 'transactions', 'clearedAt', 'dayCard'])) {
         dalli_fail('Invalid current day.', 422);
     }
-    $date = $current['date'] ?? '';
-    if (!is_string($date) || ($date !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) !== 1)) {
+
+    $currentDate = $current['date'] ?? '';
+    if (!is_string($currentDate)
+        || ($currentDate !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $currentDate) !== 1)) {
         dalli_fail('Invalid current date.', 422);
     }
+
     $transactions = $current['transactions'] ?? null;
     if (!is_array($transactions) || count($transactions) > 3000) {
         dalli_fail('Invalid transactions.', 422);
     }
     foreach ($transactions as $tx) {
-        if (!is_array($tx) || !dalli_keys_allowed($tx, ['id', 'actionId', 'actionName', 'categoryId', 'xp', 'timestamp'])) {
-            dalli_fail('Invalid transaction.', 422);
-        }
-        if (!dalli_string_ok($tx['id'] ?? null, 1, 128)
-            || !dalli_string_ok($tx['actionId'] ?? null, 0, 128)
-            || !dalli_string_ok($tx['actionName'] ?? null, 1, 100)
-            || !is_string($tx['categoryId'] ?? null) || !isset($categoryIds[$tx['categoryId']])
-            || !is_int($tx['xp'] ?? null) || $tx['xp'] < 1 || $tx['xp'] > 200
-            || (!is_int($tx['timestamp'] ?? null) && !is_float($tx['timestamp'] ?? null))) {
+        if (!$validateTransaction($tx)) {
             dalli_fail('Invalid transaction data.', 422);
         }
+    }
+
+    if (!$validTimestamp($current['clearedAt'] ?? null)
+        || !$validateDayCard($current['dayCard'] ?? null)) {
+        dalli_fail('Invalid current completion data.', 422);
     }
 
     if (!is_array($history) || count($history) > 365) {
         dalli_fail('Invalid history.', 422);
     }
+
     foreach ($history as $day) {
-        if (!is_array($day) || !dalli_keys_allowed($day, ['date', 'xp', 'goal', 'won', 'categoryXp'])) {
+        if (!is_array($day)
+            || !dalli_keys_allowed($day, [
+                'date', 'xp', 'baseXp', 'goal', 'won', 'categoryXp', 'categoryBaseXp',
+                'clearedAt', 'dayCard', 'transactions'
+            ])) {
             dalli_fail('Invalid history entry.', 422);
         }
-        if (!is_string($day['date'] ?? null) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $day['date']) !== 1
+
+        if (!is_string($day['date'] ?? null)
+            || preg_match('/^\d{4}-\d{2}-\d{2}$/', $day['date']) !== 1
             || !is_int($day['xp'] ?? null) || $day['xp'] < 0 || $day['xp'] > 100000
+            || !is_int($day['baseXp'] ?? null) || $day['baseXp'] < 0 || $day['baseXp'] > 100000
             || !is_int($day['goal'] ?? null) || $day['goal'] < 20 || $day['goal'] > 1000
             || !is_bool($day['won'] ?? null)
-            || !is_array($day['categoryXp'] ?? null)) {
+            || !$validateXpMap($day['categoryXp'] ?? null)
+            || !$validateXpMap($day['categoryBaseXp'] ?? null)
+            || !$validTimestamp($day['clearedAt'] ?? null)
+            || !$validateDayCard($day['dayCard'] ?? null)) {
             dalli_fail('Invalid history data.', 422);
         }
-        foreach ($day['categoryXp'] as $categoryId => $xp) {
-            if (!is_string($categoryId)
-                || preg_match('/^[A-Za-z0-9_-]{1,64}$/', $categoryId) !== 1
-                || !is_int($xp) || $xp < 0 || $xp > 100000) {
-                dalli_fail('Invalid history category data.', 422);
+
+        $dayTransactions = $day['transactions'] ?? null;
+        if (!is_array($dayTransactions) || count($dayTransactions) > 3000) {
+            dalli_fail('Invalid history transactions.', 422);
+        }
+        foreach ($dayTransactions as $tx) {
+            if (!$validateTransaction($tx)) {
+                dalli_fail('Invalid historical transaction data.', 422);
             }
         }
     }

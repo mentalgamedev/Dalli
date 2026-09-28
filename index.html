@@ -4,19 +4,22 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#11131a">
-  <meta name="description" content="Dalli — a tiny daily XP game for balancing Health, Work and Chores.">
+  <meta name="description" content="Dalli — suspiciously effective daily gamification from Crestfallen.">
   <title>Dalli</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=2.3.0">
+  <link rel="stylesheet" href="styles.css?v=3.0.0">
 </head>
 <body>
+  <div class="city-noise" aria-hidden="true"></div>
+
   <div class="app-shell">
     <header class="topbar">
-      <div>
-        <div class="eyebrow">TODAY'S RUN</div>
+      <div class="brand-block">
+        <div class="eyebrow">CRESTFALLEN PRODUCTIVITY DIVISION</div>
         <h1 class="brand-title">Dalli</h1>
-        <div class="app-version" aria-label="Dalli version 2.3.0">v2.3.0 · online</div>
+        <div class="brand-subline">Get a move on. The city is watching.</div>
+        <div class="app-version" aria-label="Dalli version 3.0.0">v3.0.0 · Crestfallen build</div>
         <div id="todayLabel" class="muted"></div>
       </div>
       <button id="settingsButton" class="icon-button" type="button" aria-label="Open settings" title="Settings">⚙</button>
@@ -24,10 +27,11 @@
 
     <main>
       <section class="hero-card" aria-labelledby="xpHeading">
+        <div class="hero-sticker" aria-hidden="true">TODAY</div>
         <div class="hero-copy">
           <div id="statusBadge" class="status-badge">IN PROGRESS</div>
           <h2 id="xpHeading"><span id="totalXp">0</span><span class="hero-goal"> / <span id="goalXp">100</span> XP</span></h2>
-          <p id="heroMessage" class="muted">Build XP across every category to clear today's challenge.</p>
+          <p id="heroMessage" class="muted">Earn XP any way you like. Repeating one category gradually pays less.</p>
         </div>
         <div class="xp-orb-wrap" aria-hidden="true">
           <div id="xpOrb" class="xp-orb">
@@ -42,20 +46,56 @@
         </div>
       </section>
 
+      <section class="progression-grid" aria-label="Long-term progression">
+        <article class="rank-card">
+          <div class="rank-card-copy">
+            <div class="eyebrow rank-eyebrow">STREET CRED</div>
+            <div class="rank-line">
+              <strong id="rankName" class="rank-name">Nobody</strong>
+              <span id="streetCred" class="street-cred">0 / 30</span>
+            </div>
+            <div class="rank-meter" aria-hidden="true"><div id="rankProgress" class="rank-meter-fill"></div></div>
+            <div id="rankHint" class="rank-hint">Clear days to become somebody. Allegedly.</div>
+          </div>
+          <div id="rankStamp" class="rank-stamp" aria-hidden="true">NOBODY</div>
+        </article>
+
+        <article class="mini-stat-card">
+          <div class="mini-stat-icon">▲</div>
+          <div>
+            <div class="eyebrow">LEVEL</div>
+            <strong id="levelNumber" class="mini-stat-value">1</strong>
+            <div id="levelProgressText" class="mini-stat-note">0 / 60 XP</div>
+          </div>
+          <div class="mini-meter"><div id="levelProgress" class="mini-meter-fill"></div></div>
+        </article>
+
+        <article class="mini-stat-card">
+          <div class="mini-stat-icon">🔥</div>
+          <div>
+            <div class="eyebrow">STREAK</div>
+            <strong id="streakCount" class="mini-stat-value">0 days</strong>
+            <div id="bestStreak" class="mini-stat-note">Best: 0</div>
+          </div>
+          <div class="streak-caption">Consistency is just sunk cost with better branding.</div>
+        </article>
+      </section>
+
       <section id="victoryBanner" class="victory-banner" hidden>
         <div class="victory-icon">★</div>
-        <div>
-          <strong>Daily challenge complete</strong>
-          <span>You can stop here. Extra XP is only a high score.</span>
+        <div class="victory-copy">
+          <strong>Day cleared. Bureaucracy defeated.</strong>
+          <span id="victorySummary">Your official Crestfallen report is ready.</span>
         </div>
+        <button id="viewDayCardButton" class="report-button" type="button">View report</button>
       </section>
 
       <section class="section-head">
         <div>
-          <div class="eyebrow">BALANCE CHECK</div>
+          <div class="eyebrow">XP MARKET</div>
           <h2>Categories</h2>
         </div>
-        <div class="balance-note">Each category needs 70% of its weighted share</div>
+        <div class="balance-note">Focus decides how long a category stays lucrative</div>
       </section>
 
       <section id="categoriesGrid" class="categories-grid"></section>
@@ -74,8 +114,8 @@
         <div class="panel">
           <div class="panel-head">
             <div>
-              <div class="eyebrow">PAST RUNS</div>
-              <h2>History</h2>
+              <div class="eyebrow">CASE FILES</div>
+              <h2>Recent days</h2>
             </div>
           </div>
           <div id="historyList" class="history-list"></div>
@@ -84,11 +124,39 @@
     </main>
   </div>
 
+  <dialog id="dayCardDialog" class="day-card-dialog">
+    <article class="day-card">
+      <div class="newspaper-masthead">
+        <span>THE</span>
+        <strong>CRESTFALLEN DAILY</strong>
+        <small>FACTS OPTIONAL · PRODUCTIVITY MANDATORY</small>
+      </div>
+      <div class="day-card-meta">
+        <span id="dayCardDate"></span>
+        <span id="dayCardXp"></span>
+      </div>
+      <div id="dayCardType" class="day-type-stamp">SUSPICIOUSLY FUNCTIONAL ADULT</div>
+      <h2 id="dayCardHeadline" class="day-card-headline"></h2>
+      <p id="dayCardCopy" class="day-card-copy"></p>
+      <div class="day-card-footer">
+        <div>
+          <span>Street Cred</span>
+          <strong id="dayCardRank"></strong>
+        </div>
+        <div>
+          <span>Streak</span>
+          <strong id="dayCardStreak"></strong>
+        </div>
+        <button id="closeDayCardButton" class="newspaper-button" type="button">Case closed</button>
+      </div>
+    </article>
+  </dialog>
+
   <dialog id="settingsDialog" class="settings-dialog">
     <form method="dialog" class="settings-card" id="settingsForm">
       <div class="settings-head">
         <div>
-          <div class="eyebrow">GAME RULES</div>
+          <div class="eyebrow">QUESTIONABLE LIFE CONFIGURATION</div>
           <h2>Settings</h2>
         </div>
         <button class="icon-button" value="cancel" aria-label="Close settings" type="submit">×</button>
@@ -99,7 +167,7 @@
         <label class="field-row">
           <span>
             <strong>XP goal</strong>
-            <small>100 is the default daily target.</small>
+            <small>Reach this much effective XP to clear the day.</small>
           </span>
           <input id="goalInput" type="number" min="20" max="1000" step="5" inputmode="numeric">
         </label>
@@ -108,8 +176,8 @@
       <section class="settings-section">
         <div class="settings-section-head">
           <div>
-            <h3>Categories</h3>
-            <p>Create your own categories. Weight controls how much each category matters for today's balance.</p>
+            <h3>Categories & Focus</h3>
+            <p>Higher Focus means a category can produce full-value XP for longer before diminishing returns kick in.</p>
           </div>
         </div>
         <div id="categoriesEditor" class="categories-editor"></div>
@@ -126,12 +194,12 @@
               <input id="newCategoryIcon" type="text" maxlength="8" placeholder="•">
             </label>
             <label>
-              <span>Weight</span>
-              <input id="newCategoryWeight" type="number" min="0.25" max="10" step="0.25" value="1" inputmode="decimal">
+              <span>Focus</span>
+              <input id="newCategoryFocus" type="number" min="0.25" max="10" step="0.25" value="1" inputmode="decimal">
             </label>
           </div>
           <button id="addCategoryButton" class="secondary-button" type="button">+ Add category</button>
-          <p class="category-fallback-note">Uncategorized is the permanent fallback. Deleting a category moves its actions there.</p>
+          <p class="category-fallback-note">Uncategorized is the permanent fallback. It pays a fixed 50% until you assign those actions somewhere respectable.</p>
         </div>
       </section>
 
@@ -139,7 +207,7 @@
         <div class="settings-section-head">
           <div>
             <h3>Actions</h3>
-            <p>Repeatable actions can score many times. Once-daily actions lock after use.</p>
+            <p>Action XP is the base value. The category's current efficiency decides the actual payout.</p>
           </div>
         </div>
         <div id="actionsEditor" class="actions-editor"></div>
@@ -156,7 +224,7 @@
               <select id="newActionCategory"></select>
             </label>
             <label>
-              <span>XP</span>
+              <span>Base XP</span>
               <input id="newActionXp" type="number" min="1" max="200" step="1" value="10" inputmode="numeric">
             </label>
             <label>
@@ -169,6 +237,14 @@
           </div>
           <button id="addActionButton" class="secondary-button" type="button">+ Add action</button>
         </div>
+      </section>
+
+      <section class="settings-section danger-zone">
+        <div>
+          <h3>Fresh start</h3>
+          <p>Reset all game progress, categories, actions, Level, Street Cred and history. Your account/login remains untouched.</p>
+        </div>
+        <button id="resetGameButton" class="danger-button" type="button">Reset game data</button>
       </section>
 
       <div id="settingsMessage" class="settings-message" role="status" aria-live="polite"></div>
@@ -191,12 +267,19 @@
         </div>
         <div class="category-score"></div>
       </div>
-      <div class="category-meter"><div class="category-meter-fill"></div></div>
+      <div class="efficiency-row">
+        <div class="efficiency-copy">
+          <span class="efficiency-label">Efficiency</span>
+          <strong class="efficiency-value">100%</strong>
+        </div>
+        <div class="category-meter"><div class="category-meter-fill"></div></div>
+        <div class="efficiency-next"></div>
+      </div>
       <div class="actions-list"></div>
     </article>
   </template>
 
-  <script src="app.js?v=2.3.0" defer></script>
-  <script src="cloud.js?v=2.3.0" defer></script>
+  <script src="app.js?v=3.0.0" defer></script>
+  <script src="cloud.js?v=3.0.0" defer></script>
 </body>
 </html>
