@@ -1,0 +1,124 @@
+name: Deploy Dalli
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dalli-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to lima-city
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check deployment secrets
+        id: preflight
+        env:
+          LIMA_FTP_HOST: ${{ secrets.LIMA_FTP_HOST }}
+          LIMA_FTP_USER: ${{ secrets.LIMA_FTP_USER }}
+          LIMA_FTP_PASSWORD: ${{ secrets.LIMA_FTP_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${LIMA_FTP_HOST}" || -z "${LIMA_FTP_USER}" || -z "${LIMA_FTP_PASSWORD}" ]]; then
+            echo "configured=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::Deployment is ready but disabled until LIMA_FTP_HOST, LIMA_FTP_USER and LIMA_FTP_PASSWORD are configured as repository secrets."
+            exit 0
+          fi
+
+          echo "configured=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Run syntax checks
+        if: steps.preflight.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check app.js
+          node --check cloud.js
+          node --check service-worker.js
+          find . -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
+          test ! -e dalli-config.php
+          test ! -e .env
+
+      - name: Build deployment directory
+        if: steps.preflight.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p _deploy
+
+          rsync -a ./ _deploy/ \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude '_deploy/' \
+            --exclude 'README.md' \
+            --exclude 'DEPLOY.md' \
+            --exclude 'schema.sql' \
+            --exclude 'config.example.php' \
+            --exclude 'dalli-config.php' \
+            --exclude '.env' \
+            --exclude '.env.*'
+
+          echo "Files prepared for deployment:"
+          find _deploy -maxdepth 3 -type f -printf '%P\n' | sort
+
+      - name: Install FTPS client
+        if: steps.preflight.outputs.configured == 'true'
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp
+
+      - name: Deploy to apps/dalli
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          LIMA_FTP_HOST: ${{ secrets.LIMA_FTP_HOST }}
+          LIMA_FTP_USER: ${{ secrets.LIMA_FTP_USER }}
+          LIMA_FTP_PASSWORD: ${{ secrets.LIMA_FTP_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Dalli's live document root on the lima-city webspace.
+          REMOTE_DIR="apps/dalli"
+
+          if [[ "${REMOTE_DIR}" != "apps/dalli" ]]; then
+            echo "::error::Refusing to deploy to an unexpected remote directory."
+            exit 1
+          fi
+
+          lftp -u "${LIMA_FTP_USER}","${LIMA_FTP_PASSWORD}" "ftp://${LIMA_FTP_HOST}" <<LFTP
+          set cmd:fail-exit yes
+          set ftp:ssl-force yes
+          set ftp:ssl-protect-data yes
+          set ssl:verify-certificate yes
+          set net:max-retries 2
+          set net:timeout 20
+          set net:reconnect-interval-base 5
+          mkdir -p ${REMOTE_DIR}
+          mirror --reverse --delete --verbose --parallel=4 --no-perms _deploy/ ${REMOTE_DIR}/
+          bye
+LFTP
+
+      - name: Deployment summary
+        if: steps.preflight.outputs.configured == 'true'
+        shell: bash
+        run: |
+          {
+            echo "### Dalli deployed"
+            echo ""
+            echo "- Source: \`${GITHUB_SHA}\`"
+            echo "- Target: \`apps/dalli/\`"
+            echo "- Transport: explicit TLS (FTPS)"
+            echo "- Private \`apps/dalli-config.php\` is outside the deployment target and is untouched."
+          } >> "${GITHUB_STEP_SUMMARY}"
