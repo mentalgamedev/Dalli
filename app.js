@@ -1,16 +1,21 @@
 (() => {
   'use strict';
 
-  const STATE_VERSION = 2;
+  const STATE_VERSION = 3;
   const STORAGE_KEY = 'dailyXpGame.v2';
   const HISTORY_LIMIT = 365;
   const DETAILED_HISTORY_DAYS = 90;
   const UNCATEGORIZED_ID = 'uncategorized';
   const UNCATEGORIZED_EFFICIENCY = 0.50;
   const EFFICIENCY_TIERS = [1, 0.8, 0.6, 0.4];
-  const STARTER_GOAL_RATIO = 0.60;
-  const GOAL_RAMP_STEPS = 8;
-  const CLEARS_PER_RAMP_STEP = 2;
+  const STARTER_HP_RATIO = 0.60;
+  const HP_RAMP_STEPS = 8;
+  const VICTORIES_PER_RAMP_STEP = 2;
+  const VICTORY_XP = 20;
+  const COMBO_MIN_MULTIPLIER = 1.05;
+  const COMBO_MAX_MULTIPLIER = 3;
+  const COMBO_DEFAULT_MULTIPLIER = 1.25;
+  const COMBO_MAX_STEPS = 8;
 
   const DEFAULT_ACTION_NAME_MIGRATIONS = Object.freeze({
     'wellbeing-workout-30': ['Workout — 30 min', 'Proper workout'],
@@ -55,7 +60,7 @@
   const DEFAULT_STATE = {
     version: STATE_VERSION,
     settings: {
-      goal: 100,
+      fullEnemyHp: 100,
       categories: [
         { id: 'wellbeing', name: 'Wellbeing', icon: '♥', focus: 1, color: '#49d89b' },
         { id: 'work', name: 'Work', icon: '◆', focus: 1.5, color: '#818bff' },
@@ -63,30 +68,34 @@
         { id: UNCATEGORIZED_ID, name: 'Uncategorized', icon: '•', focus: 0, color: '#8b93a4' }
       ],
       actions: [
-        { id: 'wellbeing-workout-30', categoryId: 'wellbeing', name: 'Proper workout', baseXp: 20, type: 'repeatable', trackVisible: true },
-        { id: 'wellbeing-walk-20', categoryId: 'wellbeing', name: 'Walk / fresh air', baseXp: 10, type: 'repeatable', trackVisible: true },
-        { id: 'wellbeing-mobility-10', categoryId: 'wellbeing', name: 'Quick movement / stretch', baseXp: 5, type: 'repeatable', trackVisible: true },
-        { id: 'wellbeing-good-meal', categoryId: 'wellbeing', name: 'Proper healthy meal', baseXp: 10, type: 'once', trackVisible: true },
-        { id: 'work-focus-25', categoryId: 'work', name: 'Focus session', baseXp: 15, type: 'repeatable', trackVisible: true },
-        { id: 'work-focus-50', categoryId: 'work', name: 'Deep focus session', baseXp: 30, type: 'repeatable', trackVisible: true },
-        { id: 'work-practice-20', categoryId: 'work', name: 'Practice / skill', baseXp: 10, type: 'repeatable', trackVisible: true },
-        { id: 'work-admin', categoryId: 'work', name: 'Annoying admin task', baseXp: 10, type: 'once', trackVisible: true },
-        { id: 'chores-small', categoryId: 'chores', name: 'Tiny chore', baseXp: 5, type: 'repeatable', trackVisible: true },
-        { id: 'chores-medium', categoryId: 'chores', name: 'Proper chore / cleaning', baseXp: 10, type: 'repeatable', trackVisible: true },
-        { id: 'chores-laundry', categoryId: 'chores', name: 'Laundry', baseXp: 10, type: 'once', trackVisible: true },
-        { id: 'chores-big', categoryId: 'chores', name: 'Big chore / deep clean', baseXp: 20, type: 'repeatable', trackVisible: true }
-      ]
+        { id: 'wellbeing-workout-30', categoryId: 'wellbeing', name: 'Proper workout', baseDamage: 20, type: 'repeatable', trackVisible: true },
+        { id: 'wellbeing-walk-20', categoryId: 'wellbeing', name: 'Walk / fresh air', baseDamage: 10, type: 'repeatable', trackVisible: true },
+        { id: 'wellbeing-mobility-10', categoryId: 'wellbeing', name: 'Quick movement / stretch', baseDamage: 5, type: 'repeatable', trackVisible: true },
+        { id: 'wellbeing-good-meal', categoryId: 'wellbeing', name: 'Proper healthy meal', baseDamage: 10, type: 'once', trackVisible: true },
+        { id: 'work-focus-25', categoryId: 'work', name: 'Focus session', baseDamage: 15, type: 'repeatable', trackVisible: true },
+        { id: 'work-focus-50', categoryId: 'work', name: 'Deep focus session', baseDamage: 30, type: 'repeatable', trackVisible: true },
+        { id: 'work-practice-20', categoryId: 'work', name: 'Practice / skill', baseDamage: 10, type: 'repeatable', trackVisible: true },
+        { id: 'work-admin', categoryId: 'work', name: 'Annoying admin task', baseDamage: 10, type: 'once', trackVisible: true },
+        { id: 'chores-small', categoryId: 'chores', name: 'Tiny chore', baseDamage: 5, type: 'repeatable', trackVisible: true },
+        { id: 'chores-medium', categoryId: 'chores', name: 'Proper chore / cleaning', baseDamage: 10, type: 'repeatable', trackVisible: true },
+        { id: 'chores-laundry', categoryId: 'chores', name: 'Laundry', baseDamage: 10, type: 'once', trackVisible: true },
+        { id: 'chores-big', categoryId: 'chores', name: 'Big chore / deep clean', baseDamage: 20, type: 'repeatable', trackVisible: true }
+      ],
+      combos: []
     },
     progression: {
-      lifetimeXp: 0,
+      victoryXp: 0,
       bestStreak: 0,
       archivedStreak: 0,
       streakThrough: ''
     },
     current: {
       date: '',
+      maxHp: 0,
       transactions: [],
-      clearedAt: null,
+      comboProgress: {},
+      defeatedAt: null,
+      victoryXpAwarded: 0,
       dayCard: null
     },
     history: []
@@ -320,20 +329,148 @@
     return cleaned;
   }
 
+
+  function legacyEnemyHp(candidate) {
+    const fullEnemyHp = clampInt(candidate?.settings?.goal, 20, 1000, 100);
+    const starterHp = Math.max(
+      20,
+      Math.min(fullEnemyHp, Math.round((fullEnemyHp * STARTER_HP_RATIO) / 5) * 5)
+    );
+    if (starterHp >= fullEnemyHp) return fullEnemyHp;
+
+    const clearCount = Array.isArray(candidate?.history)
+      ? candidate.history.reduce((count, day) => count + (day?.won ? 1 : 0), 0)
+      : 0;
+    const rampStep = Math.min(
+      HP_RAMP_STEPS,
+      Math.floor(clearCount / VICTORIES_PER_RAMP_STEP)
+    );
+    const progress = rampStep / HP_RAMP_STEPS;
+    return Math.min(
+      fullEnemyHp,
+      Math.max(20, Math.round((starterHp + ((fullEnemyHp - starterHp) * progress)) / 5) * 5)
+    );
+  }
+
+  function migrateLegacyTransaction(tx) {
+    return {
+      type: 'action',
+      id: String(tx?.id || makeId('tx')).slice(0, 128),
+      actionId: String(tx?.actionId || '').slice(0, 128),
+      actionName: String(tx?.actionName || 'Action').slice(0, 100),
+      categoryId: /^[A-Za-z0-9_-]{1,64}$/.test(String(tx?.categoryId || ''))
+        ? String(tx.categoryId)
+        : UNCATEGORIZED_ID,
+      categoryName: String(tx?.categoryName || 'Uncategorized').slice(0, 80),
+      baseDamage: clampInt(tx?.baseXp, 1, 200, 1),
+      damage: clampInt(tx?.effectiveXp, 1, 200, 1),
+      efficiency: clampNumber(tx?.efficiency, 0.01, 1, 1),
+      timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
+    };
+  }
+
+  function migrateLegacyDayCard(card, maxHp, damage, won) {
+    if (!card || typeof card !== 'object') return null;
+    return {
+      date: String(card.date || '').slice(0, 10),
+      type: String(card.type || (won ? 'VICTORY REPORT' : 'DAILY REPORT')).slice(0, 80),
+      headline: String(card.headline || (won ? 'DARK SELF DEFEATED' : 'FIGHT INCOMPLETE')).slice(0, 220),
+      copy: String(card.copy || '').slice(0, 500),
+      victoryXp: won ? VICTORY_XP : 0,
+      enemyHp: clampInt(maxHp, 20, 1000, 100),
+      damage: clampInt(damage, 0, 100000, 0),
+      overkill: Math.max(0, clampInt(damage, 0, 100000, 0) - clampInt(maxHp, 20, 1000, 100)),
+      combos: 0,
+      rank: String(card.rank || 'Nobody').slice(0, 40),
+      streak: clampInt(card.streak, 0, 1000000, 0)
+    };
+  }
+
+  function migrateV2State(candidate) {
+    const maxHp = candidate?.current?.date ? legacyEnemyHp(candidate) : 0;
+    const currentDamage = Array.isArray(candidate?.current?.transactions)
+      ? candidate.current.transactions.reduce((sum, tx) => sum + clampInt(tx?.effectiveXp, 0, 200, 0), 0)
+      : 0;
+    const currentWon = Boolean(candidate?.current?.clearedAt);
+    const historicalVictories = Array.isArray(candidate?.history)
+      ? candidate.history.reduce((count, day) => count + (day?.won ? 1 : 0), 0)
+      : 0;
+
+    return {
+      version: STATE_VERSION,
+      settings: {
+        fullEnemyHp: clampInt(candidate?.settings?.goal, 20, 1000, 100),
+        categories: deepClone(Array.isArray(candidate?.settings?.categories)
+          ? candidate.settings.categories
+          : DEFAULT_STATE.settings.categories),
+        actions: (Array.isArray(candidate?.settings?.actions)
+          ? candidate.settings.actions
+          : DEFAULT_STATE.settings.actions
+        ).map(action => ({
+          id: action?.id,
+          categoryId: action?.categoryId,
+          name: action?.name,
+          baseDamage: action?.baseXp,
+          type: action?.type,
+          trackVisible: action?.trackVisible
+        })),
+        combos: []
+      },
+      progression: {
+        victoryXp: VICTORY_XP * (historicalVictories + (currentWon ? 1 : 0)),
+        bestStreak: candidate?.progression?.bestStreak,
+        archivedStreak: candidate?.progression?.archivedStreak,
+        streakThrough: candidate?.progression?.streakThrough
+      },
+      current: {
+        date: candidate?.current?.date || '',
+        maxHp,
+        transactions: Array.isArray(candidate?.current?.transactions)
+          ? candidate.current.transactions.map(migrateLegacyTransaction)
+          : [],
+        comboProgress: {},
+        defeatedAt: normalizeTimestamp(candidate?.current?.clearedAt),
+        victoryXpAwarded: currentWon ? VICTORY_XP : 0,
+        dayCard: migrateLegacyDayCard(candidate?.current?.dayCard, maxHp || 100, currentDamage, currentWon)
+      },
+      history: Array.isArray(candidate?.history)
+        ? candidate.history.map(day => {
+          const dayMaxHp = clampInt(day?.goal, 20, 1000, 100);
+          const damage = clampInt(day?.xp, 0, 100000, 0);
+          return {
+            date: day?.date,
+            damage,
+            baseDamage: clampInt(day?.baseXp, 0, 100000, 0),
+            maxHp: dayMaxHp,
+            won: Boolean(day?.won),
+            categoryDamage: day?.categoryXp,
+            categoryBaseDamage: day?.categoryBaseXp,
+            defeatedAt: normalizeTimestamp(day?.clearedAt),
+            victoryXp: day?.won ? VICTORY_XP : 0,
+            combosLanded: 0,
+            overkill: Math.max(0, damage - dayMaxHp),
+            dayCard: migrateLegacyDayCard(day?.dayCard, dayMaxHp, damage, Boolean(day?.won)),
+            transactions: Array.isArray(day?.transactions)
+              ? day.transactions.map(migrateLegacyTransaction)
+              : []
+          };
+        })
+        : []
+    };
+  }
+
   function normalizeState(candidate) {
-    if (!candidate || candidate.version !== STATE_VERSION) {
-      return freshState();
-    }
+    if (candidate?.version === 2) candidate = migrateV2State(candidate);
+    if (!candidate || candidate.version !== STATE_VERSION) return freshState();
 
     const next = freshState();
-    next.settings.goal = clampInt(candidate.settings?.goal, 20, 1000, 100);
+    next.settings.fullEnemyHp = clampInt(candidate.settings?.fullEnemyHp, 20, 1000, 100);
 
     const seen = new Set();
     const categories = [];
     const sourceCategories = Array.isArray(candidate.settings?.categories)
       ? candidate.settings.categories
       : DEFAULT_STATE.settings.categories;
-
     sourceCategories.forEach((category, index) => {
       const id = String(category?.id || `category-${index + 1}`);
       if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || seen.has(id) || id === UNCATEGORIZED_ID) return;
@@ -348,60 +485,93 @@
     });
     next.settings.categories = ensureUncategorizedCategory(categories);
 
-    const nonFallback = next.settings.categories.filter(category => category.id !== UNCATEGORIZED_ID);
-    const isLegacyDefaultFocus = nonFallback.length === 3
-      && nonFallback.every(category => ['wellbeing', 'work', 'chores'].includes(category.id))
-      && nonFallback.every(category => category.focus === 1);
-
-    if (isLegacyDefaultFocus) {
-      const work = next.settings.categories.find(category => category.id === 'work');
-      const chores = next.settings.categories.find(category => category.id === 'chores');
-      if (work) work.focus = 1.5;
-      if (chores) chores.focus = 0.75;
-    }
-
     const categoryIds = new Set(next.settings.categories.map(category => category.id));
     const sourceActions = Array.isArray(candidate.settings?.actions)
       ? candidate.settings.actions
       : DEFAULT_STATE.settings.actions;
-
+    const actionIds = new Set();
     next.settings.actions = sourceActions.slice(0, 500).map((action, index) => {
-      const id = String(action?.id || `action-${index + 1}`).slice(0, 128);
+      let id = String(action?.id || `action-${index + 1}`).slice(0, 128);
+      if (!id || actionIds.has(id)) id = makeId('action');
+      actionIds.add(id);
       let name = String(action?.name || 'Unnamed action').slice(0, 100);
       const migration = DEFAULT_ACTION_NAME_MIGRATIONS[id];
-
-      if (migration && name === migration[0]) {
-        name = migration[1];
-      }
-
+      if (migration && name === migration[0]) name = migration[1];
       return {
         id,
         categoryId: categoryIds.has(String(action?.categoryId)) ? String(action.categoryId) : UNCATEGORIZED_ID,
         name,
-        baseXp: clampInt(action?.baseXp, 1, 200, 10),
+        baseDamage: clampInt(action?.baseDamage, 1, 200, 10),
         type: action?.type === 'once' ? 'once' : 'repeatable',
         trackVisible: action?.trackVisible !== false
       };
     });
 
-    next.progression.lifetimeXp = clampInt(candidate.progression?.lifetimeXp, 0, 1000000000, 0);
+    const normalizedActionIds = new Set(next.settings.actions.map(action => action.id));
+    const comboIds = new Set();
+    const enabledSequences = new Set();
+    next.settings.combos = (Array.isArray(candidate.settings?.combos) ? candidate.settings.combos : [])
+      .slice(0, 100)
+      .map((combo, index) => {
+        let id = String(combo?.id || `combo-${index + 1}`).slice(0, 128);
+        if (!id || comboIds.has(id)) id = makeId('combo');
+        comboIds.add(id);
+        const actionIds = (Array.isArray(combo?.actionIds) ? combo.actionIds : [])
+          .slice(0, COMBO_MAX_STEPS)
+          .map(value => String(value))
+          .filter(actionId => normalizedActionIds.has(actionId));
+        let enabled = combo?.enabled !== false && actionIds.length >= 2;
+        const fingerprint = actionIds.join('\u001f');
+        if (enabled && enabledSequences.has(fingerprint)) enabled = false;
+        if (enabled) enabledSequences.add(fingerprint);
+        return {
+          id,
+          name: String(combo?.name || `Combo ${index + 1}`).slice(0, 80),
+          multiplier: clampNumber(combo?.multiplier, COMBO_MIN_MULTIPLIER, COMBO_MAX_MULTIPLIER, COMBO_DEFAULT_MULTIPLIER),
+          enabled,
+          actionIds
+        };
+      });
+
+    next.progression.victoryXp = clampInt(candidate.progression?.victoryXp, 0, 1000000000, 0);
     next.progression.bestStreak = clampInt(candidate.progression?.bestStreak, 0, 1000000, 0);
     next.progression.archivedStreak = clampInt(candidate.progression?.archivedStreak, 0, 1000000, 0);
     next.progression.streakThrough = /^\d{4}-\d{2}-\d{2}$/.test(String(candidate.progression?.streakThrough || ''))
       ? String(candidate.progression.streakThrough)
       : '';
 
-    next.current.date = /^\d{4}-\d{2}-\d{2}$/.test(String(candidate.current?.date || ''))
-      ? String(candidate.current.date)
-      : '';
-    next.current.transactions = normalizeTransactions(candidate.current?.transactions);
-    next.current.clearedAt = normalizeTimestamp(candidate.current?.clearedAt);
-    next.current.dayCard = normalizeDayCard(candidate.current?.dayCard);
-
     next.history = Array.isArray(candidate.history)
       ? candidate.history.slice(0, HISTORY_LIMIT).map(normalizeHistoryDay).filter(Boolean)
       : [];
+    next.current.date = /^\d{4}-\d{2}-\d{2}$/.test(String(candidate.current?.date || ''))
+      ? String(candidate.current.date)
+      : '';
+    next.current.maxHp = next.current.date
+      ? clampInt(candidate.current?.maxHp, 20, 1000, enemyHpForClearCount(next.settings, next.history.filter(day => day.won).length))
+      : 0;
+    next.current.transactions = normalizeTransactions(candidate.current?.transactions);
+    next.current.defeatedAt = normalizeTimestamp(candidate.current?.defeatedAt);
+    next.current.victoryXpAwarded = next.current.defeatedAt
+      ? clampInt(candidate.current?.victoryXpAwarded, 0, VICTORY_XP, VICTORY_XP)
+      : 0;
+    next.current.dayCard = normalizeDayCard(candidate.current?.dayCard);
 
+    const comboIdSet = new Set(next.settings.combos.map(combo => combo.id));
+    const transactionIds = new Set(next.current.transactions.filter(tx => tx.type === 'action').map(tx => tx.id));
+    const rawProgress = candidate.current?.comboProgress;
+    next.current.comboProgress = {};
+    if (rawProgress && typeof rawProgress === 'object') {
+      Object.entries(rawProgress).forEach(([comboId, progress]) => {
+        if (!comboIdSet.has(comboId)) return;
+        const combo = next.settings.combos.find(item => item.id === comboId);
+        const sources = (Array.isArray(progress?.sourceTransactionIds) ? progress.sourceTransactionIds : [])
+          .map(String)
+          .filter(id => transactionIds.has(id))
+          .slice(0, Math.max(0, combo.actionIds.length - 1));
+        const index = Math.min(sources.length, clampInt(progress?.index, 0, Math.max(0, combo.actionIds.length - 1), sources.length));
+        next.current.comboProgress[comboId] = { index, sourceTransactionIds: sources.slice(0, index) };
+      });
+    }
     return next;
   }
 
@@ -413,29 +583,47 @@
 
   function normalizeTransactions(value) {
     if (!Array.isArray(value)) return [];
-    return value.slice(0, 3000).map(tx => ({
-      id: String(tx?.id || makeId('tx')).slice(0, 128),
-      actionId: String(tx?.actionId || '').slice(0, 128),
-      actionName: String(tx?.actionName || 'Action').slice(0, 100),
-      categoryId: /^[A-Za-z0-9_-]{1,64}$/.test(String(tx?.categoryId || ''))
-        ? String(tx.categoryId)
-        : UNCATEGORIZED_ID,
-      categoryName: String(tx?.categoryName || 'Uncategorized').slice(0, 80),
-      baseXp: clampInt(tx?.baseXp, 1, 200, 1),
-      effectiveXp: clampInt(tx?.effectiveXp, 1, 200, 1),
-      efficiency: clampNumber(tx?.efficiency, 0.01, 1, 1),
-      timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
-    }));
+    return value.slice(0, 3000).map(tx => {
+      const type = tx?.type === 'combo' ? 'combo' : 'action';
+      if (type === 'combo') {
+        return {
+          type,
+          id: String(tx?.id || makeId('combo-tx')).slice(0, 128),
+          comboId: String(tx?.comboId || '').slice(0, 128),
+          comboName: String(tx?.comboName || 'Combo').slice(0, 80),
+          multiplier: clampNumber(tx?.multiplier, COMBO_MIN_MULTIPLIER, COMBO_MAX_MULTIPLIER, COMBO_DEFAULT_MULTIPLIER),
+          damage: clampInt(tx?.damage, 1, 100000, 1),
+          sourceTransactionIds: (Array.isArray(tx?.sourceTransactionIds) ? tx.sourceTransactionIds : []).map(id => String(id).slice(0, 128)).slice(0, COMBO_MAX_STEPS),
+          timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
+        };
+      }
+      return {
+        type,
+        id: String(tx?.id || makeId('tx')).slice(0, 128),
+        actionId: String(tx?.actionId || '').slice(0, 128),
+        actionName: String(tx?.actionName || 'Action').slice(0, 100),
+        categoryId: /^[A-Za-z0-9_-]{1,64}$/.test(String(tx?.categoryId || '')) ? String(tx.categoryId) : UNCATEGORIZED_ID,
+        categoryName: String(tx?.categoryName || 'Uncategorized').slice(0, 80),
+        baseDamage: clampInt(tx?.baseDamage, 1, 200, 1),
+        damage: clampInt(tx?.damage, 1, 200, 1),
+        efficiency: clampNumber(tx?.efficiency, 0.01, 1, 1),
+        timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
+      };
+    });
   }
 
   function normalizeDayCard(value) {
     if (!value || typeof value !== 'object') return null;
     return {
       date: String(value.date || '').slice(0, 10),
-      type: String(value.type || 'DAILY REPORT').slice(0, 80),
-      headline: String(value.headline || 'PRODUCTIVITY OCCURRED').slice(0, 220),
+      type: String(value.type || 'VICTORY REPORT').slice(0, 80),
+      headline: String(value.headline || 'DARK SELF DEFEATED').slice(0, 220),
       copy: String(value.copy || '').slice(0, 500),
-      xp: clampInt(value.xp, 0, 100000, 0),
+      victoryXp: clampInt(value.victoryXp, 0, VICTORY_XP, 0),
+      enemyHp: clampInt(value.enemyHp, 20, 1000, 100),
+      damage: clampInt(value.damage, 0, 100000, 0),
+      overkill: clampInt(value.overkill, 0, 100000, 0),
+      combos: clampInt(value.combos, 0, 10000, 0),
       rank: String(value.rank || 'Nobody').slice(0, 40),
       streak: clampInt(value.streak, 0, 1000000, 0)
     };
@@ -444,27 +632,28 @@
   function normalizeHistoryDay(day) {
     const date = String(day?.date || '');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
-
     const cleanMap = value => {
       const result = {};
       if (!value || typeof value !== 'object') return result;
       Object.entries(value).forEach(([key, amount]) => {
-        if (/^[A-Za-z0-9_-]{1,64}$/.test(key)) {
-          result[key] = clampInt(amount, 0, 100000, 0);
-        }
+        if (/^[A-Za-z0-9_-]{1,64}$/.test(key)) result[key] = clampInt(amount, 0, 100000, 0);
       });
       return result;
     };
-
+    const maxHp = clampInt(day?.maxHp, 20, 1000, 100);
+    const damage = clampInt(day?.damage, 0, 100000, 0);
     return {
       date,
-      xp: clampInt(day?.xp, 0, 100000, 0),
-      baseXp: clampInt(day?.baseXp, 0, 100000, 0),
-      goal: clampInt(day?.goal, 20, 1000, 100),
+      damage,
+      baseDamage: clampInt(day?.baseDamage, 0, 100000, 0),
+      maxHp,
       won: Boolean(day?.won),
-      categoryXp: cleanMap(day?.categoryXp),
-      categoryBaseXp: cleanMap(day?.categoryBaseXp),
-      clearedAt: normalizeTimestamp(day?.clearedAt),
+      categoryDamage: cleanMap(day?.categoryDamage),
+      categoryBaseDamage: cleanMap(day?.categoryBaseDamage),
+      defeatedAt: normalizeTimestamp(day?.defeatedAt),
+      victoryXp: clampInt(day?.victoryXp, 0, VICTORY_XP, day?.won ? VICTORY_XP : 0),
+      combosLanded: clampInt(day?.combosLanded, 0, 10000, 0),
+      overkill: clampInt(day?.overkill, 0, 100000, Math.max(0, damage - maxHp)),
       dayCard: normalizeDayCard(day?.dayCard),
       transactions: normalizeTransactions(day?.transactions)
     };
@@ -486,7 +675,7 @@
       const raw = localStorage.getItem(storageKey);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      if (!parsed || parsed.version !== STATE_VERSION) return null;
+      if (!parsed || ![2, STATE_VERSION].includes(parsed.version)) return null;
       return normalizeState(parsed);
     } catch (error) {
       console.warn('Could not read cached MoLife data:', error);
