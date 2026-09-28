@@ -105,8 +105,12 @@
     todayLabel: document.querySelector('#todayLabel'),
     newswireViewport: document.querySelector('#newswireViewport'),
     newswireMessage: document.querySelector('#newswireMessage'),
-    totalXp: document.querySelector('#totalXp'),
-    goalXp: document.querySelector('#goalXp'),
+    enemyHp: document.querySelector('#enemyHp'),
+    enemyMaxHp: document.querySelector('#enemyMaxHp'),
+    totalDamage: document.querySelector('#totalDamage'),
+    overkillValue: document.querySelector('#overkillValue'),
+    fightFeedback: document.querySelector('#fightFeedback'),
+    combosPanel: document.querySelector('#combosPanel'),
     statusBadge: document.querySelector('#statusBadge'),
     heroMessage: document.querySelector('#heroMessage'),
     xpOrb: document.querySelector('#xpOrb'),
@@ -133,6 +137,10 @@
     dayCardDialog: document.querySelector('#dayCardDialog'),
     dayCardDate: document.querySelector('#dayCardDate'),
     dayCardXp: document.querySelector('#dayCardXp'),
+    dayCardEnemyHp: document.querySelector('#dayCardEnemyHp'),
+    dayCardDamage: document.querySelector('#dayCardDamage'),
+    dayCardOverkill: document.querySelector('#dayCardOverkill'),
+    dayCardCombos: document.querySelector('#dayCardCombos'),
     dayCardType: document.querySelector('#dayCardType'),
     dayCardHeadline: document.querySelector('#dayCardHeadline'),
     dayCardCopy: document.querySelector('#dayCardCopy'),
@@ -1950,6 +1958,7 @@
     deck.classList.toggle('can-scroll-down', overflow && !atBottom);
   }
 
+
   function render(options = {}) {
     ensureToday();
     const summary = getSummary();
@@ -1957,17 +1966,27 @@
     renderHero(summary);
     renderProgression();
     renderCategories(summary);
+    renderCombos();
     renderLog();
     renderHistory();
 
-    refreshNewswire(
-      summary,
-      options.justCleared ? '…WE HAVE RECEIVED UPDATED INFORMATION. FINE. YOU DID IT.' : ''
-    );
+    let specialMessage = '';
+    if (options.comboEvent) {
+      specialMessage = `${options.comboEvent.comboName.toUpperCase()} COMBO LANDS; LOCAL DARKNESS TAKES ADDITIONAL ${options.comboEvent.damage} DAMAGE`;
+    } else if (options.justDefeated) {
+      specialMessage = '…WE HAVE RECEIVED UPDATED INFORMATION. DARK YOU IS DOWN. VICTORY +20 XP.';
+    } else if (options.hitDamage && options.hitName) {
+      specialMessage = `${options.hitName.toUpperCase()} INFLICTS ${options.hitDamage} DAMAGE ON HOSTILE INTERNAL ENTITY`;
+    }
+    refreshNewswire(summary, specialMessage);
 
     if (summary.isVictory && !wasVictory) {
       els.victoryBanner.classList.remove('victory-pop');
       requestAnimationFrame(() => els.victoryBanner.classList.add('victory-pop'));
+    }
+
+    if (options.hitDamage) {
+      showFightFeedback(options.hitDamage, options.comboEvent);
     }
 
     wasVictory = summary.isVictory;
@@ -1986,36 +2005,48 @@
     }
   }
 
+  function showFightFeedback(hitDamage, comboEvent = null) {
+    if (!els.fightFeedback) return;
+    els.fightFeedback.textContent = comboEvent
+      ? `-${hitDamage} HP · COMBO +${comboEvent.damage} DMG`
+      : `-${hitDamage} HP`;
+    els.fightFeedback.classList.remove('fight-feedback-pop', 'is-combo');
+    void els.fightFeedback.offsetWidth;
+    if (comboEvent) els.fightFeedback.classList.add('is-combo');
+    els.fightFeedback.classList.add('fight-feedback-pop');
+  }
+
   function renderHero(summary) {
     els.todayLabel.textContent = formatDate(state.current.date, {
       weekday: 'long',
       day: 'numeric',
       month: 'long'
     });
-    els.totalXp.textContent = summary.totalXp;
-    els.goalXp.textContent = summary.goal;
 
-    const progress = Math.min(1, summary.totalXp / summary.goal);
-    const percent = Math.round(progress * 100);
-    els.totalProgress.style.width = `${percent}%`;
-    els.xpOrb.style.setProperty('--progress', `${progress * 360}deg`);
-    els.orbPercent.textContent = `${percent}%`;
+    els.enemyHp.textContent = summary.currentHp;
+    els.enemyMaxHp.textContent = summary.maxHp;
+    els.totalDamage.textContent = summary.totalDamage;
+    els.overkillValue.textContent = summary.overkill;
+
+    const healthRatio = Math.max(0, Math.min(1, summary.currentHp / Math.max(1, summary.maxHp)));
+    const healthPercent = Math.round(healthRatio * 100);
+    els.totalProgress.style.width = `${healthPercent}%`;
+    els.xpOrb.style.setProperty('--progress', `${healthRatio * 360}deg`);
+    els.orbPercent.textContent = summary.isVictory ? '0%' : `${healthPercent}%`;
 
     if (summary.isVictory) {
-      els.statusBadge.textContent = 'DAY CLEARED';
-      els.heroMessage.textContent = 'Officially productive. Anything else today is extracurricular showing off.';
+      els.statusBadge.textContent = 'DEFEATED';
+      els.heroMessage.textContent = summary.overkill > 0
+        ? `Dark You is down. ${summary.overkill} overkill recorded. Further actions still count as damage, not additional XP.`
+        : 'Dark You is down. Victory XP secured. Further actions still count as damage, not additional XP.';
       els.victoryBanner.hidden = false;
-      const card = state.current.dayCard;
-      els.victorySummary.textContent = card
-        ? `${card.type} · ${card.xp} XP · report filed`
-        : 'Your official Crestfallen report is ready.';
+      els.victorySummary.textContent = `VICTORY +${VICTORY_XP} XP · ${summary.totalDamage} DMG${summary.overkill ? ` · ${summary.overkill} overkill` : ''}`;
     } else {
-      const remaining = Math.max(0, summary.goal - summary.totalXp);
-      const ramp = getGoalRampInfo();
-      els.statusBadge.textContent = 'IN PROGRESS';
+      const ramp = getHpRampInfo();
+      els.statusBadge.textContent = 'FIGHT IN PROGRESS';
       els.heroMessage.textContent = ramp.active
-        ? `${remaining} XP to clear the day. Starter ramp: ${summary.goal} XP now → ${ramp.matureGoal} XP later.`
-        : `${remaining} XP to clear the day. No category is mandatory; stubbornness merely gets less profitable.`;
+        ? `${summary.currentHp} HP remaining. Today's enemy spawned at ${summary.maxHp} HP; full strength eventually reaches ${ramp.fullEnemyHp} HP.`
+        : `${summary.currentHp} HP remaining. Repeating one category makes Dark You increasingly resistant to it.`;
       els.victoryBanner.hidden = true;
     }
   }
@@ -2034,13 +2065,13 @@
 
     if (rank.next) {
       const needed = Math.max(0, rank.next.min - cred);
-      els.rankHint.textContent = `${needed} more cleared day${needed === 1 ? '' : 's'} in the rolling month to reach ${rank.next.name}.`;
+      els.rankHint.textContent = `${needed} more victor${needed === 1 ? 'y' : 'ies'} in the rolling month to reach ${rank.next.name}.`;
     } else {
       els.rankHint.textContent = 'Top of the food chain. Please behave irresponsibly with this power.';
     }
 
     els.levelNumber.textContent = level.level;
-    els.levelProgressText.textContent = `${level.into} / ${level.requirement} XP`;
+    els.levelProgressText.textContent = `${level.into} / ${level.requirement} Victory XP`;
     els.levelProgress.style.width = `${Math.round(level.percent * 100)}%`;
 
     els.streakCount.textContent = `${streak} day${streak === 1 ? '' : 's'}`;
@@ -2060,8 +2091,8 @@
       const hasActions = state.settings.actions.some(
         action => action.categoryId === UNCATEGORIZED_ID && action.trackVisible !== false
       );
-      const hasXp = (summary.categoryBaseXp[UNCATEGORIZED_ID] || 0) > 0;
-      return hasActions || hasXp;
+      const hasDamage = (summary.categoryBaseDamage[UNCATEGORIZED_ID] || 0) > 0;
+      return hasActions || hasDamage;
     });
 
     visibleCategories.forEach((category, index) => {
@@ -2077,8 +2108,8 @@
       const actionDeck = fragment.querySelector('.action-deck');
       const actionsList = fragment.querySelector('.actions-list');
 
-      const usedBase = summary.categoryBaseXp[category.id] || 0;
-      const earnedXp = summary.categoryXp[category.id] || 0;
+      const usedBase = summary.categoryBaseDamage[category.id] || 0;
+      const dealtDamage = summary.categoryDamage[category.id] || 0;
       const efficiency = getCategoryEfficiency(category.id, usedBase);
       applyCategoryPaletteVars(card, category, index);
       card.dataset.categoryId = category.id;
@@ -2086,20 +2117,20 @@
 
       icon.textContent = category.icon;
       title.textContent = category.name;
-      score.textContent = `${earnedXp} XP`;
+      score.textContent = `${dealtDamage} DMG`;
 
       if (category.id === UNCATEGORIZED_ID) {
-        subtitle.textContent = 'Fallback · fixed 50% payout';
+        subtitle.textContent = 'Fallback · fixed 50% damage';
         efficiencyValue.textContent = '50%';
         fill.style.width = '100%';
         next.textContent = 'Assign these actions to a real category when convenient.';
       } else {
-        subtitle.textContent = `Focus ${category.focus}× · ${Math.round(efficiency.band)} base XP full-value band`;
+        subtitle.textContent = `Focus ${category.focus}× · ${Math.round(efficiency.band)} base DMG full-damage band`;
         efficiencyValue.textContent = `${Math.round(efficiency.multiplier * 100)}%`;
         fill.style.width = `${Math.round(Math.max(0, Math.min(1, efficiency.progress)) * 100)}%`;
         next.textContent = efficiency.untilNext === null
-          ? 'Floor reached · further actions still pay 40%'
-          : `≈ ${Math.max(1, Math.ceil(efficiency.untilNext))} base XP until next drop`;
+          ? 'Resistance floor reached · further actions still deal 40%'
+          : `≈ ${Math.max(1, Math.ceil(efficiency.untilNext))} base DMG until next resistance tier`;
       }
 
       const actions = state.settings.actions.filter(
@@ -2114,12 +2145,12 @@
         empty.textContent = category.id === UNCATEGORIZED_ID
           ? 'Deleted-category actions will hide here.'
           : hasHiddenActions
-            ? 'No visible actions. Unhide one in Settings.'
+            ? 'No visible attacks. Unhide one in Settings.'
             : 'No actions yet. Add one in Settings.';
         actionsList.append(empty);
       } else {
         actions.forEach(action => {
-          const reward = calculateReward(action, usedBase);
+          const reward = calculateDamage(action, usedBase);
           const button = document.createElement('button');
           button.type = 'button';
           button.className = 'action-button';
@@ -2140,18 +2171,18 @@
             const payout = Math.round(reward.efficiency * 100);
             const typeText = action.type === 'once' ? 'Once per day' : 'Repeatable';
             small.textContent = payout < 100
-              ? `${typeText} · ${payout}% payout · base ${action.baseXp}`
-              : `${typeText} · full payout`;
+              ? `${typeText} · ${payout}% damage · base ${action.baseDamage}`
+              : `${typeText} · full damage`;
           }
 
           nameWrap.append(strong, small);
 
-          const xp = document.createElement('span');
-          xp.className = 'action-xp';
-          xp.textContent = `+${reward.effectiveXp}`;
+          const damage = document.createElement('span');
+          damage.className = 'action-xp';
+          damage.textContent = `+${reward.damage} DMG`;
 
-          button.append(nameWrap, xp);
-          button.addEventListener('click', () => addXp(action.id));
+          button.append(nameWrap, damage);
+          button.addEventListener('click', () => addDamage(action.id));
           actionsList.append(button);
         });
       }
@@ -2170,6 +2201,69 @@
     });
   }
 
+  function renderCombos() {
+    if (!els.combosPanel) return;
+    els.combosPanel.replaceChildren();
+
+    const combos = state.settings.combos;
+    els.combosPanel.hidden = combos.length === 0;
+    if (!combos.length) return;
+
+    const head = document.createElement('div');
+    head.className = 'combos-panel-head';
+    const copy = document.createElement('div');
+    copy.innerHTML = '<div class="eyebrow">CHAIN ATTACKS</div><h2>Combos</h2>';
+    const note = document.createElement('div');
+    note.className = 'balance-note';
+    note.textContent = 'Unrelated actions do not break a sequence';
+    head.append(copy, note);
+    els.combosPanel.append(head);
+
+    const grid = document.createElement('div');
+    grid.className = 'combo-grid';
+
+    combos.forEach(combo => {
+      const card = document.createElement('article');
+      card.className = `combo-card${combo.enabled ? '' : ' is-disabled'}`;
+      const title = document.createElement('div');
+      title.className = 'combo-card-title';
+      const strong = document.createElement('strong');
+      strong.textContent = combo.name;
+      const multiplier = document.createElement('span');
+      multiplier.textContent = `×${combo.multiplier.toFixed(2)}`;
+      title.append(strong, multiplier);
+      card.append(title);
+
+      if (combo.actionIds.length < 2) {
+        const warning = document.createElement('div');
+        warning.className = 'combo-warning';
+        warning.textContent = 'Needs at least 2 actions · disabled';
+        card.append(warning);
+      } else {
+        const progress = comboProgress(combo.id);
+        const steps = document.createElement('div');
+        steps.className = 'combo-steps';
+        combo.actionIds.forEach((actionId, index) => {
+          const action = state.settings.actions.find(item => item.id === actionId);
+          const row = document.createElement('div');
+          row.className = 'combo-step';
+          const mark = document.createElement('span');
+          mark.className = 'combo-step-mark';
+          mark.textContent = !combo.enabled ? '○' : index < progress.index ? '✓' : index === progress.index ? '●' : '○';
+          const name = document.createElement('span');
+          name.textContent = action?.name || 'Missing action';
+          row.append(mark, name);
+          steps.append(row);
+        });
+        card.append(steps);
+      }
+
+      grid.append(card);
+    });
+
+    els.combosPanel.append(grid);
+  }
+
   function renderLog() {
     els.logList.replaceChildren();
     const transactions = [...state.current.transactions].sort((a, b) => b.timestamp - a.timestamp);
@@ -2177,38 +2271,44 @@
     if (!transactions.length) {
       const empty = document.createElement('div');
       empty.className = 'empty-state';
-      empty.textContent = 'No XP yet. The municipal surveillance apparatus is bored.';
+      empty.textContent = 'No damage yet. The hostile internal entity appears smug.';
       els.logList.append(empty);
       return;
     }
 
     transactions.forEach(tx => {
       const row = document.createElement('div');
-      row.className = 'log-row';
+      row.className = `log-row${tx.type === 'combo' ? ' combo-log-row' : ''}`;
 
       const main = document.createElement('div');
       main.className = 'log-main';
       const strong = document.createElement('strong');
-      strong.textContent = tx.actionName;
+      strong.textContent = tx.type === 'combo' ? `COMBO · ${tx.comboName}` : tx.actionName;
       const meta = document.createElement('span');
       const time = new Intl.DateTimeFormat(undefined, {
         hour: '2-digit',
         minute: '2-digit'
       }).format(new Date(tx.timestamp));
-      meta.textContent = `${tx.categoryName} · ${Math.round(tx.efficiency * 100)}% · ${time}`;
+      meta.textContent = tx.type === 'combo'
+        ? `×${tx.multiplier.toFixed(2)} · ${tx.sourceTransactionIds.length} matched actions · ${time}`
+        : `${tx.categoryName} · ${Math.round(tx.efficiency * 100)}% · ${time}`;
       main.append(strong, meta);
 
       const actions = document.createElement('div');
       actions.className = 'log-actions';
-      const xp = document.createElement('span');
-      xp.className = 'log-xp';
-      xp.textContent = `+${tx.effectiveXp} XP`;
-      const undo = document.createElement('button');
-      undo.type = 'button';
-      undo.className = 'undo-button';
-      undo.textContent = 'Undo';
-      undo.addEventListener('click', () => undoTransaction(tx.id));
-      actions.append(xp, undo);
+      const damage = document.createElement('span');
+      damage.className = 'log-xp';
+      damage.textContent = `+${tx.damage} DMG`;
+      actions.append(damage);
+
+      if (tx.type === 'action') {
+        const undo = document.createElement('button');
+        undo.type = 'button';
+        undo.className = 'undo-button';
+        undo.textContent = 'Undo';
+        undo.addEventListener('click', () => undoTransaction(tx.id));
+        actions.append(undo);
+      }
 
       row.append(main, actions);
       els.logList.append(row);
@@ -2221,7 +2321,7 @@
     if (!state.history.length) {
       const empty = document.createElement('div');
       empty.className = 'empty-state';
-      empty.textContent = 'Past case files will appear here automatically.';
+      empty.textContent = 'Past fight records will appear here automatically.';
       els.historyList.append(empty);
       return;
     }
@@ -2237,15 +2337,15 @@
       strong.textContent = formatDate(day.date, { weekday: 'short', day: 'numeric', month: 'short' });
       const detail = document.createElement('span');
       detail.textContent = day.won
-        ? (day.dayCard?.type || 'Day cleared')
-        : 'Case unresolved';
+        ? (day.dayCard?.type || 'Dark You defeated')
+        : 'Fight unresolved';
       date.append(strong, detail);
 
       const score = document.createElement('div');
       score.className = 'history-score';
-      score.textContent = `${day.xp} / ${day.goal}`;
+      score.textContent = `${day.damage} / ${day.maxHp}`;
       const status = document.createElement('span');
-      status.textContent = day.won ? 'CLEARED' : 'XP';
+      status.textContent = day.won ? 'VICTORY' : 'DMG';
       if (day.won) status.className = 'win-mark';
       score.append(status);
 
@@ -2264,7 +2364,11 @@
       month: 'long',
       year: 'numeric'
     });
-    els.dayCardXp.textContent = `${card.xp} XP`;
+    els.dayCardXp.textContent = `VICTORY +${card.victoryXp} XP`;
+    els.dayCardEnemyHp.textContent = card.enemyHp;
+    els.dayCardDamage.textContent = card.damage;
+    els.dayCardOverkill.textContent = card.overkill;
+    els.dayCardCombos.textContent = card.combos;
     els.dayCardType.textContent = card.type;
     els.dayCardHeadline.textContent = card.headline;
     els.dayCardCopy.textContent = card.copy;
