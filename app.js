@@ -1013,10 +1013,10 @@
     render();
   }
 
-  function categoryColor(categoryId, index = 0) {
-    if (CATEGORY_COLORS[categoryId]) return CATEGORY_COLORS[categoryId];
-    const fallbacks = ['#69d5ff', '#d37cff', '#e9d96b', '#ff7daf', '#8fd56a', '#65cfc8'];
-    return fallbacks[index % fallbacks.length];
+  function categoryColor(category, index = 0) {
+    if (!category) return fallbackCategoryColor('', index);
+    if (category.id === UNCATEGORIZED_ID) return DEFAULT_CATEGORY_COLORS.uncategorized;
+    return normalizeHexColor(category.color, fallbackCategoryColor(category.id, index));
   }
 
   function getDominantCategory(summary) {
@@ -1754,9 +1754,16 @@
       const usedBase = summary.categoryBaseXp[category.id] || 0;
       const earnedXp = summary.categoryXp[category.id] || 0;
       const efficiency = getCategoryEfficiency(category.id, usedBase);
-      const color = categoryColor(category.id, index);
+      const color = categoryColor(category, index);
+      const palette = categoryPalette(color);
 
-      card.style.setProperty('--category-color', color);
+      card.style.setProperty('--category-color', palette.accent);
+      card.style.setProperty('--category-source', palette.source);
+      card.style.setProperty('--category-panel', palette.panel);
+      card.style.setProperty('--category-panel-alt', palette.panelAlt);
+      card.style.setProperty('--category-surface', palette.surface);
+      card.style.setProperty('--category-border', palette.border);
+      card.style.setProperty('--category-glow', palette.glow);
       card.dataset.categoryId = category.id;
       if (category.id === UNCATEGORIZED_ID) card.classList.add('is-fallback-category');
 
@@ -2070,6 +2077,19 @@
       });
       focusLabel.append(focusInput);
 
+      const colorLabel = document.createElement('label');
+      colorLabel.className = 'category-color-field';
+      colorLabel.innerHTML = '<span>Color</span>';
+      const colorInput = document.createElement('input');
+      colorInput.type = 'color';
+      colorInput.value = categoryColor(category);
+      colorInput.setAttribute('aria-label', `Color for ${category.name}`);
+      colorInput.addEventListener('input', () => {
+        category.color = normalizeHexColor(colorInput.value, category.color);
+        row.style.setProperty('--editor-category-color', category.color);
+      });
+      colorLabel.append(colorInput);
+
       const band = document.createElement('div');
       band.className = 'category-band-preview';
       band.textContent = previewBandText(category);
@@ -2094,7 +2114,8 @@
           : 'Category removed.';
       });
 
-      grid.append(nameLabel, iconLabel, focusLabel, band, remove);
+      row.style.setProperty('--editor-category-color', categoryColor(category));
+      grid.append(nameLabel, iconLabel, focusLabel, colorLabel, band, remove);
       row.append(grid);
       els.categoriesEditor.append(row);
     });
@@ -2222,6 +2243,10 @@
     const name = els.newCategoryName.value.trim();
     const icon = els.newCategoryIcon.value.trim() || '•';
     const focus = clampNumber(els.newCategoryFocus.value, 0.25, 10, 1);
+    const color = normalizeHexColor(
+      els.newCategoryColor?.value,
+      CUSTOM_CATEGORY_COLORS[settingsDraft.categories.length % CUSTOM_CATEGORY_COLORS.length]
+    );
 
     if (!name) {
       els.settingsMessage.textContent = 'Give the category a name first.';
@@ -2240,13 +2265,17 @@
       return;
     }
 
-    const category = { id: makeId('category'), name, icon, focus };
+    const category = { id: makeId('category'), name, icon, focus, color };
     const fallbackIndex = settingsDraft.categories.findIndex(item => item.id === UNCATEGORIZED_ID);
     settingsDraft.categories.splice(fallbackIndex < 0 ? settingsDraft.categories.length : fallbackIndex, 0, category);
 
     els.newCategoryName.value = '';
     els.newCategoryIcon.value = '';
     els.newCategoryFocus.value = '1';
+    if (els.newCategoryColor) {
+      const nextColorIndex = settingsDraft.categories.filter(item => item.id !== UNCATEGORIZED_ID).length;
+      els.newCategoryColor.value = CUSTOM_CATEGORY_COLORS[nextColorIndex % CUSTOM_CATEGORY_COLORS.length];
+    }
 
     renderCategoriesEditor();
     renderActionsEditor();
