@@ -1003,12 +1003,21 @@
     let totalBaseDamage = 0;
     let comboDamage = 0;
     let combosLanded = 0;
+    let weaponDamage = 0;
+    let weaponsUsed = 0;
 
     state.current.transactions.forEach(tx => {
       totalDamage += tx.damage;
+
       if (tx.type === 'combo') {
         comboDamage += tx.damage;
         combosLanded += 1;
+        return;
+      }
+
+      if (tx.type === 'weapon') {
+        weaponDamage += tx.damage;
+        weaponsUsed += 1;
         return;
       }
 
@@ -1027,6 +1036,8 @@
       totalBaseDamage,
       comboDamage,
       combosLanded,
+      weaponDamage,
+      weaponsUsed,
       categoryDamage,
       categoryBaseDamage,
       maxHp,
@@ -1165,6 +1176,85 @@
     };
     state.current.transactions.push(event);
     return event;
+  }
+
+
+  function rollVictoryLootIfNeeded() {
+    if (state.current.loot?.rolled) return;
+    state.current.loot = emptyLootState();
+    state.current.loot.rolled = true;
+
+    if (randomUnit() >= WEAPON_DROP_CHANCE) return;
+
+    const pendingWeapon = rollWeaponItem();
+    if (!pendingWeapon) return;
+    state.current.loot.available = true;
+    state.current.loot.pendingWeapon = pendingWeapon;
+  }
+
+  function revokeCurrentVictoryLoot() {
+    const loot = state.current.loot;
+    if (loot?.claimed && loot.pendingWeapon?.id) {
+      state.armory.weapons = state.armory.weapons.filter(
+        item => item.id !== loot.pendingWeapon.id
+      );
+    }
+    state.current.loot = emptyLootState();
+  }
+
+  function claimVictoryLoot() {
+    const summary = getSummary();
+    const loot = state.current.loot;
+    if (!summary.isVictory || !loot?.available || loot.claimed || !loot.pendingWeapon) return;
+
+    if (!state.armory.weapons.some(item => item.id === loot.pendingWeapon.id)) {
+      state.armory.weapons.push(deepClone(loot.pendingWeapon));
+    }
+
+    loot.available = false;
+    loot.claimed = true;
+    saveState();
+    render({ lootClaimed: loot.pendingWeapon });
+  }
+
+  function useWeapon(itemId) {
+    ensureToday();
+    const summary = getSummary();
+    if (summary.isVictory) return;
+
+    const index = state.armory.weapons.findIndex(item => item.id === itemId);
+    if (index < 0) return;
+
+    const item = state.armory.weapons[index];
+    const weapon = weaponDefinition(item.weaponId);
+    if (!weapon) return;
+
+    state.armory.weapons.splice(index, 1);
+
+    const condition = weapon.special ? null : weaponCondition(item.conditionId);
+    const tx = {
+      type: 'weapon',
+      id: makeId('weapon-tx'),
+      weaponItemId: item.id,
+      weaponId: weapon.id,
+      weaponName: weapon.name,
+      conditionId: condition?.id || null,
+      conditionName: condition?.name || null,
+      multiplier: item.multiplier,
+      damage: item.damage,
+      timestamp: Date.now()
+    };
+
+    state.current.transactions.push(tx);
+    const justDefeated = finalizeVictoryIfNeeded();
+    saveState();
+    render({
+      showDayCard: justDefeated,
+      justDefeated,
+      hitDamage: tx.damage,
+      hitName: weaponDisplayName(item),
+      weaponEvent: tx
+    });
   }
 
   function completedDateSet() {
@@ -1312,6 +1402,7 @@
         comboProgress: {},
         defeatedAt: null,
         victoryXpAwarded: 0,
+        loot: emptyLootState(),
         dayCard: null
       };
       saveState();
@@ -1328,6 +1419,7 @@
       comboProgress: {},
       defeatedAt: null,
       victoryXpAwarded: 0,
+      loot: emptyLootState(),
       dayCard: null
     };
     wasVictory = false;
@@ -1472,11 +1564,15 @@
       state.current.defeatedAt = null;
       state.current.victoryXpAwarded = 0;
       state.current.dayCard = null;
+      revokeCurrentVictoryLoot();
       return false;
     }
 
     const justDefeated = !state.current.defeatedAt;
-    if (justDefeated) state.current.defeatedAt = Date.now();
+    if (justDefeated) {
+      state.current.defeatedAt = Date.now();
+      rollVictoryLootIfNeeded();
+    }
 
     if (state.current.victoryXpAwarded !== VICTORY_XP) {
       const delta = VICTORY_XP - state.current.victoryXpAwarded;
