@@ -271,7 +271,7 @@ function dalli_validate_state(mixed $state): array
 
     $actionIds = [];
     foreach ($actions as $action) {
-        if (!is_array($action) || !dalli_keys_allowed($action, ['id', 'categoryId', 'name', 'baseXp', 'type'])) {
+        if (!is_array($action) || !dalli_keys_allowed($action, ['id', 'categoryId', 'name', 'baseXp', 'type', 'trackVisible'])) {
             dalli_fail('Invalid action.', 422);
         }
 
@@ -286,7 +286,8 @@ function dalli_validate_state(mixed $state): array
         }
         if (!dalli_string_ok($action['name'] ?? null, 1, 100)
             || !is_int($action['baseXp'] ?? null) || $action['baseXp'] < 1 || $action['baseXp'] > 200
-            || !in_array($action['type'] ?? null, ['repeatable', 'once'], true)) {
+            || !in_array($action['type'] ?? null, ['repeatable', 'once'], true)
+            || (array_key_exists('trackVisible', $action) && !is_bool($action['trackVisible']))) {
             dalli_fail('Invalid action data.', 422);
         }
 

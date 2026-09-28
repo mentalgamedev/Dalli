@@ -8,7 +8,7 @@
   <title>MoLife</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=3.2.0">
+  <link rel="stylesheet" href="styles.css?v=3.3.0">
 </head>
 <body>
   <div class="motion-shimmer" aria-hidden="true"></div>
@@ -27,7 +27,7 @@
         </div>
         <h1 class="brand-title" aria-label="MoLife"><span class="brand-mo">Mo</span><span class="brand-life">Life</span><span class="brand-tm">™</span></h1>
         <div class="brand-subline">Gains for citizens with nothing to lose</div>
-        <div class="app-version" aria-label="MoLife version 3.2.0">v3.2.0 · Crestfallen build</div>
+        <div class="app-version" aria-label="MoLife version 3.3.0">v3.3.0 · Crestfallen build</div>
         <div id="todayLabel" class="muted"></div>
       </div>
       <button id="settingsButton" class="icon-button" type="button" aria-label="Open settings" title="Settings">⚙</button>
@@ -180,8 +180,9 @@
         <h3>Daily challenge</h3>
         <label class="field-row">
           <span>
-            <strong>XP goal</strong>
-            <small>Reach this much effective XP to clear the day.</small>
+            <strong>Full XP goal</strong>
+            <small>MoLife starts easier and gradually ramps toward this target as you clear days.</small>
+            <small id="goalRampPreview" class="goal-ramp-preview"></small>
           </span>
           <input id="goalInput" type="number" min="20" max="1000" step="5" inputmode="numeric">
         </label>
@@ -237,7 +238,7 @@
         <div class="settings-section-head">
           <div>
             <h3>Actions</h3>
-            <p>Action XP is the base value. The category's current efficiency decides the actual payout.</p>
+            <p>Action XP is the base value. The category's current efficiency decides the actual payout. Hide actions from Track-o-Tron without deleting them.</p>
           </div>
         </div>
         <div id="actionsEditor" class="actions-editor"></div>
@@ -263,6 +264,13 @@
                 <option value="repeatable">Repeatable</option>
                 <option value="once">Once per day</option>
               </select>
+            </label>
+            <label class="new-action-visibility">
+              <span>Track-o-Tron</span>
+              <span class="checkbox-row">
+                <input id="newActionVisible" type="checkbox" checked>
+                <span>Show</span>
+              </span>
             </label>
           </div>
           <button id="addActionButton" class="secondary-button" type="button">+ Add action</button>
@@ -309,7 +317,7 @@
     </article>
   </template>
 
-  <script src="app.js?v=3.2.0" defer></script>
-  <script src="cloud.js?v=3.2.0" defer></script>
+  <script src="app.js?v=3.3.0" defer></script>
+  <script src="cloud.js?v=3.3.0" defer></script>
 </body>
 </html>

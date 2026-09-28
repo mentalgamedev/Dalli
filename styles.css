@@ -1987,3 +1987,115 @@ body {
     transform: none !important;
   }
 }
+
+
+/* -------------------------------------------------------------------------- */
+/* MoLife balance + Track-o-Tron visibility v3.3                              */
+/* -------------------------------------------------------------------------- */
+
+.settings-dialog {
+  width: min(980px, calc(100% - 24px));
+}
+
+.goal-ramp-preview {
+  margin-top: 5px !important;
+  color: #b9b2ff !important;
+}
+
+.action-direct-editor {
+  grid-template-columns:
+    minmax(170px, 1.45fr)
+    minmax(120px, .8fr)
+    86px
+    118px
+    105px
+    38px;
+}
+
+.action-visibility-field {
+  min-width: 0;
+}
+
+.action-visibility-toggle,
+.checkbox-row {
+  min-height: 42px;
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  margin: 0 !important;
+  padding: 8px 10px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 11px;
+  background: #171b24;
+  color: var(--text) !important;
+  cursor: pointer;
+}
+
+.action-visibility-toggle > span,
+.checkbox-row > span {
+  display: inline !important;
+  margin: 0 !important;
+  color: var(--text) !important;
+  font-size: .75rem !important;
+  font-weight: 750;
+}
+
+.action-visibility-toggle input,
+.checkbox-row input,
+.add-action-grid .checkbox-row input,
+.action-direct-editor .action-visibility-toggle input {
+  width: 17px !important;
+  height: 17px !important;
+  min-height: 0 !important;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--accent-2);
+}
+
+.action-editor-row.is-track-hidden {
+  opacity: .58;
+  border-style: dashed;
+}
+
+.action-editor-row.is-track-hidden .action-visibility-toggle {
+  opacity: 1;
+}
+
+.add-action-grid {
+  grid-template-columns: 1.5fr 1fr .6fr .9fr .8fr;
+}
+
+.new-action-visibility {
+  min-width: 0;
+}
+
+@media (max-width: 880px) {
+  .add-action-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .action-direct-editor {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .action-direct-editor .delete-action {
+    justify-self: end;
+  }
+}
+
+@media (max-width: 620px) {
+  .add-action-grid,
+  .action-direct-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .action-direct-editor .delete-action {
+    width: 100%;
+    justify-self: stretch;
+  }
+}
+
+/* Correct the resting ticker position before JS applies its first frame. */
+.newswire-message {
+  transform: translate3d(0,0,0);
+}

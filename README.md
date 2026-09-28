@@ -13,6 +13,14 @@ MoLife is a small daily XP game from the deeply questionable civic ecosystem of 
 
 There are no mandatory categories. A work-only day is valid; it simply becomes less XP-efficient as that category gets saturated.
 
+### Starter difficulty ramp
+
+The configured XP goal is the **full / mature** daily target. New or reset games begin at roughly 60% of that target and move one step closer every two cleared days, reaching the full goal after 16 cleared days. Missed days do not make the game harder. With the default full goal of 100 XP, the progression is:
+
+`60 → 60 → 65 → 65 → 70 → 70 → 75 ... → 100`
+
+This makes the first week intentionally forgiving while allowing the same action economy to become steadily more demanding.
+
 ## Progression
 
 MoLife tracks three different kinds of progress:
@@ -65,8 +73,10 @@ The main action area is branded **Track-o-Tron**. Category action decks keep a c
 
 - categories are fully editable
 - category **Focus** controls diminishing returns
+- default Focus is **Wellbeing 1 / Work 1.5 / Chores 0.75** so focused work has a larger natural daily budget than chores
 - actions have editable base XP values
 - actions can be repeatable or once-per-day
+- every action has a **Show in Track-o-Tron** toggle; hiding it keeps the action and its configuration without showing it on the main board
 - deleting a category moves its actions to **Uncategorized**
 - Uncategorized is a permanent fallback with a fixed 50% payout
 

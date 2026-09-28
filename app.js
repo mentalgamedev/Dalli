@@ -8,6 +8,9 @@
   const UNCATEGORIZED_ID = 'uncategorized';
   const UNCATEGORIZED_EFFICIENCY = 0.50;
   const EFFICIENCY_TIERS = [1, 0.8, 0.6, 0.4];
+  const STARTER_GOAL_RATIO = 0.60;
+  const GOAL_RAMP_STEPS = 8;
+  const CLEARS_PER_RAMP_STEP = 2;
 
   let activeStorageKey = STORAGE_KEY;
   let suppressCloudSave = false;
@@ -35,23 +38,23 @@
       goal: 100,
       categories: [
         { id: 'wellbeing', name: 'Wellbeing', icon: '♥', focus: 1 },
-        { id: 'work', name: 'Work', icon: '◆', focus: 1 },
-        { id: 'chores', name: 'Chores', icon: '⌂', focus: 1 },
+        { id: 'work', name: 'Work', icon: '◆', focus: 1.5 },
+        { id: 'chores', name: 'Chores', icon: '⌂', focus: 0.75 },
         { id: UNCATEGORIZED_ID, name: 'Uncategorized', icon: '•', focus: 0 }
       ],
       actions: [
-        { id: 'wellbeing-workout-30', categoryId: 'wellbeing', name: 'Workout — 30 min', baseXp: 20, type: 'repeatable' },
-        { id: 'wellbeing-walk-20', categoryId: 'wellbeing', name: 'Walk — 20 min', baseXp: 10, type: 'repeatable' },
-        { id: 'wellbeing-mobility-10', categoryId: 'wellbeing', name: 'Stretch / mobility — 10 min', baseXp: 5, type: 'repeatable' },
-        { id: 'wellbeing-good-meal', categoryId: 'wellbeing', name: 'Proper healthy meal', baseXp: 10, type: 'once' },
-        { id: 'work-focus-25', categoryId: 'work', name: 'Focused work — 25 min', baseXp: 15, type: 'repeatable' },
-        { id: 'work-focus-50', categoryId: 'work', name: 'Focused work — 50 min', baseXp: 30, type: 'repeatable' },
-        { id: 'work-practice-20', categoryId: 'work', name: 'Practice / skill — 20 min', baseXp: 10, type: 'repeatable' },
-        { id: 'work-admin', categoryId: 'work', name: 'Annoying admin task', baseXp: 10, type: 'once' },
-        { id: 'chores-small', categoryId: 'chores', name: 'Small chore — 5–10 min', baseXp: 5, type: 'repeatable' },
-        { id: 'chores-medium', categoryId: 'chores', name: 'Cleaning — 15–30 min', baseXp: 10, type: 'repeatable' },
-        { id: 'chores-laundry', categoryId: 'chores', name: 'Laundry', baseXp: 10, type: 'once' },
-        { id: 'chores-big', categoryId: 'chores', name: 'Big chore / deep clean', baseXp: 20, type: 'repeatable' }
+        { id: 'wellbeing-workout-30', categoryId: 'wellbeing', name: 'Workout — 30 min', baseXp: 20, type: 'repeatable', trackVisible: true },
+        { id: 'wellbeing-walk-20', categoryId: 'wellbeing', name: 'Walk — 20 min', baseXp: 10, type: 'repeatable', trackVisible: true },
+        { id: 'wellbeing-mobility-10', categoryId: 'wellbeing', name: 'Stretch / mobility — 10 min', baseXp: 5, type: 'repeatable', trackVisible: true },
+        { id: 'wellbeing-good-meal', categoryId: 'wellbeing', name: 'Proper healthy meal', baseXp: 10, type: 'once', trackVisible: true },
+        { id: 'work-focus-25', categoryId: 'work', name: 'Focused work — 25 min', baseXp: 15, type: 'repeatable', trackVisible: true },
+        { id: 'work-focus-50', categoryId: 'work', name: 'Focused work — 50 min', baseXp: 30, type: 'repeatable', trackVisible: true },
+        { id: 'work-practice-20', categoryId: 'work', name: 'Practice / skill — 20 min', baseXp: 10, type: 'repeatable', trackVisible: true },
+        { id: 'work-admin', categoryId: 'work', name: 'Annoying admin task', baseXp: 10, type: 'once', trackVisible: true },
+        { id: 'chores-small', categoryId: 'chores', name: 'Small chore — 5–10 min', baseXp: 5, type: 'repeatable', trackVisible: true },
+        { id: 'chores-medium', categoryId: 'chores', name: 'Cleaning — 15–30 min', baseXp: 10, type: 'repeatable', trackVisible: true },
+        { id: 'chores-laundry', categoryId: 'chores', name: 'Laundry', baseXp: 10, type: 'once', trackVisible: true },
+        { id: 'chores-big', categoryId: 'chores', name: 'Big chore / deep clean', baseXp: 20, type: 'repeatable', trackVisible: true }
       ]
     },
     progression: {
@@ -112,6 +115,7 @@
     settingsDialog: document.querySelector('#settingsDialog'),
     settingsForm: document.querySelector('#settingsForm'),
     goalInput: document.querySelector('#goalInput'),
+    goalRampPreview: document.querySelector('#goalRampPreview'),
     categoriesEditor: document.querySelector('#categoriesEditor'),
     newCategoryName: document.querySelector('#newCategoryName'),
     newCategoryIcon: document.querySelector('#newCategoryIcon'),
@@ -122,6 +126,7 @@
     newActionCategory: document.querySelector('#newActionCategory'),
     newActionXp: document.querySelector('#newActionXp'),
     newActionType: document.querySelector('#newActionType'),
+    newActionVisible: document.querySelector('#newActionVisible'),
     addActionButton: document.querySelector('#addActionButton'),
     resetGameButton: document.querySelector('#resetGameButton'),
     motionFxButton: document.querySelector('#motionFxButton'),
@@ -237,6 +242,18 @@
     });
     next.settings.categories = ensureUncategorizedCategory(categories);
 
+    const nonFallback = next.settings.categories.filter(category => category.id !== UNCATEGORIZED_ID);
+    const isLegacyDefaultFocus = nonFallback.length === 3
+      && nonFallback.every(category => ['wellbeing', 'work', 'chores'].includes(category.id))
+      && nonFallback.every(category => category.focus === 1);
+
+    if (isLegacyDefaultFocus) {
+      const work = next.settings.categories.find(category => category.id === 'work');
+      const chores = next.settings.categories.find(category => category.id === 'chores');
+      if (work) work.focus = 1.5;
+      if (chores) chores.focus = 0.75;
+    }
+
     const categoryIds = new Set(next.settings.categories.map(category => category.id));
     const sourceActions = Array.isArray(candidate.settings?.actions)
       ? candidate.settings.actions
@@ -247,7 +264,8 @@
       categoryId: categoryIds.has(String(action?.categoryId)) ? String(action.categoryId) : UNCATEGORIZED_ID,
       name: String(action?.name || 'Unnamed action').slice(0, 100),
       baseXp: clampInt(action?.baseXp, 1, 200, 10),
-      type: action?.type === 'once' ? 'once' : 'repeatable'
+      type: action?.type === 'once' ? 'once' : 'repeatable',
+      trackVisible: action?.trackVisible !== false
     }));
 
     next.progression.lifetimeXp = clampInt(candidate.progression?.lifetimeXp, 0, 1000000000, 0);
@@ -392,6 +410,48 @@
     }
   }
 
+  function getPriorClearCount() {
+    return state.history.reduce((count, day) => count + (day.won ? 1 : 0), 0);
+  }
+
+  function getDailyGoal(settings = state.settings) {
+    const matureGoal = clampInt(settings.goal, 20, 1000, 100);
+    const starterGoal = Math.max(
+      20,
+      Math.min(matureGoal, Math.round((matureGoal * STARTER_GOAL_RATIO) / 5) * 5)
+    );
+
+    if (starterGoal >= matureGoal) return matureGoal;
+
+    const clearCount = getPriorClearCount();
+    const rampStep = Math.min(
+      GOAL_RAMP_STEPS,
+      Math.floor(clearCount / CLEARS_PER_RAMP_STEP)
+    );
+    const progress = rampStep / GOAL_RAMP_STEPS;
+    const ramped = starterGoal + ((matureGoal - starterGoal) * progress);
+
+    return Math.min(
+      matureGoal,
+      Math.max(20, Math.round(ramped / 5) * 5)
+    );
+  }
+
+  function getGoalRampInfo(settings = state.settings) {
+    const matureGoal = clampInt(settings.goal, 20, 1000, 100);
+    const currentGoal = getDailyGoal(settings);
+    const clearCount = getPriorClearCount();
+    const clearsToMature = GOAL_RAMP_STEPS * CLEARS_PER_RAMP_STEP;
+
+    return {
+      matureGoal,
+      currentGoal,
+      clearCount,
+      clearsToMature,
+      active: currentGoal < matureGoal
+    };
+  }
+
   function balancedCategories(settings = state.settings) {
     return settings.categories.filter(category => category.id !== UNCATEGORIZED_ID);
   }
@@ -403,7 +463,7 @@
 
     const categories = balancedCategories(settings);
     const totalFocus = categories.reduce((sum, item) => sum + item.focus, 0) || 1;
-    return Math.max(1, settings.goal * (category.focus / totalFocus));
+    return Math.max(1, getDailyGoal(settings) * (category.focus / totalFocus));
   }
 
   function currentCategoryIdForTransaction(tx) {
@@ -426,12 +486,15 @@
       categoryBaseXp[categoryId] = (categoryBaseXp[categoryId] || 0) + tx.baseXp;
     });
 
+    const goal = getDailyGoal();
+
     return {
       totalXp,
       totalBaseXp,
       categoryXp,
       categoryBaseXp,
-      isVictory: totalXp >= state.settings.goal
+      goal,
+      isVictory: totalXp >= goal
     };
   }
 
@@ -616,7 +679,7 @@
       date: state.current.date,
       xp: summary.totalXp,
       baseXp: summary.totalBaseXp,
-      goal: state.settings.goal,
+      goal: summary.goal,
       won: summary.isVictory,
       categoryXp: summary.categoryXp,
       categoryBaseXp: summary.categoryBaseXp,
@@ -685,7 +748,7 @@
     const total = active.reduce((sum, category) => sum + category.base, 0) || 1;
     const dominant = active[0] || { id: UNCATEGORIZED_ID, name: 'Uncategorized', base: 0 };
     const share = dominant.base / total;
-    const ratio = summary.totalXp / Math.max(1, state.settings.goal);
+    const ratio = summary.totalXp / Math.max(1, summary.goal);
 
     if (ratio >= 1.5) {
       return { key: 'overkill', type: 'NEEDS INTERVENTION', dominant };
@@ -857,7 +920,7 @@
 
   function getNewswireMessages(summary) {
     const messages = [];
-    const goal = state.settings.goal;
+    const goal = summary.goal;
     const remaining = Math.max(0, goal - summary.totalXp);
     const ratio = summary.totalXp / Math.max(1, goal);
     const cred = getStreetCred();
@@ -918,6 +981,12 @@
         `ONLY ${remaining} XP REMAIN. EXCUSES DEPARTMENT RUNNING OUT OF OPTIONS.`,
         'NEWSROOM PREPARES RELUCTANT “YOU DID IT” GRAPHIC',
         `DAILY TARGET WITHIN REACH; ABANDONING NOW WOULD REQUIRE EXPLANATION`
+      );
+    }
+
+    if (goal < state.settings.goal) {
+      messages.push(
+        `STARTER PROTOCOL ACTIVE: TODAY'S GOAL REDUCED TO ${goal} XP. TRY NOT TO GET USED TO IT.`
       );
     }
 
@@ -1296,9 +1365,9 @@
       month: 'long'
     });
     els.totalXp.textContent = summary.totalXp;
-    els.goalXp.textContent = state.settings.goal;
+    els.goalXp.textContent = summary.goal;
 
-    const progress = Math.min(1, summary.totalXp / state.settings.goal);
+    const progress = Math.min(1, summary.totalXp / summary.goal);
     const percent = Math.round(progress * 100);
     els.totalProgress.style.width = `${percent}%`;
     els.xpOrb.style.setProperty('--progress', `${progress * 360}deg`);
@@ -1313,9 +1382,12 @@
         ? `${card.type} · ${card.xp} XP · report filed`
         : 'Your official Crestfallen report is ready.';
     } else {
-      const remaining = Math.max(0, state.settings.goal - summary.totalXp);
+      const remaining = Math.max(0, summary.goal - summary.totalXp);
+      const ramp = getGoalRampInfo();
       els.statusBadge.textContent = 'IN PROGRESS';
-      els.heroMessage.textContent = `${remaining} XP to clear the day. No category is mandatory; stubbornness merely gets less profitable.`;
+      els.heroMessage.textContent = ramp.active
+        ? `${remaining} XP to clear the day. Starter ramp: ${summary.goal} XP now → ${ramp.matureGoal} XP later.`
+        : `${remaining} XP to clear the day. No category is mandatory; stubbornness merely gets less profitable.`;
       els.victoryBanner.hidden = true;
     }
   }
@@ -1357,7 +1429,9 @@
 
     const visibleCategories = state.settings.categories.filter(category => {
       if (category.id !== UNCATEGORIZED_ID) return true;
-      const hasActions = state.settings.actions.some(action => action.categoryId === UNCATEGORIZED_ID);
+      const hasActions = state.settings.actions.some(
+        action => action.categoryId === UNCATEGORIZED_ID && action.trackVisible !== false
+      );
       const hasXp = (summary.categoryBaseXp[UNCATEGORIZED_ID] || 0) > 0;
       return hasActions || hasXp;
     });
@@ -1402,13 +1476,20 @@
           : `≈ ${Math.max(1, Math.ceil(efficiency.untilNext))} base XP until next drop`;
       }
 
-      const actions = state.settings.actions.filter(action => action.categoryId === category.id);
+      const actions = state.settings.actions.filter(
+        action => action.categoryId === category.id && action.trackVisible !== false
+      );
       if (!actions.length) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
+        const hasHiddenActions = state.settings.actions.some(
+          action => action.categoryId === category.id && action.trackVisible === false
+        );
         empty.textContent = category.id === UNCATEGORIZED_ID
           ? 'Deleted-category actions will hide here.'
-          : 'No actions yet. Add one in Settings.';
+          : hasHiddenActions
+            ? 'No visible actions. Unhide one in Settings.'
+            : 'No actions yet. Add one in Settings.';
         actionsList.append(empty);
       } else {
         actions.forEach(action => {
@@ -1586,6 +1667,7 @@
     settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
     els.goalInput.value = settingsDraft.goal;
     els.settingsMessage.textContent = '';
+    updateGoalRampPreview();
     renderCategoriesEditor();
     renderActionsEditor();
     populateCategorySelect();
@@ -1595,6 +1677,20 @@
     } else {
       els.settingsDialog.setAttribute('open', '');
     }
+  }
+
+  function updateGoalRampPreview() {
+    if (!els.goalRampPreview || !settingsDraft) return;
+
+    const temporarySettings = {
+      ...settingsDraft,
+      goal: clampInt(els.goalInput.value, 20, 1000, settingsDraft.goal)
+    };
+    const ramp = getGoalRampInfo(temporarySettings);
+
+    els.goalRampPreview.textContent = ramp.active
+      ? `Current target: ${ramp.currentGoal} XP · ${ramp.clearCount}/${ramp.clearsToMature} cleared days toward the full ${ramp.matureGoal} XP goal.`
+      : `Current target: ${ramp.currentGoal} XP · starter ramp complete.`;
   }
 
   function previewBandText(category) {
@@ -1761,6 +1857,29 @@
       });
       typeLabel.append(typeSelect);
 
+      const visibilityLabel = document.createElement('label');
+      visibilityLabel.className = 'action-visibility-field';
+      const visibilityTitle = document.createElement('span');
+      visibilityTitle.textContent = 'Track-o-Tron';
+      const visibilityToggle = document.createElement('span');
+      visibilityToggle.className = 'action-visibility-toggle';
+      const visibilityInput = document.createElement('input');
+      visibilityInput.type = 'checkbox';
+      visibilityInput.checked = action.trackVisible !== false;
+      const visibilityText = document.createElement('span');
+      visibilityText.textContent = 'Show';
+      visibilityToggle.append(visibilityInput, visibilityText);
+      visibilityLabel.append(visibilityTitle, visibilityToggle);
+
+      const syncVisibilityStyle = () => {
+        row.classList.toggle('is-track-hidden', !visibilityInput.checked);
+      };
+      visibilityInput.addEventListener('change', () => {
+        action.trackVisible = visibilityInput.checked;
+        syncVisibilityStyle();
+      });
+      syncVisibilityStyle();
+
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'delete-action';
@@ -1772,7 +1891,7 @@
         els.settingsMessage.textContent = 'Action removed. Save settings to keep the change.';
       });
 
-      grid.append(nameLabel, categoryLabel, xpLabel, typeLabel, remove);
+      grid.append(nameLabel, categoryLabel, xpLabel, typeLabel, visibilityLabel, remove);
       row.append(grid);
       els.actionsEditor.append(row);
     });
@@ -1839,6 +1958,7 @@
     const categoryId = els.newActionCategory.value;
     const baseXp = clampInt(els.newActionXp.value, 1, 200, 10);
     const type = els.newActionType.value === 'once' ? 'once' : 'repeatable';
+    const trackVisible = els.newActionVisible ? els.newActionVisible.checked : true;
 
     if (!name) {
       els.settingsMessage.textContent = 'Give the action a name first.';
@@ -1856,12 +1976,14 @@
       categoryId,
       name,
       baseXp,
-      type
+      type,
+      trackVisible
     });
 
     els.newActionName.value = '';
     els.newActionXp.value = '10';
     els.newActionType.value = 'repeatable';
+    if (els.newActionVisible) els.newActionVisible.checked = true;
     renderActionsEditor();
     els.settingsMessage.textContent = 'Action added. Save settings to make it legally binding.';
   }
@@ -1939,7 +2061,10 @@
   });
 
   els.settingsButton.addEventListener('click', openSettings);
-  els.goalInput.addEventListener('input', renderCategoriesEditor);
+  els.goalInput.addEventListener('input', () => {
+    updateGoalRampPreview();
+    renderCategoriesEditor();
+  });
   els.addCategoryButton.addEventListener('click', addCategoryFromForm);
   els.addActionButton.addEventListener('click', addActionFromForm);
   els.resetGameButton.addEventListener('click', resetGameData);
@@ -1980,7 +2105,9 @@
   }
 
   ensureToday();
-  render();
+  const starterRampClear = finalizeClearIfNeeded();
+  if (starterRampClear) saveState();
+  render({ showDayCard: starterRampClear, justCleared: starterRampClear });
   initializeMotionFx();
   startVisualLoop();
 })();
