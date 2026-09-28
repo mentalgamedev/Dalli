@@ -1976,6 +1976,12 @@
     settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
     els.goalInput.value = settingsDraft.goal;
     els.settingsMessage.textContent = '';
+    if (els.newCategoryColor) {
+      const customCount = settingsDraft.categories.filter(
+        category => category.id !== UNCATEGORIZED_ID && !DEFAULT_CATEGORY_COLORS[category.id]
+      ).length;
+      els.newCategoryColor.value = CUSTOM_CATEGORY_COLORS[customCount % CUSTOM_CATEGORY_COLORS.length];
+    }
     updateGoalRampPreview();
     renderCategoriesEditor();
     renderActionsEditor();
@@ -2273,8 +2279,10 @@
     els.newCategoryIcon.value = '';
     els.newCategoryFocus.value = '1';
     if (els.newCategoryColor) {
-      const nextColorIndex = settingsDraft.categories.filter(item => item.id !== UNCATEGORIZED_ID).length;
-      els.newCategoryColor.value = CUSTOM_CATEGORY_COLORS[nextColorIndex % CUSTOM_CATEGORY_COLORS.length];
+      const customCount = settingsDraft.categories.filter(
+        item => item.id !== UNCATEGORIZED_ID && !DEFAULT_CATEGORY_COLORS[item.id]
+      ).length;
+      els.newCategoryColor.value = CUSTOM_CATEGORY_COLORS[customCount % CUSTOM_CATEGORY_COLORS.length];
     }
 
     renderCategoriesEditor();
