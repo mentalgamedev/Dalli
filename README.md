@@ -8,13 +8,13 @@ MoLife is a small daily XP game from the deeply questionable civic ecosystem of 
 2. Each action has a base Damage value.
 3. A category's **Focus** determines how long it stays at full damage efficiency.
 4. Repeating the same category gradually drops its damage through 100% → 80% → 60% → 40%.
-5. Reduce today's **Dark You** to 0 HP.
+5. Reduce today's **Dark Doppelgänger** to 0 HP.
 6. A victory awards exactly **20 Victory XP** once for that calendar day.
 7. Receive an official *Crestfallen Daily* battle report.
 
-There are no mandatory categories. A work-only day is valid; Dark You simply becomes increasingly resistant to repeated attacks from the same category. Damage after defeat is retained as **overkill** but never awards extra Victory XP.
+There are no mandatory categories. A work-only day is valid; Dark Doppelgänger simply becomes increasingly resistant to repeated attacks from the same category. Damage after defeat is retained as **overkill** but never awards extra Victory XP.
 
-The interface treats this as a finite daily fight, not an endless self-improvement meter: Dark You gets one prominent fighting-game HP bar, HP never drops below 0, and anything after the victory is optional.
+The interface treats this as a finite daily fight, not an endless self-improvement meter: Dark Doppelgänger gets one prominent fighting-game HP bar, HP never drops below 0, and anything after the victory is optional.
 
 ### Starter difficulty ramp
 
@@ -44,7 +44,7 @@ Current ranks:
 
 ## Crestfallen Daily
 
-Defeating Dark You creates a persistent newspaper-style battle report containing enemy HP, total damage, overkill, combos landed, Victory XP, Street Cred and Streak.
+Defeating Dark Doppelgänger creates a persistent newspaper-style battle report containing enemy HP, total damage, overkill, combos landed, Victory XP, Street Cred and Streak.
 
 MoLife can classify days as things such as:
 
@@ -61,7 +61,7 @@ Reports are deterministic local content; they do not require an AI service.
 
 ## Crestfallen Newswire
 
-The header contains a reactive fake news feed that comments on the current fight: Dark You HP, damage, combos, overkill, yesterday's result, rank, streak, level and category resistance. Before victory it reports on the ongoing hostilities; after defeat it becomes reluctantly congratulatory. On wider layouts the Newswire spans the full app width instead of staying inside the brand column.
+The header contains a reactive fake news feed that comments on the current fight: Dark Doppelgänger HP, damage, combos, overkill, yesterday's result, rank, streak, level and category resistance. Before victory it reports on the ongoing hostilities; after defeat it becomes reluctantly congratulatory. On wider layouts the Newswire spans the full app width instead of staying inside the brand column.
 
 
 ## Motion FX
