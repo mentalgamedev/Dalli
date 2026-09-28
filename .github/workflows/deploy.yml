@@ -105,7 +105,6 @@ jobs:
             set net:max-retries 2;
             set net:timeout 20;
             set net:reconnect-interval-base 5;
-            mkdir -p ${REMOTE_DIR};
             mirror --reverse --delete --verbose --parallel=4 --no-perms _deploy/ ${REMOTE_DIR}/;
             bye;
           "
