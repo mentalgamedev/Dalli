@@ -1453,6 +1453,9 @@
     const dominant = active[0] || { id: UNCATEGORIZED_ID, name: 'Uncategorized', base: 0 };
     const share = dominant.base / total;
 
+    if (summary.weaponsUsed > 0) {
+      return { key: 'weapon', type: 'ARMED & UNMOTIVATED', dominant };
+    }
     if (summary.overkill >= Math.max(10, summary.maxHp * 0.5)) {
       return { key: 'overkill', type: 'EXCESSIVE FORCE', dominant };
     }
@@ -1477,6 +1480,11 @@
   function headlineContent(personality, summary) {
     const category = personality.dominant.name;
     const pools = {
+      weapon: [
+        ['UNREGISTERED HARDWARE RESOLVES INTERNAL DISPUTE', `${summary.weaponsUsed} weapon discharge${summary.weaponsUsed === 1 ? '' : 's'} recorded. Officials confirm this still counts as personal development.`],
+        ['CITIZEN SKIPS PERSONAL GROWTH, REACHES FOR ARSENAL', 'The Dark Doppelgänger was unavailable for comment after a brief equipment malfunction.'],
+        ['QUESTIONABLE PROCUREMENT ENDS DAILY HOSTILITIES', 'Authorities stress that the weapon was earned through previous good behavior, which somehow makes this worse.']
+      ],
       overkill: [
         ['DARK SELF DEFEATED; USER CONTINUES HITTING IT FOR ADMINISTRATIVE REASONS', `${summary.overkill} points of overkill were recorded. Authorities insist this was probably unnecessary.`],
         ['INTERNAL HOSTILITY ENDS IN DISPROPORTIONATE RESPONSE', 'Crestfallen observers describe the damage total as “legally a bit much.”'],
@@ -1695,6 +1703,9 @@
 
       if (summary.combosLanded > 0) {
         messages.push(`${summary.combosLanded} COMBO ATTACK${summary.combosLanded === 1 ? '' : 'S'} LANDED; INTERNAL DARKNESS ALLEGES COLLUSION`);
+      }
+      if (summary.weaponsUsed > 0) {
+        messages.push(`${summary.weaponsUsed} CONTRABAND WEAPON${summary.weaponsUsed === 1 ? '' : 'S'} USED; PERSONAL GROWTH AUTHORITIES LOOK THE OTHER WAY`);
       }
       if (streak >= 3) {
         messages.push(`${streak}-DAY VICTORY STREAK CONTINUES; SITUATION NOW TOO EXPENSIVE TO ABANDON`);
@@ -2269,13 +2280,18 @@
 
     renderHero(summary);
     renderProgression();
+    renderArsenal(summary);
     renderCategories(summary);
     renderCombos();
     renderLog();
     renderHistory();
 
     let specialMessage = '';
-    if (options.comboEvent) {
+    if (options.lootClaimed) {
+      specialMessage = `CONTRABAND ACQUIRED: ${weaponDisplayName(options.lootClaimed).toUpperCase()} · ${options.lootClaimed.damage} DMG`;
+    } else if (options.weaponEvent) {
+      specialMessage = `${options.hitName.toUpperCase()} DISCHARGED; ${options.weaponEvent.damage} DAMAGE RECORDED`;
+    } else if (options.comboEvent) {
       specialMessage = `${options.comboEvent.comboName.toUpperCase()} COMBO LANDS; LOCAL DARKNESS TAKES ADDITIONAL ${options.comboEvent.damage} DAMAGE`;
     } else if (options.justDefeated) {
       specialMessage = '…WE HAVE RECEIVED UPDATED INFORMATION. DARK DOPPELGÄNGER IS DOWN. VICTORY +20 XP.';
@@ -2400,6 +2416,81 @@
 
     els.streakCount.textContent = `${streak} day${streak === 1 ? '' : 's'}`;
     els.bestStreak.textContent = `Best: ${best}`;
+  }
+
+
+  function renderArsenal(summary) {
+    if (!els.arsenalPanel || !els.arsenalList) return;
+
+    const inventory = state.armory.weapons;
+    els.arsenalCount.textContent = `${inventory.length} weapon${inventory.length === 1 ? '' : 's'}`;
+
+    const loot = state.current.loot || emptyLootState();
+    els.lootDrop.hidden = !loot.available;
+
+    if (loot.available && loot.pendingWeapon) {
+      els.lootDropMessage.textContent = 'Suspicious package detected. Contents probably legal somewhere.';
+      els.lootCrateButton.disabled = false;
+      els.lootCrateButton.setAttribute('aria-label', 'Open mystery contraband crate');
+    } else if (summary.isVictory && loot.claimed && loot.pendingWeapon) {
+      els.lootDropMessage.textContent = `Acquired: ${weaponDisplayName(loot.pendingWeapon)} · ${loot.pendingWeapon.damage} DMG`;
+    } else if (summary.isVictory && loot.rolled) {
+      els.lootDropMessage.textContent = 'No contraband drop today. The streets remain stingy.';
+    } else {
+      els.lootDropMessage.textContent = 'Each victory has a 40% chance to attract questionable hardware.';
+    }
+
+    els.arsenalStatus.textContent = summary.isVictory
+      ? 'Target down · save your ammunition for a worse day.'
+      : inventory.length
+        ? 'Weapons ignore category resistance and are consumed when fired.'
+        : 'Empty. Win fights for a chance to find contraband.';
+
+    els.arsenalList.replaceChildren();
+
+    if (!inventory.length) {
+      const empty = document.createElement('div');
+      empty.className = 'arsenal-empty';
+      empty.textContent = 'NO CONTRABAND ON FILE';
+      els.arsenalList.append(empty);
+      return;
+    }
+
+    [...inventory]
+      .sort((a, b) => b.damage - a.damage || b.acquiredAt - a.acquiredAt)
+      .forEach(item => {
+        const weapon = weaponDefinition(item.weaponId);
+        if (!weapon) return;
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `weapon-card${weapon.special ? ' is-golden' : ''}`;
+        button.disabled = summary.isVictory;
+        button.dataset.weaponId = item.id;
+        button.title = weapon.flavor;
+
+        const condition = document.createElement('span');
+        condition.className = 'weapon-condition';
+        condition.textContent = weapon.special
+          ? 'LEGENDARY'
+          : (weaponCondition(item.conditionId)?.name || 'Unknown').toUpperCase();
+
+        const name = document.createElement('strong');
+        name.className = 'weapon-name';
+        name.textContent = weapon.name;
+
+        const damage = document.createElement('span');
+        damage.className = 'weapon-damage';
+        damage.textContent = `${item.damage} DMG`;
+
+        const fire = document.createElement('span');
+        fire.className = 'weapon-fire';
+        fire.textContent = summary.isVictory ? 'SAVE AMMO' : 'FIRE';
+
+        button.append(condition, name, damage, fire);
+        button.addEventListener('click', () => useWeapon(item.id));
+        els.arsenalList.append(button);
+      });
   }
 
   function renderCategories(summary) {
@@ -2602,12 +2693,16 @@
 
     transactions.forEach(tx => {
       const row = document.createElement('div');
-      row.className = `log-row${tx.type === 'combo' ? ' combo-log-row' : ''}`;
+      row.className = `log-row${tx.type === 'combo' ? ' combo-log-row' : tx.type === 'weapon' ? ' weapon-log-row' : ''}`;
 
       const main = document.createElement('div');
       main.className = 'log-main';
       const strong = document.createElement('strong');
-      strong.textContent = tx.type === 'combo' ? `COMBO · ${tx.comboName}` : tx.actionName;
+      strong.textContent = tx.type === 'combo'
+        ? `COMBO · ${tx.comboName}`
+        : tx.type === 'weapon'
+          ? `WEAPON · ${tx.conditionName ? `${tx.conditionName} ` : ''}${tx.weaponName}`
+          : tx.actionName;
       const meta = document.createElement('span');
       const time = new Intl.DateTimeFormat(undefined, {
         hour: '2-digit',
@@ -2615,7 +2710,9 @@
       }).format(new Date(tx.timestamp));
       meta.textContent = tx.type === 'combo'
         ? `×${tx.multiplier.toFixed(2)} · ${tx.sourceTransactionIds.length} matched actions · ${time}`
-        : `${tx.categoryName} · ${Math.round(tx.efficiency * 100)}% · ${time}`;
+        : tx.type === 'weapon'
+          ? `Contraband · consumed · ${time}`
+          : `${tx.categoryName} · ${Math.round(tx.efficiency * 100)}% · ${time}`;
       main.append(strong, meta);
 
       const actions = document.createElement('div');
