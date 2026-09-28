@@ -19,7 +19,7 @@ return [
         // It may look like USERNAME.lima-db.de; do not assume "localhost".
         'host' => 'YOUR_LIMA_DB_HOST',
         'name' => 'db_430902_10',
-        'user' => 'USER430902_dalli_app',
+        'user' => 'YOUR_RESTRICTED_DALLI_DB_USER',
         'password' => 'REPLACE_WITH_DATABASE_PASSWORD',
     ],
 
