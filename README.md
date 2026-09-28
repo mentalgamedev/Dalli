@@ -1,45 +1,34 @@
 # Dalli
 
-Dalli is a tiny offline-first daily task game.
+Dalli is a small daily XP game that turns health, work and chores into a balanced daily challenge.
 
-## What it does
+## Current version
 
-- Three default categories: Health, Work, Chores
-- Default daily goal: 100 XP
-- Weighted category minimums so one category cannot carry the whole day
-- Default balance rule: every category must reach 70% of its weighted share
-- Editable daily goal and category weights
-- Add/edit/remove actions with XP values
-- Inline action editing for name, category, XP and repeatability
-- Repeatable and once-per-day actions
-- One-click XP collection
-- Undo from today's log
-- Automatic daily rollover and local history
-- Victory state once both total XP and category minimums are satisfied
-- Local-only storage: no account, server or tracking
-- Installable/offline-capable when served over HTTP/HTTPS
+The `main` branch contains the original local/offline Dalli V1.2.
 
-## Running it
+The `online-v2` branch adds an intentionally small PHP/MySQL online layer for private accounts and cross-device synchronization.
 
-### Easiest local test
+### Core game
 
-Open `index.html` in a browser. Core functionality works directly from the file.
+- configurable daily XP goal
+- weighted category minimums
+- editable actions and XP values
+- repeatable and once-per-day actions
+- undo
+- automatic daily rollover
+- history
+- PWA/offline support
 
-### Recommended local server
+### Online V2
 
-For the install/offline service worker, serve the folder over HTTP. If Python is installed:
+- private username/password accounts
+- separate state per user
+- cloud synchronization between devices
+- local browser copy retained
+- revision checks to prevent stale-device overwrites
+- no public signup, uploads, email or third-party PHP dependencies
 
-```bash
-python -m http.server 8080
-```
-
-Then open `http://localhost:8080`.
-
-### GitHub Pages
-
-Upload these files to a GitHub repository and enable GitHub Pages for the repository. The app has no backend and is ready for static hosting.
-
-## Scoring algorithm
+## Scoring
 
 For each category:
 
@@ -48,28 +37,42 @@ weightedShare = dailyGoal * categoryWeight / sumOfAllCategoryWeights
 minimumXP    = round(weightedShare * 0.70)
 ```
 
-A day is won only when:
+A day is won only when the overall XP goal is reached **and** every category reaches its minimum.
 
-1. Total XP is at least the daily goal, AND
-2. Every category has reached its minimum XP.
+## Storage
 
-With a 100 XP goal and weights of 1 / 1 / 1, each category requires about 23 XP and the remaining XP may come from anywhere.
+Guest/local mode uses browser `localStorage`.
 
-With weights of 2 / 1 / 1, the minimums are about 35 / 18 / 18 XP.
+Signed-in users also store their own validated Dalli state in MySQL. Each user can have completely different categories, actions, weights, XP values and history.
 
-## Adding another category later
+## Security
 
-The UI renders categories dynamically. Add another object to the `categories` array in `DEFAULT_STATE` inside `app.js`, for example:
+Dalli V2 is deliberately designed as a tiny private application rather than a general-purpose user platform.
 
-```js
-{ id: 'creative', name: 'Creative', icon: '✦', weight: 1 }
-```
+Highlights:
 
-Then add actions whose `categoryId` is `creative`. Existing rendering and balance calculations automatically include the new category.
+- dedicated Dalli database/user
+- real database credentials kept outside the public document root and outside Git
+- PHP `password_hash()` / `password_verify()`
+- server-side sessions with Secure, HttpOnly and SameSite=Strict cookies
+- CSRF tokens plus same-origin checks
+- prepared SQL statements
+- login throttling
+- strict server-side state validation and payload limits
+- no public registration
+- no uploads
+- no third-party PHP dependencies
+- API/state responses excluded from service-worker caching
+- optimistic revisions for safe multi-device sync
+- restrictive security headers
 
-Note: existing browser saves keep their saved category list. For development, clear this app's Local Storage to reload new defaults, or add a migration later.
+See [DEPLOY.md](DEPLOY.md) for the lima-city deployment procedure.
 
+## Database schema
 
-## Save-data compatibility
+The schema is recorded in [schema.sql](schema.sql). The current database consists of only:
 
-Dalli intentionally keeps the original `dailyXpGame.v1` local-storage key so existing Daily XP saves continue to work after the rename.
+- `users`
+- `user_state`
+
+The application user should have read/write access only to the Dalli database and no schema-changing privileges.
