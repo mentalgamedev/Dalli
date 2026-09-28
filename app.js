@@ -1348,21 +1348,21 @@
   }
 
 
+
   function getDominantCategory(summary) {
     return state.settings.categories
       .filter(category => category.id !== UNCATEGORIZED_ID)
       .map(category => ({
         ...category,
-        baseXp: summary.categoryBaseXp[category.id] || 0
+        baseDamage: summary.categoryBaseDamage[category.id] || 0
       }))
-      .sort((a, b) => b.baseXp - a.baseXp)[0] || null;
+      .sort((a, b) => b.baseDamage - a.baseDamage)[0] || null;
   }
 
   function getNewswireMessages(summary) {
     const messages = [];
-    const goal = summary.goal;
-    const remaining = Math.max(0, goal - summary.totalXp);
-    const ratio = summary.totalXp / Math.max(1, goal);
+    const remaining = summary.currentHp;
+    const damageRatio = summary.totalDamage / Math.max(1, summary.maxHp);
     const cred = getStreetCred();
     const rank = getRank(cred);
     const streak = getCurrentStreak();
@@ -1374,76 +1374,73 @@
 
     if (summary.isVictory) {
       messages.push(
-        'FINE. YOU DID IT.',
-        'DAILY TARGET CLEARED; NEWSROOM FORCED TO RETRACT EARLIER COMMENTS',
-        'MO.LIFE CONFIRMS USER WAS, AGAINST EXPECTATIONS, PRODUCTIVE',
-        `${summary.totalXp} XP RECORDED; EXCUSES DEPARTMENT CLOSED FOR THE DAY`
+        'DARK YOU DEFEATED; MOLIFE RELUCTANTLY AUTHORIZES 20 XP',
+        `${summary.totalDamage} DAMAGE RECORDED; HOSTILE INTERNAL ENTITY NO LONGER OPERATIONAL`,
+        summary.overkill > 0
+          ? `${summary.overkill} POINTS OF OVERKILL RECORDED; AUTHORITIES DECLINE TO INVESTIGATE`
+          : 'DARK YOU REACHES EXACTLY ZERO HP; ACCOUNTANTS DESCRIBE RESULT AS DISTURBINGLY TIDY'
       );
 
-      if (streak >= 3) {
-        messages.push(`${streak}-DAY STREAK CONTINUES; SITUATION NOW TOO EXPENSIVE TO ABANDON`);
+      if (summary.combosLanded > 0) {
+        messages.push(`${summary.combosLanded} COMBO ATTACK${summary.combosLanded === 1 ? '' : 'S'} LANDED; INTERNAL DARKNESS ALLEGES COLLUSION`);
       }
-
+      if (streak >= 3) {
+        messages.push(`${streak}-DAY VICTORY STREAK CONTINUES; SITUATION NOW TOO EXPENSIVE TO ABANDON`);
+      }
       if (rank.name !== 'Nobody') {
         messages.push(`STREET CRED OFFICE RELUCTANTLY CONFIRMS ${rank.name.toUpperCase()} STATUS`);
       }
-    } else if (summary.totalXp === 0) {
+    } else if (summary.totalDamage === 0) {
       messages.push(
-        'BREAKING: DAILY PRODUCTIVITY REMAINS ENTIRELY THEORETICAL',
-        'USER HAS OPENED MOLIFE. FURTHER ACTION UNCONFIRMED.',
-        'STREET CRED OFFICIALS REPORT NO NEW EVIDENCE AT THIS TIME',
-        'TRACK-O-TRON STANDING BY. IT CANNOT, LEGALLY, DO THE TASKS FOR YOU.'
+        'DARK YOU ENTERS DAY AT FULL HEALTH; CONFIDENCE DESCRIBED AS PREMATURE',
+        'USER HAS OPENED MOLIFE. HOSTILITIES HAVE NOT YET COMMENCED.',
+        'TRACK-O-TRON STANDING BY. IT CANNOT, LEGALLY, DO THE TASKS FOR YOU.',
+        `HOSTILE INTERNAL ENTITY CURRENTLY REPORTS ${summary.maxHp} / ${summary.maxHp} HP`
       );
-
-      if (hour >= 18) {
-        messages.push('EVENING UPDATE: ZERO XP CONTINUES ITS UNPRECEDENTED RUN');
-      }
-    } else if (ratio < 0.25) {
+      if (hour >= 18) messages.push('EVENING UPDATE: DARK YOU REMAINS EMBARRASSINGLY UNINJURED');
+    } else if (damageRatio < 0.25) {
       messages.push(
-        `CITIZEN EARNS ${summary.totalXp} XP, IMMEDIATELY EXPECTS RECOGNITION`,
-        `PRODUCTIVITY INCREASES FROM “NONE” TO “TECHNICALLY SOME”`,
-        `${remaining} XP STILL MISSING; AUTHORITIES DESCRIBE PROGRESS AS ADORABLE`
+        `LOCAL ACTIONS INFLICT ${summary.totalDamage} DAMAGE; USER IMMEDIATELY EXPECTS RECOGNITION`,
+        `DARK YOU STILL HAS ${remaining} HP; AUTHORITIES DESCRIBE PROGRESS AS ADORABLE`
       );
-    } else if (ratio < 0.5) {
+    } else if (damageRatio < 0.5) {
       messages.push(
-        `DAILY TARGET NOW ${Math.round(ratio * 100)}% COMPLETE; CONFIDENCE REMAINS UNAUTHORIZED`,
-        `${remaining} XP REMAIN. NEWSROOM ADVISES AGAINST PREMATURE CELEBRATION`,
-        'PRODUCTIVITY DETECTED. EXPERTS CAUTION AGAINST CALLING IT A HABIT.'
+        `DARK YOU DOWN TO ${remaining} HP; CONFIDENCE REMAINS UNAUTHORIZED`,
+        'DAMAGE DETECTED. EXPERTS CAUTION AGAINST CALLING IT A HABIT.'
       );
-    } else if (ratio < 0.75) {
+    } else if (damageRatio < 0.75) {
       messages.push(
-        'DEVELOPING: FINISHING TODAY HAS BECOME AN EMBARRASSINGLY REALISTIC POSSIBILITY',
-        `${remaining} XP REMAIN; LOCAL EXCUSES BEGIN LOSING CREDIBILITY`,
-        `USER CROSSES HALFWAY MARK, NOW PERSONALLY RESPONSIBLE FOR WHAT HAPPENS NEXT`
+        'DEVELOPING: DEFEATING YOURSELF HAS BECOME AN EMBARRASSINGLY REALISTIC POSSIBILITY',
+        `DARK YOU AT ${remaining} HP; LOCAL EXCUSES BEGIN LOSING CREDIBILITY`
       );
     } else {
       messages.push(
-        `ONLY ${remaining} XP REMAIN. EXCUSES DEPARTMENT RUNNING OUT OF OPTIONS.`,
-        'NEWSROOM PREPARES RELUCTANT “YOU DID IT” GRAPHIC',
-        `DAILY TARGET WITHIN REACH; ABANDONING NOW WOULD REQUIRE EXPLANATION`
+        `DARK YOU DOWN TO ${remaining} HP; EXCUSES DEPARTMENT REQUESTS EMERGENCY FUNDING`,
+        'NEWSROOM PREPARES RELUCTANT “VICTORY” GRAPHIC'
       );
     }
 
-    if (goal < state.settings.goal) {
+    const ramp = getHpRampInfo();
+    if (state.current.maxHp < state.settings.fullEnemyHp) {
       messages.push(
-        `STARTER PROTOCOL ACTIVE: TODAY'S GOAL REDUCED TO ${goal} XP. TRY NOT TO GET USED TO IT.`
+        `STARTER PROTOCOL ACTIVE: TODAY'S DARK YOU SPAWNED WITH ${state.current.maxHp} HP. FULL STRENGTH IS ${ramp.fullEnemyHp} HP.`
       );
     }
 
     if (!summary.isVictory && hour >= 22) {
-      messages.push('LATE BULLETIN: THE GOAL HAS NOT GONE TO BED JUST BECAUSE YOU WANT TO');
+      messages.push('LATE BULLETIN: DARK YOU HAS NOT GONE TO BED JUST BECAUSE YOU WANT TO');
     }
 
     if (yesterday) {
       messages.push(
         yesterday.won
-          ? 'ARCHIVES CONFIRM YESTERDAY WAS PRODUCTIVE. TODAY HAS BEEN INFORMED.'
-          : 'ARCHIVES CONFIRM YESTERDAY WAS MOSTLY A CONCEPT'
+          ? 'ARCHIVES CONFIRM YESTERDAY’S DARK YOU WAS DEFEATED. TODAY’S HAS BEEN INFORMED.'
+          : 'ARCHIVES CONFIRM YESTERDAY’S FIGHT REMAINS OFFICIALLY UNRESOLVED'
       );
     }
 
     if (streak >= 7) {
-      messages.push(`LOCAL OVERACHIEVER'S ${streak}-DAY STREAK ENTERS “THIS IS GETTING PERSONAL” TERRITORY`);
+      messages.push(`LOCAL OVERACHIEVER'S ${streak}-DAY VICTORY STREAK ENTERS “THIS IS GETTING PERSONAL” TERRITORY`);
     } else if (!streak && best >= 7) {
       messages.push(`FORMER ${best}-DAY STREAK NOW PRESERVED IN MUSEUM CONDITIONS`);
     }
@@ -1451,17 +1448,17 @@
     if (cred === 0) {
       messages.push('STREET CRED REMAINS WITHIN LEGAL DEFINITION OF “NONE”');
     } else if (rank.next) {
-      messages.push(`${rank.name.toUpperCase()} STATUS ACTIVE; ${Math.max(0, rank.next.min - cred)} MORE CLEARED DAYS TO NEXT BAD DECISION`);
+      messages.push(`${rank.name.toUpperCase()} STATUS ACTIVE; ${Math.max(0, rank.next.min - cred)} MORE VICTORIES TO NEXT BAD DECISION`);
     } else {
       messages.push('HEAD HONCHO STATUS CONFIRMED; POWER APPEARS TO HAVE GONE TO USER’S HEAD');
     }
 
-    if (dominant && dominant.baseXp > 0) {
-      const efficiency = getCategoryEfficiency(dominant.id, dominant.baseXp);
+    if (dominant && dominant.baseDamage > 0) {
+      const efficiency = getCategoryEfficiency(dominant.id, dominant.baseDamage);
       if (efficiency.multiplier <= 0.6) {
-        messages.push(`TRACK-O-TRON REPORTS ${dominant.name.toUpperCase()} SATURATION; OTHER PARTS OF LIFE STILL AVAILABLE`);
-      } else if (summary.totalXp > 0) {
-        messages.push(`${dominant.name.toUpperCase()} CURRENTLY LEADS LOCAL XP MARKETS`);
+        messages.push(`TRACK-O-TRON REPORTS ${dominant.name.toUpperCase()} SATURATION; DARK YOU HAS DEVELOPED RESISTANCE`);
+      } else {
+        messages.push(`${dominant.name.toUpperCase()} CURRENTLY LEADS LOCAL DAMAGE MARKETS`);
       }
     }
 
