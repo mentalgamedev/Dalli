@@ -1,0 +1,31 @@
+name: Restore Dalli source
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    if: github.event.head_commit.message == 'Stage Dalli v1.2 restore'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore source files
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat restore/part00.b64 restore/part01.b64 restore/part02.b64 restore/part03.b64 | base64 -d > /tmp/dalli-v1.2.zip
+          rm -rf /tmp/dalli-restore
+          mkdir -p /tmp/dalli-restore
+          unzip -q /tmp/dalli-v1.2.zip -d /tmp/dalli-restore
+          cp -a /tmp/dalli-restore/dalli/. .
+          rm -rf restore
+          rm -f .github/workflows/restore-dalli.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Restore Dalli v1.2 source"
+          git push
