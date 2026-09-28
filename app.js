@@ -756,9 +756,7 @@
     if (state.current.clearedAt) return false;
 
     state.current.clearedAt = Date.now();
-    const provisionalStreak = getCurrentStreak();
     state.current.dayCard = createDayCard(summary);
-    state.progression.bestStreak = Math.max(state.progression.bestStreak, provisionalStreak);
     return true;
   }
 
@@ -1431,9 +1429,9 @@
 
     state.settings = settingsDraft;
     settingsDraft = null;
-    finalizeClearIfNeeded();
+    const justCleared = finalizeClearIfNeeded();
     saveState();
-    render();
+    render({ showDayCard: justCleared });
   }
 
   function resetGameData() {
