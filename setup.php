@@ -9,6 +9,24 @@ header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
 header('X-Frame-Options: DENY');
 
+ini_set('session.use_strict_mode', '1');
+ini_set('session.use_only_cookies', '1');
+ini_set('session.use_trans_sid', '0');
+session_name('DALLISETUPSESSID');
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'domain' => '',
+    'secure' => true,
+    'httponly' => true,
+    'samesite' => 'Strict',
+]);
+session_start();
+
+if (!isset($_SESSION['setup_csrf']) || !is_string($_SESSION['setup_csrf'])) {
+    $_SESSION['setup_csrf'] = bin2hex(random_bytes(32));
+}
+
 $configPath = dirname(__DIR__) . '/dalli-config.php';
 if (!is_file($configPath)) {
     http_response_code(503);
@@ -23,37 +41,16 @@ if ($setupToken === '') {
     exit('Not found.');
 }
 
-function setup_same_origin(array $config): bool
-{
-    $expected = rtrim((string) ($config['app']['origin'] ?? ''), '/');
-    if ($expected === '') {
-        return false;
-    }
-
-    $origin = rtrim($_SERVER['HTTP_ORIGIN'] ?? '', '/');
-    if ($origin !== '') {
-        return hash_equals($expected, $origin);
-    }
-
-    $referer = $_SERVER['HTTP_REFERER'] ?? '';
-    if ($referer !== '') {
-        $parts = parse_url($referer);
-        $scheme = $parts['scheme'] ?? '';
-        $host = $parts['host'] ?? '';
-        $port = isset($parts['port']) ? ':' . (int) $parts['port'] : '';
-        return $scheme !== '' && $host !== '' && hash_equals($expected, $scheme . '://' . $host . $port);
-    }
-
-    return false;
-}
-
 $message = '';
 $success = false;
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
-    if (!setup_same_origin($config)) {
+    $providedCsrf = (string) ($_POST['csrf_token'] ?? '');
+    $expectedCsrf = (string) ($_SESSION['setup_csrf'] ?? '');
+
+    if ($expectedCsrf === '' || !hash_equals($expectedCsrf, $providedCsrf)) {
         http_response_code(403);
-        exit('Request origin rejected.');
+        exit('Invalid setup request.');
     }
 
     $providedToken = (string) ($_POST['setup_token'] ?? '');
@@ -120,6 +117,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
     <?php if (!$success): ?>
       <form method="post" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars((string) $_SESSION['setup_csrf'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
         <p>
           <label>Setup token<br>
             <input type="password" name="setup_token" required autocomplete="off">
