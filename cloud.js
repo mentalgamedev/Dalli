@@ -149,7 +149,7 @@
   const authForm = makeElement('form', 'login-card');
   authForm.method = 'dialog';
 
-  const authTitle = makeElement('h2', '', 'Dalli account');
+  const authTitle = makeElement('h2', '', 'MoLife account');
   const authText = makeElement('p', 'muted');
 
   const authTabs = makeElement('div', 'auth-tabs');
@@ -249,7 +249,7 @@
     ownerSetupInput.required = registering && registrationMode === 'owner-setup';
 
     if (!registering) {
-      authText.textContent = 'Log in once and Dalli can keep you signed in on this device.';
+      authText.textContent = 'Log in once and MoLife can keep you signed in on this device.';
       authSubmitButton.textContent = 'Log in';
       authSubmitButton.disabled = false;
       return;
@@ -260,13 +260,13 @@
       : 'Create account';
 
     if (registrationMode === 'owner-setup') {
-      authText.textContent = 'This is the first Dalli account. Enter the one-time owner setup code from your private server configuration.';
+      authText.textContent = 'This is the first MoLife account. Enter the one-time owner setup code from your private server configuration.';
       authSubmitButton.disabled = false;
     } else if (pendingInvite) {
-      authText.textContent = 'You have a Dalli invite. Choose a username and password to create your account.';
+      authText.textContent = 'You have a MoLife invite. Choose a username and password to create your account.';
       authSubmitButton.disabled = false;
     } else {
-      authText.textContent = 'New accounts require an invite link from the Dalli owner.';
+      authText.textContent = 'New accounts require an invite link from the MoLife owner.';
       authSubmitButton.disabled = true;
     }
   }
@@ -434,7 +434,7 @@
       authDialog.close();
       await activateSession(session);
     } catch (error) {
-      authMessage.textContent = error instanceof ApiError ? error.message : 'Could not reach Dalli.';
+      authMessage.textContent = error instanceof ApiError ? error.message : 'Could not reach MoLife.';
     } finally {
       authSubmitButton.disabled = false;
     }
@@ -483,7 +483,7 @@
         body: JSON.stringify({})
       });
     } catch (error) {
-      if (!window.confirm('Dalli could not confirm sign-out with the server. Sign out on this device anyway?')) {
+      if (!window.confirm('MoLife could not confirm sign-out with the server. Sign out on this device anyway?')) {
         return;
       }
     }
@@ -600,7 +600,7 @@
 
       if (hasMeaningfulLocalState(guestState)) {
         const importLocal = window.confirm(
-          `Import the Dalli setup and history currently stored on this device into ${user.username}'s account?\n\nOK = import it\nCancel = start fresh`
+          `Import the MoLife setup and history currently stored on this device into ${user.username}'s account?\n\nOK = import it\nCancel = start fresh`
         );
         initialState = importLocal ? guestState : window.DalliApp.getDefaultState();
       } else {
@@ -643,12 +643,12 @@
 
     const remote = error.data;
     if (!remote?.state) {
-      window.alert('Dalli found a cloud sync conflict. Your local copy is still safe on this device.');
+      window.alert('MoLife found a cloud sync conflict. Your local copy is still safe on this device.');
       return;
     }
 
     const loadRemote = window.confirm(
-      'Dalli changed on another device before this save reached the server.\n\nLoad the newer cloud copy now?\n\nCancel keeps this device\'s local copy, but cloud saving will stay paused until you sign out and back in.'
+      'MoLife changed on another device before this save reached the server.\n\nLoad the newer cloud copy now?\n\nCancel keeps this device\'s local copy, but cloud saving will stay paused until you sign out and back in.'
     );
 
     if (loadRemote) {

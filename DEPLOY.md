@@ -1,6 +1,6 @@
-# Self-hosting Dalli
+# Self-hosting MoLife
 
-Dalli can be hosted on a conventional PHP + MySQL/MariaDB web host. The public repository intentionally does not contain any production-specific hostnames, account identifiers, credentials or infrastructure details.
+MoLife can be hosted on a conventional PHP + MySQL/MariaDB web host. The public repository intentionally does not contain any production-specific hostnames, account identifiers, credentials or infrastructure details.
 
 ## Requirements
 
@@ -52,7 +52,7 @@ Fill in:
 - database name
 - restricted database username
 - database password
-- the public HTTPS origin of your Dalli installation
+- the public HTTPS origin of your MoLife installation
 - one long random owner setup token
 
 Example:
@@ -90,7 +90,7 @@ If the database has no users yet, **Create account** becomes the owner-account f
 - password
 - the private owner setup code
 
-The first account automatically becomes the Dalli owner. Once an owner exists, later registrations require owner-created invite links instead of the setup code.
+The first account automatically becomes the MoLife owner. Once an owner exists, later registrations require owner-created invite links instead of the setup code.
 
 ## 5. Invite another person
 
@@ -124,7 +124,7 @@ Passwords are never stored in browser storage.
 
 ## 7. Existing local data
 
-When an account has no cloud state yet, Dalli checks whether the current browser has meaningful local Dalli data.
+When an account has no cloud state yet, MoLife checks whether the current browser has meaningful local Dalli data.
 
 - If it does, Dalli asks whether to import it.
 - Otherwise the account starts with the default setup.

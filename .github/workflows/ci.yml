@@ -1,4 +1,4 @@
-name: Dalli checks
+name: MoLife checks
 
 on:
   push:

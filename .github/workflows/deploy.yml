@@ -1,4 +1,4 @@
-name: Deploy Dalli
+name: Deploy MoLife
 
 on:
   push:
@@ -90,7 +90,7 @@ jobs:
         shell: bash
         run: |
           {
-            echo "### Dalli deployment workflow"
+            echo "### MoLife deployment workflow"
             echo ""
             echo "- Source: \`${GITHUB_SHA}\`"
             echo "- Transport: FTPS"
