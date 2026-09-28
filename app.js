@@ -1140,19 +1140,19 @@
   function handleDeviceOrientation(event) {
     if (!motionFxEnabled || reducedMotionQuery.matches) return;
 
-    const gamma = Number(event.gamma);
-    const beta = Number(event.beta);
-    const alpha = Number(event.alpha);
-    const hasTilt = Number.isFinite(gamma) || Number.isFinite(beta);
+    const gamma = typeof event.gamma === 'number' && Number.isFinite(event.gamma) ? event.gamma : null;
+    const beta = typeof event.beta === 'number' && Number.isFinite(event.beta) ? event.beta : null;
+    const alpha = typeof event.alpha === 'number' && Number.isFinite(event.alpha) ? event.alpha : null;
+    const hasTilt = gamma !== null || beta !== null;
 
-    if (!hasTilt && !Number.isFinite(alpha)) return;
+    if (!hasTilt && alpha === null) return;
 
     orientationSamples += 1;
     lastOrientationSampleAt = performance.now();
 
-    if (Number.isFinite(gamma)) targetRoll = clampNumber(gamma / 42, -1, 1, 0);
-    if (Number.isFinite(beta)) targetPitch = clampNumber(beta / 55, -1, 1, 0);
-    if (Number.isFinite(alpha)) targetYaw = normalizeAngle(alpha);
+    if (gamma !== null) targetRoll = clampNumber(gamma / 42, -1, 1, 0);
+    if (beta !== null) targetPitch = clampNumber(beta / 55, -1, 1, 0);
+    if (alpha !== null) targetYaw = normalizeAngle(alpha);
 
     markMotionSensorLive('orientation');
   }
@@ -1163,10 +1163,10 @@
     const gravity = event.accelerationIncludingGravity;
     if (!gravity) return;
 
-    const x = Number(gravity.x);
-    const y = Number(gravity.y);
-    const z = Number(gravity.z);
-    if (![x, y, z].some(Number.isFinite)) return;
+    const x = typeof gravity.x === 'number' && Number.isFinite(gravity.x) ? gravity.x : null;
+    const y = typeof gravity.y === 'number' && Number.isFinite(gravity.y) ? gravity.y : null;
+    const z = typeof gravity.z === 'number' && Number.isFinite(gravity.z) ? gravity.z : null;
+    if (x === null && y === null && z === null) return;
 
     motionSamples += 1;
     lastMotionSampleAt = performance.now();
@@ -1175,9 +1175,9 @@
     // Prefer orientation whenever it is arriving recently because it provides yaw too.
     const orientationIsFresh = (performance.now() - lastOrientationSampleAt) < 1500;
     if (!orientationIsFresh) {
-      const gx = Number.isFinite(x) ? x : 0;
-      const gy = Number.isFinite(y) ? y : 0;
-      const gz = Number.isFinite(z) ? z : 0;
+      const gx = x ?? 0;
+      const gy = y ?? 0;
+      const gz = z ?? 0;
       const rollRad = Math.atan2(gx, Math.sqrt((gy * gy) + (gz * gz)));
       const pitchRad = Math.atan2(-gy, Math.sqrt((gx * gx) + (gz * gz)));
 
@@ -1281,24 +1281,22 @@
   async function requestMotionPermissionIfNeeded() {
     const requests = [];
 
-    if (typeof window.DeviceOrientationEvent?.requestPermission === 'function') {
-      requests.push(() => window.DeviceOrientationEvent.requestPermission());
-    }
-
-    if (typeof window.DeviceMotionEvent?.requestPermission === 'function') {
-      requests.push(() => window.DeviceMotionEvent.requestPermission());
-    }
-
-    for (const request of requests) {
-      try {
-        const result = await request();
-        if (result !== 'granted') return false;
-      } catch (error) {
-        return false;
+    try {
+      // Invoke every permission request while the button-click user activation is still live.
+      if (typeof window.DeviceOrientationEvent?.requestPermission === 'function') {
+        requests.push(window.DeviceOrientationEvent.requestPermission());
       }
-    }
 
-    return true;
+      if (typeof window.DeviceMotionEvent?.requestPermission === 'function') {
+        requests.push(window.DeviceMotionEvent.requestPermission());
+      }
+
+      if (!requests.length) return true;
+      const results = await Promise.all(requests);
+      return results.every(result => result === 'granted');
+    } catch (error) {
+      return false;
+    }
   }
 
   function beginMotionProbe() {
