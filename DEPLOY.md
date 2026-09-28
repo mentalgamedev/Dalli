@@ -24,6 +24,7 @@ The important new files are:
 - `cloud.js`
 - `setup.php`
 - `.htaccess`
+- `.user.ini`
 
 Do **not** upload `config.example.php` as the live configuration.
 
