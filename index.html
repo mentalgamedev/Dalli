@@ -8,14 +8,15 @@
   <title>Dalli</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=2.2.0">
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div>
         <div class="eyebrow">TODAY'S RUN</div>
-        <h1>Dalli</h1>
+        <h1 class="brand-title">Dalli</h1>
+        <div class="app-version" aria-label="Dalli version 2.2.0">v2.2.0 · online</div>
         <div id="todayLabel" class="muted"></div>
       </div>
       <button id="settingsButton" class="icon-button" type="button" aria-label="Open settings" title="Settings">⚙</button>
@@ -174,7 +175,7 @@
     </article>
   </template>
 
-  <script src="app.js" defer></script>
-  <script src="cloud.js" defer></script>
+  <script src="app.js?v=2.2.0" defer></script>
+  <script src="cloud.js?v=2.2.0" defer></script>
 </body>
 </html>
