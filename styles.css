@@ -2898,18 +2898,19 @@ body {
 /* -------------------------------------------------------------------------- */
 
 .fight-card {
-  --enemy-hp: #59dfbb;
-  --enemy-hp-hot: #a1f4dd;
+  --enemy-hp: #9dff2f;
+  --enemy-hp-hot: #e1ff67;
   display: block;
   isolation: isolate;
   padding: 26px 30px 27px;
   border: 1px solid rgba(168,177,196,.20);
   border-radius: 20px;
   background:
-    linear-gradient(90deg, rgba(7,9,13,.72), rgba(17,22,31,.32)),
-    repeating-linear-gradient(116deg, rgba(255,255,255,.018) 0 1px, transparent 1px 13px),
-    radial-gradient(circle at 16% 18%, rgba(122,108,255,.18), transparent 25rem),
-    #10151d;
+    linear-gradient(90deg, rgba(5,6,8,.90), rgba(14,12,14,.70)),
+    repeating-linear-gradient(116deg, rgba(255,255,255,.016) 0 1px, transparent 1px 13px),
+    radial-gradient(circle at 15% 18%, rgba(116,20,35,.20), transparent 24rem),
+    radial-gradient(circle at 91% 12%, rgba(228,71,27,.08), transparent 18rem),
+    #0d1015;
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.045),
     inset 0 -24px 50px rgba(0,0,0,.20),
@@ -2941,24 +2942,47 @@ body {
   border-radius: inherit;
   background:
     linear-gradient(90deg, transparent 0 72%, rgba(255,255,255,.025) 72% 72.25%, transparent 72.25%),
-    radial-gradient(circle at 92% 22%, color-mix(in srgb, var(--enemy-hp) 10%, transparent), transparent 18rem);
+    radial-gradient(circle at 92% 22%, color-mix(in srgb, var(--enemy-hp) 17%, transparent), transparent 18rem),
+    linear-gradient(180deg, transparent 55%, rgba(70,0,8,.10));
   filter: none;
   pointer-events: none;
 }
 
+.fight-card[data-health="active"] {
+  border-color: rgba(157,255,47,.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.035),
+    inset 0 -30px 64px rgba(0,0,0,.26),
+    0 18px 55px rgba(0,0,0,.34);
+}
+
 .fight-card[data-health="wounded"] {
-  --enemy-hp: #e3b648;
-  --enemy-hp-hot: #ffe37a;
+  --enemy-hp: #ffb000;
+  --enemy-hp-hot: #ffd84d;
+  border-color: rgba(255,176,0,.38);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.035),
+    inset 0 -30px 64px rgba(0,0,0,.28),
+    0 0 34px rgba(255,137,0,.07),
+    0 18px 55px rgba(0,0,0,.38);
 }
 
 .fight-card[data-health="critical"] {
-  --enemy-hp: #e95b61;
-  --enemy-hp-hot: #ff9b9f;
+  --enemy-hp: #ff2b35;
+  --enemy-hp-hot: #ff6a46;
+  border-color: rgba(255,43,53,.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.025),
+    inset 0 -36px 72px rgba(35,0,3,.34),
+    0 0 42px rgba(255,31,42,.13),
+    0 18px 58px rgba(0,0,0,.45);
 }
 
 .fight-card[data-health="down"] {
-  --enemy-hp: #606775;
-  --enemy-hp-hot: #8b929e;
+  --enemy-hp: #6a1f24;
+  --enemy-hp-hot: #9d3a35;
+  border-color: rgba(130,49,49,.30);
+  filter: saturate(.78);
 }
 
 .fight-card-scratches {
@@ -3076,8 +3100,9 @@ body {
   border: 3px solid #090b0f;
   border-radius: 3px;
   background:
-    linear-gradient(180deg, rgba(255,255,255,.035), transparent),
-    #252b34;
+    linear-gradient(180deg, rgba(255,255,255,.025), transparent),
+    repeating-linear-gradient(135deg, rgba(95,14,18,.16) 0 7px, rgba(13,15,19,.25) 7px 14px),
+    #171a20;
   box-shadow:
     0 0 0 1px rgba(255,255,255,.14),
     inset 0 0 0 1px rgba(255,255,255,.035),
@@ -3095,17 +3120,21 @@ body {
 
 .fight-card .enemy-health-trail {
   z-index: 1;
-  background: color-mix(in srgb, var(--enemy-hp-hot) 78%, white 22%);
+  background:
+    linear-gradient(90deg, rgba(255,239,164,.95), rgba(255,86,50,.92));
 }
 
 .fight-card .hero-progress-fill {
   z-index: 2;
   background:
-    linear-gradient(180deg, rgba(255,255,255,.22), transparent 42%),
-    linear-gradient(90deg, var(--enemy-hp), var(--enemy-hp-hot));
+    linear-gradient(180deg, rgba(255,255,255,.30), transparent 37%),
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--enemy-hp) 82%, #121212 18%),
+      var(--enemy-hp) 56%,
+      var(--enemy-hp-hot));
   box-shadow:
     inset -2px 0 0 rgba(0,0,0,.24),
-    0 0 18px color-mix(in srgb, var(--enemy-hp) 24%, transparent);
+    0 0 24px color-mix(in srgb, var(--enemy-hp) 38%, transparent);
 }
 
 .fight-card.is-hud-live .hero-progress-fill {
@@ -3338,6 +3367,51 @@ body {
   .fight-card.fight-hit .enemy-health,
   .fight-card.fight-hit::after {
     transition: none !important;
+    animation: none !important;
+  }
+}
+
+
+/* v4.1.1 — danger palette */
+.fight-card[data-health="wounded"]::after {
+  background:
+    linear-gradient(90deg, transparent 0 72%, rgba(255,255,255,.018) 72% 72.25%, transparent 72.25%),
+    radial-gradient(circle at 88% 22%, rgba(255,140,0,.17), transparent 18rem),
+    linear-gradient(180deg, transparent 52%, rgba(95,44,0,.12));
+}
+
+.fight-card[data-health="critical"]::after {
+  background:
+    linear-gradient(90deg, transparent 0 72%, rgba(255,255,255,.014) 72% 72.25%, transparent 72.25%),
+    radial-gradient(circle at 88% 20%, rgba(255,31,42,.25), transparent 19rem),
+    radial-gradient(circle at 16% 110%, rgba(128,0,11,.18), transparent 20rem),
+    linear-gradient(180deg, transparent 42%, rgba(76,0,7,.19));
+  animation: criticalThreatPulse 1.15s ease-in-out infinite alternate;
+}
+
+.fight-card[data-health="critical"] .status-badge {
+  box-shadow:
+    3px 3px 0 rgba(0,0,0,.34),
+    0 0 18px rgba(255,35,45,.22);
+}
+
+.fight-card[data-health="critical"] .fight-hud-label strong {
+  text-shadow: 0 0 12px rgba(255,45,45,.45);
+}
+
+.fight-card[data-health="down"]::after {
+  background:
+    radial-gradient(circle at 88% 22%, rgba(117,26,29,.12), transparent 18rem),
+    linear-gradient(180deg, transparent 45%, rgba(0,0,0,.18));
+}
+
+@keyframes criticalThreatPulse {
+  from { opacity: .72; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fight-card[data-health="critical"]::after {
     animation: none !important;
   }
 }
