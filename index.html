@@ -36,64 +36,70 @@
 
     <main>
 
-      <section class="hero-card fight-card" aria-labelledby="fightHeading">
-        <div class="hero-sticker" aria-hidden="true">TODAY'S FIGHT</div>
+      <section id="fightCard" class="hero-card fight-card" aria-labelledby="fightHeading">
+        <div class="fight-card-scratches" aria-hidden="true"></div>
+        <div class="fight-topline">
+          <div id="statusBadge" class="status-badge">HOSTILE ACTIVE</div>
+          <div class="hero-sticker" aria-hidden="true">TODAY'S FIGHT</div>
+        </div>
+
         <div class="hero-copy">
-          <div id="statusBadge" class="status-badge">FIGHT IN PROGRESS</div>
           <div class="fight-name">DARK YOU™</div>
           <h2 id="fightHeading"><span id="enemyHp">60</span><span class="hero-goal"> / <span id="enemyMaxHp">60</span> HP</span></h2>
+
+          <div class="fight-hud">
+            <div class="fight-hud-label">
+              <span>HOSTILE HP</span>
+              <strong id="healthPercent">100%</strong>
+            </div>
+            <div class="hero-progress enemy-health" aria-label="Dark You health">
+              <div id="healthTrail" class="enemy-health-trail"></div>
+              <div id="totalProgress" class="hero-progress-fill"></div>
+              <div class="enemy-health-segments" aria-hidden="true"></div>
+            </div>
+            <div id="fightFeedback" class="fight-feedback" aria-live="polite"></div>
+          </div>
+
           <div class="fight-stats" aria-label="Fight statistics">
             <span><strong id="totalDamage">0</strong> DAMAGE DEALT</span>
             <span><strong id="overkillValue">0</strong> OVERKILL</span>
           </div>
-          <p id="heroMessage" class="muted">Hostile internal entity remains annoyingly operational.</p>
-        </div>
-        <div class="xp-orb-wrap fight-orb-wrap" aria-hidden="true">
-          <div id="xpOrb" class="xp-orb fight-orb">
-            <div class="xp-orb-inner">
-              <strong id="orbPercent">100%</strong>
-              <span>HP</span>
-            </div>
-          </div>
-          <div id="fightFeedback" class="fight-feedback" aria-live="polite"></div>
-        </div>
-        <div class="hero-progress enemy-health" aria-label="Dark You health">
-          <div id="totalProgress" class="hero-progress-fill"></div>
+          <p id="heroMessage" class="muted">Target standing. Make your moves and end the fight.</p>
         </div>
       </section>
 
-      <section class="progression-grid" aria-label="Long-term progression">
-        <article class="rank-card">
+      <section class="progression-grid underworld-grid" aria-label="Long-term record">
+        <article class="rank-card dossier-card street-card">
           <div class="rank-card-copy">
-            <div class="eyebrow rank-eyebrow">STREET CRED</div>
+            <div class="eyebrow rank-eyebrow">STREET CRED // 30-DAY RAP SHEET</div>
             <div class="rank-line">
               <strong id="rankName" class="rank-name">Nobody</strong>
               <span id="streetCred" class="street-cred">0 / 30</span>
             </div>
-            <div class="rank-meter" aria-hidden="true"><div id="rankProgress" class="rank-meter-fill"></div></div>
-            <div id="rankHint" class="rank-hint">Win fights to become somebody. Allegedly.</div>
+            <div class="rank-meter case-meter" aria-hidden="true"><div id="rankProgress" class="rank-meter-fill"></div></div>
+            <div id="rankHint" class="rank-hint">Victories build a reputation. Overkill does not.</div>
           </div>
           <div id="rankStamp" class="rank-stamp" aria-hidden="true">NOBODY</div>
         </article>
 
-        <article class="mini-stat-card">
-          <div class="mini-stat-icon">▲</div>
+        <article class="mini-stat-card dossier-card level-card">
+          <div class="mini-stat-icon dossier-mark">LV</div>
           <div>
-            <div class="eyebrow">LEVEL</div>
+            <div class="eyebrow">LEVEL // RECORD</div>
             <strong id="levelNumber" class="mini-stat-value">1</strong>
-            <div id="levelProgressText" class="mini-stat-note">0 / 60 XP</div>
+            <div id="levelProgressText" class="mini-stat-note">0 / 60 Victory XP</div>
           </div>
-          <div class="mini-meter"><div id="levelProgress" class="mini-meter-fill"></div></div>
+          <div class="mini-meter case-meter"><div id="levelProgress" class="mini-meter-fill"></div></div>
         </article>
 
-        <article class="mini-stat-card">
-          <div class="mini-stat-icon">🔥</div>
+        <article class="mini-stat-card dossier-card streak-card">
+          <div class="mini-stat-icon dossier-mark">×</div>
           <div>
-            <div class="eyebrow">STREAK</div>
+            <div class="eyebrow">WIN STREAK</div>
             <strong id="streakCount" class="mini-stat-value">0 days</strong>
             <div id="bestStreak" class="mini-stat-note">Best: 0</div>
           </div>
-          <div class="streak-caption">Consistency is just sunk cost with better branding.</div>
+          <div class="streak-caption">Consecutive daily wins. No extra credit for beating a corpse.</div>
         </article>
       </section>
 
@@ -110,7 +116,7 @@
 
       <section class="section-head">
         <div>
-          <div class="eyebrow">IMPROVE YOURSELF</div>
+          <div class="eyebrow">DAILY ARSENAL</div>
           <h2>Track-o-Tron</h2>
           <div class="track-subtitle">Choose an attack</div>
         </div>
