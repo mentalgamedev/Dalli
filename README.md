@@ -73,6 +73,8 @@ The main action area is branded **Track-o-Tron**. Category action decks keep a c
 
 ## Categories and actions
 
+- Settings save automatically; there is no separate Save button
+- valid edits take effect on the live Track-o-Tron shortly after editing, and closing Settings flushes any pending valid change
 - categories are fully editable
 - every regular category has a user-selectable **Color**
 - MoLife derives a safe bright accent plus darker/desaturated panel, action, border and glow variants from that one color
