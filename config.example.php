@@ -4,14 +4,8 @@ declare(strict_types=1);
 /*
  * EXAMPLE ONLY — DO NOT PUT REAL CREDENTIALS IN THIS REPOSITORY.
  *
- * Copy this file to:
- *   apps/dalli-config.php
- *
- * while the public Dalli site remains in:
- *   apps/dalli/
- *
- * Keeping this file one directory above the public Dalli root prevents it
- * from being web-addressable.
+ * Place the real dalli-config.php one directory above Dalli's public document
+ * root. The backend deliberately resolves it from outside the web root.
  */
 if (realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__) {
     http_response_code(404);
@@ -20,25 +14,19 @@ if (realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__) {
 
 return [
     'database' => [
-        // Copy the database server/host exactly from lima-city's database settings.
-        'host' => 'YOUR_LIMA_DB_HOST',
-        'name' => 'db_430902_10',
-        'user' => 'YOUR_RESTRICTED_DALLI_DB_USER',
-        'password' => 'REPLACE_WITH_DATABASE_PASSWORD',
+        'host' => 'YOUR_DATABASE_HOST',
+        'name' => 'YOUR_DATABASE_NAME',
+        'user' => 'YOUR_DATABASE_USER',
+        'password' => 'YOUR_DATABASE_PASSWORD',
     ],
 
     'app' => [
-        'origin' => 'https://dalli.mentalgrounds.com',
+        'origin' => 'https://dalli.example.com',
 
         /*
-         * Used only to claim the very first Dalli owner account.
-         * After an owner exists, this value is ignored; all later accounts
-         * require an invite link created by the owner.
-         *
+         * Used only to claim the first Dalli owner account.
          * Use at least 32 random bytes (64 hex characters).
-         *
-         * For compatibility, register.php also accepts the older config key
-         * "setup_token" if you already configured one.
+         * Once an owner exists, later accounts require invite links.
          */
         'owner_setup_token' => 'REPLACE_WITH_LONG_RANDOM_OWNER_SETUP_TOKEN',
     ],
