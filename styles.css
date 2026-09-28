@@ -1725,36 +1725,55 @@ body {
 
 :root {
   --motion-x: 50%;
-  --motion-y: 18%;
-  --motion-x-2: 78%;
-  --motion-y-2: 8%;
+  --motion-y: 24%;
+  --motion-x-2: 76%;
+  --motion-y-2: 16%;
   --motion-hue: 0deg;
   --motion-tilt: 0;
+  --motion-energy: 0;
+  --motion-shift-x: 0vw;
+  --motion-shift-y: 0vh;
+  --motion-rotate: 0deg;
+  --motion-scale: 1.04;
+  --motion-saturation: 1.25;
+  --motion-brightness: 1.02;
+  --motion-opacity: .52;
 }
 
 .motion-shimmer {
   position: fixed;
-  inset: -12vmax;
+  inset: -16vmax;
   z-index: -2;
   pointer-events: none;
   opacity: 0;
   background:
     radial-gradient(circle at var(--motion-x) var(--motion-y),
-      rgba(126,108,255,.22),
-      transparent 31vmax),
+      rgba(126,108,255,.34),
+      transparent 29vmax),
     radial-gradient(circle at var(--motion-x-2) var(--motion-y-2),
-      rgba(55,221,190,.16),
-      transparent 28vmax),
+      rgba(55,221,190,.27),
+      transparent 27vmax),
     radial-gradient(circle at calc(100% - var(--motion-x)) calc(100% - var(--motion-y)),
-      rgba(234,105,190,.075),
-      transparent 26vmax);
-  filter: hue-rotate(var(--motion-hue)) saturate(1.08);
-  transition: opacity .35s ease;
-  will-change: background-position, filter, opacity;
+      rgba(234,105,190,.16),
+      transparent 25vmax),
+    radial-gradient(circle at 18% 82%,
+      rgba(241,202,90,.09),
+      transparent 24vmax);
+  filter:
+    hue-rotate(var(--motion-hue))
+    saturate(var(--motion-saturation))
+    brightness(var(--motion-brightness));
+  transform:
+    translate3d(var(--motion-shift-x), var(--motion-shift-y), 0)
+    rotate(var(--motion-rotate))
+    scale(var(--motion-scale));
+  transform-origin: 50% 50%;
+  transition: opacity .28s ease;
+  will-change: transform, filter, opacity;
 }
 
 .ambient-fx-enabled .motion-shimmer {
-  opacity: 1;
+  opacity: var(--motion-opacity);
 }
 
 /* Simpler wordmark: playful, but no fake graffiti construction. */
