@@ -2776,15 +2776,15 @@ body {
 
 
 /* v4.0 polish — report reveal and compact short-viewport layout */
-.day-card-dialog[open] {
+.day-card-dialog[open].is-victory-reveal {
   animation: reportArrival .72s cubic-bezier(.18,.78,.18,1);
 }
 
-.day-card-dialog[open]::backdrop {
+.day-card-dialog[open].is-victory-reveal::backdrop {
   animation: reportBackdropArrival .72s ease-out;
 }
 
-.day-card-dialog[open] .day-card::after {
+.day-card-dialog[open].is-victory-reveal .day-card::after {
   animation: approvedStamp .42s cubic-bezier(.2,.9,.25,1.15) .28s both;
   transform-origin: center;
 }
@@ -2887,7 +2887,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .day-card-dialog[open],
   .day-card-dialog[open]::backdrop,
-  .day-card-dialog[open] .day-card::after {
+  .day-card-dialog[open].is-victory-reveal .day-card::after {
     animation: none !important;
   }
 }
