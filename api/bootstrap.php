@@ -8,7 +8,7 @@ header_remove('X-Powered-By');
 const DALLI_MAX_BODY_BYTES = 262144; // 256 KiB
 const DALLI_SESSION_NAME = 'DALLISESSID';
 
-function dalli_json_response(array $payload, int $status = 200): never
+function dalli_json_response(array $payload, int $status = 200): void
 {
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
@@ -21,7 +21,7 @@ function dalli_json_response(array $payload, int $status = 200): never
     exit;
 }
 
-function dalli_fail(string $message, int $status): never
+function dalli_fail(string $message, int $status): void
 {
     dalli_json_response(['ok' => false, 'error' => $message], $status);
 }
