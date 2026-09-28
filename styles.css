@@ -3749,3 +3749,32 @@ body {
     animation: none !important;
   }
 }
+
+
+.weapon-card.is-new {
+  animation: contrabandReveal .62s cubic-bezier(.18,.86,.2,1);
+}
+
+@keyframes contrabandReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scale(.86) rotate(-2deg);
+    filter: brightness(1.9);
+  }
+  45% {
+    opacity: 1;
+    transform: translateY(1px) scale(1.04) rotate(.6deg);
+    filter: brightness(1.35);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weapon-card.is-new {
+    animation: none !important;
+  }
+}
