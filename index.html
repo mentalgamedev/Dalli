@@ -8,7 +8,7 @@
   <title>Dalli</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=2.2.0">
+  <link rel="stylesheet" href="styles.css?v=2.3.0">
 </head>
 <body>
   <div class="app-shell">
@@ -16,7 +16,7 @@
       <div>
         <div class="eyebrow">TODAY'S RUN</div>
         <h1 class="brand-title">Dalli</h1>
-        <div class="app-version" aria-label="Dalli version 2.2.0">v2.2.0 · online</div>
+        <div class="app-version" aria-label="Dalli version 2.3.0">v2.3.0 · online</div>
         <div id="todayLabel" class="muted"></div>
       </div>
       <button id="settingsButton" class="icon-button" type="button" aria-label="Open settings" title="Settings">⚙</button>
@@ -108,11 +108,31 @@
       <section class="settings-section">
         <div class="settings-section-head">
           <div>
-            <h3>Category weights</h3>
-            <p>Higher weight = a larger minimum share of today's XP.</p>
+            <h3>Categories</h3>
+            <p>Create your own categories. Weight controls how much each category matters for today's balance.</p>
           </div>
         </div>
-        <div id="weightsEditor" class="weights-editor"></div>
+        <div id="categoriesEditor" class="categories-editor"></div>
+
+        <div class="add-category-card">
+          <h4>Add category</h4>
+          <div class="add-category-grid">
+            <label>
+              <span>Name</span>
+              <input id="newCategoryName" type="text" maxlength="40" placeholder="e.g. Learning">
+            </label>
+            <label>
+              <span>Icon</span>
+              <input id="newCategoryIcon" type="text" maxlength="8" placeholder="•">
+            </label>
+            <label>
+              <span>Weight</span>
+              <input id="newCategoryWeight" type="number" min="0.25" max="10" step="0.25" value="1" inputmode="decimal">
+            </label>
+          </div>
+          <button id="addCategoryButton" class="secondary-button" type="button">+ Add category</button>
+          <p class="category-fallback-note">Uncategorized is the permanent fallback. Deleting a category moves its actions there.</p>
+        </div>
       </section>
 
       <section class="settings-section">
@@ -148,9 +168,10 @@
             </label>
           </div>
           <button id="addActionButton" class="secondary-button" type="button">+ Add action</button>
-          <div id="settingsMessage" class="settings-message" role="status" aria-live="polite"></div>
         </div>
       </section>
+
+      <div id="settingsMessage" class="settings-message" role="status" aria-live="polite"></div>
 
       <div class="settings-footer">
         <button id="saveSettingsButton" class="primary-button" value="default" type="submit">Save settings</button>
@@ -175,7 +196,7 @@
     </article>
   </template>
 
-  <script src="app.js?v=2.2.0" defer></script>
-  <script src="cloud.js?v=2.2.0" defer></script>
+  <script src="app.js?v=2.3.0" defer></script>
+  <script src="cloud.js?v=2.3.0" defer></script>
 </body>
 </html>
