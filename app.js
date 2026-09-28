@@ -126,6 +126,7 @@
     newActionCategory: document.querySelector('#newActionCategory'),
     newActionXp: document.querySelector('#newActionXp'),
     newActionType: document.querySelector('#newActionType'),
+    newActionVisible: document.querySelector('#newActionVisible'),
     addActionButton: document.querySelector('#addActionButton'),
     resetGameButton: document.querySelector('#resetGameButton'),
     motionFxButton: document.querySelector('#motionFxButton'),
@@ -240,6 +241,18 @@
       });
     });
     next.settings.categories = ensureUncategorizedCategory(categories);
+
+    const nonFallback = next.settings.categories.filter(category => category.id !== UNCATEGORIZED_ID);
+    const isLegacyDefaultFocus = nonFallback.length === 3
+      && nonFallback.every(category => ['wellbeing', 'work', 'chores'].includes(category.id))
+      && nonFallback.every(category => category.focus === 1);
+
+    if (isLegacyDefaultFocus) {
+      const work = next.settings.categories.find(category => category.id === 'work');
+      const chores = next.settings.categories.find(category => category.id === 'chores');
+      if (work) work.focus = 1.5;
+      if (chores) chores.focus = 0.75;
+    }
 
     const categoryIds = new Set(next.settings.categories.map(category => category.id));
     const sourceActions = Array.isArray(candidate.settings?.actions)
@@ -971,6 +984,12 @@
       );
     }
 
+    if (goal < state.settings.goal) {
+      messages.push(
+        `STARTER PROTOCOL ACTIVE: TODAY'S GOAL REDUCED TO ${goal} XP. TRY NOT TO GET USED TO IT.`
+      );
+    }
+
     if (!summary.isVictory && hour >= 22) {
       messages.push('LATE BULLETIN: THE GOAL HAS NOT GONE TO BED JUST BECAUSE YOU WANT TO');
     }
@@ -1643,6 +1662,7 @@
     settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
     els.goalInput.value = settingsDraft.goal;
     els.settingsMessage.textContent = '';
+    updateGoalRampPreview();
     renderCategoriesEditor();
     renderActionsEditor();
     populateCategorySelect();
@@ -1652,6 +1672,20 @@
     } else {
       els.settingsDialog.setAttribute('open', '');
     }
+  }
+
+  function updateGoalRampPreview() {
+    if (!els.goalRampPreview || !settingsDraft) return;
+
+    const temporarySettings = {
+      ...settingsDraft,
+      goal: clampInt(els.goalInput.value, 20, 1000, settingsDraft.goal)
+    };
+    const ramp = getGoalRampInfo(temporarySettings);
+
+    els.goalRampPreview.textContent = ramp.active
+      ? `Current target: ${ramp.currentGoal} XP · ${ramp.clearCount}/${ramp.clearsToMature} cleared days toward the full ${ramp.matureGoal} XP goal.`
+      : `Current target: ${ramp.currentGoal} XP · starter ramp complete.`;
   }
 
   function previewBandText(category) {
@@ -1818,6 +1852,29 @@
       });
       typeLabel.append(typeSelect);
 
+      const visibilityLabel = document.createElement('label');
+      visibilityLabel.className = 'action-visibility-field';
+      const visibilityTitle = document.createElement('span');
+      visibilityTitle.textContent = 'Track-o-Tron';
+      const visibilityToggle = document.createElement('span');
+      visibilityToggle.className = 'action-visibility-toggle';
+      const visibilityInput = document.createElement('input');
+      visibilityInput.type = 'checkbox';
+      visibilityInput.checked = action.trackVisible !== false;
+      const visibilityText = document.createElement('span');
+      visibilityText.textContent = 'Show';
+      visibilityToggle.append(visibilityInput, visibilityText);
+      visibilityLabel.append(visibilityTitle, visibilityToggle);
+
+      const syncVisibilityStyle = () => {
+        row.classList.toggle('is-track-hidden', !visibilityInput.checked);
+      };
+      visibilityInput.addEventListener('change', () => {
+        action.trackVisible = visibilityInput.checked;
+        syncVisibilityStyle();
+      });
+      syncVisibilityStyle();
+
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'delete-action';
@@ -1829,7 +1886,7 @@
         els.settingsMessage.textContent = 'Action removed. Save settings to keep the change.';
       });
 
-      grid.append(nameLabel, categoryLabel, xpLabel, typeLabel, remove);
+      grid.append(nameLabel, categoryLabel, xpLabel, typeLabel, visibilityLabel, remove);
       row.append(grid);
       els.actionsEditor.append(row);
     });
@@ -1896,6 +1953,7 @@
     const categoryId = els.newActionCategory.value;
     const baseXp = clampInt(els.newActionXp.value, 1, 200, 10);
     const type = els.newActionType.value === 'once' ? 'once' : 'repeatable';
+    const trackVisible = els.newActionVisible ? els.newActionVisible.checked : true;
 
     if (!name) {
       els.settingsMessage.textContent = 'Give the action a name first.';
@@ -1914,12 +1972,13 @@
       name,
       baseXp,
       type,
-      trackVisible: true
+      trackVisible
     });
 
     els.newActionName.value = '';
     els.newActionXp.value = '10';
     els.newActionType.value = 'repeatable';
+    if (els.newActionVisible) els.newActionVisible.checked = true;
     renderActionsEditor();
     els.settingsMessage.textContent = 'Action added. Save settings to make it legally binding.';
   }
@@ -1997,7 +2056,10 @@
   });
 
   els.settingsButton.addEventListener('click', openSettings);
-  els.goalInput.addEventListener('input', renderCategoriesEditor);
+  els.goalInput.addEventListener('input', () => {
+    updateGoalRampPreview();
+    renderCategoriesEditor();
+  });
   els.addCategoryButton.addEventListener('click', addCategoryFromForm);
   els.addActionButton.addEventListener('click', addActionFromForm);
   els.resetGameButton.addEventListener('click', resetGameData);
@@ -2038,7 +2100,9 @@
   }
 
   ensureToday();
-  render();
+  const starterRampClear = finalizeClearIfNeeded();
+  if (starterRampClear) saveState();
+  render({ showDayCard: starterRampClear, justCleared: starterRampClear });
   initializeMotionFx();
   startVisualLoop();
 })();
