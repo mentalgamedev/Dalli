@@ -535,21 +535,21 @@
   }
 
   function getLevelProgress() {
-    let remaining = state.progression.lifetimeXp;
-    let level = 1;
-    let requirement = levelRequirement(level);
-
-    while (remaining >= requirement && level < 100000) {
-      remaining -= requirement;
-      level += 1;
-      requirement = levelRequirement(level);
-    }
+    const lifetimeXp = state.progression.lifetimeXp;
+    const completedLevels = Math.max(
+      0,
+      Math.floor((-50 + Math.sqrt(2500 + (40 * lifetimeXp))) / 20)
+    );
+    const level = completedLevels + 1;
+    const threshold = (10 * completedLevels * completedLevels) + (50 * completedLevels);
+    const into = lifetimeXp - threshold;
+    const requirement = levelRequirement(level);
 
     return {
       level,
-      into: remaining,
+      into,
       requirement,
-      percent: Math.max(0, Math.min(1, remaining / requirement))
+      percent: Math.max(0, Math.min(1, into / requirement))
     };
   }
 
