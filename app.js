@@ -323,7 +323,7 @@
       if (!raw) return freshState();
       return normalizeState(JSON.parse(raw));
     } catch (error) {
-      console.warn('Could not load saved Dalli data:', error);
+      console.warn('Could not load saved MoLife data:', error);
       return freshState();
     }
   }
@@ -336,15 +336,15 @@
       if (!parsed || parsed.version !== STATE_VERSION) return null;
       return normalizeState(parsed);
     } catch (error) {
-      console.warn('Could not read cached Dalli data:', error);
+      console.warn('Could not read cached MoLife data:', error);
       return null;
     }
   }
 
   function saveState() {
     localStorage.setItem(activeStorageKey, JSON.stringify(state));
-    if (!suppressCloudSave && window.DalliCloud && typeof window.DalliCloud.queueSave === 'function') {
-      window.DalliCloud.queueSave(deepClone(state));
+    if (!suppressCloudSave && window.MoLifeCloud && typeof window.MoLifeCloud.queueSave === 'function') {
+      window.MoLifeCloud.queueSave(deepClone(state));
     }
   }
 
@@ -1099,6 +1099,11 @@
   }
 
   function renderCategories(summary) {
+    els.categoriesGrid.querySelectorAll('.category-card[data-category-id]').forEach(card => {
+      const list = card.querySelector('.actions-list');
+      if (list) categoryScrollPositions.set(card.dataset.categoryId, list.scrollTop);
+    });
+
     els.categoriesGrid.replaceChildren();
 
     const visibleCategories = state.settings.categories.filter(category => {
@@ -1561,7 +1566,7 @@
     }
 
     if (settingsDraft.categories.length >= 20) {
-      els.settingsMessage.textContent = 'Dalli supports up to 20 categories including Uncategorized.';
+      els.settingsMessage.textContent = 'MoLife supports up to 20 categories including Uncategorized.';
       return;
     }
 
@@ -1660,7 +1665,7 @@
 
   function resetGameData() {
     const confirmed = window.confirm(
-      'Reset ALL Dalli game data?\n\nThis wipes categories, actions, history, Level, Street Cred and streaks. Your login/account remains.\n\nThe Crestfallen Department of Records will pretend none of this ever happened.'
+      'Reset ALL MoLife game data?\n\nThis wipes categories, actions, history, Level, Street Cred and streaks. Your login/account remains.\n\nThe Crestfallen Department of Records will pretend none of this ever happened.'
     );
     if (!confirmed) return;
 
@@ -1673,7 +1678,7 @@
     render();
   }
 
-  window.DalliApp = Object.freeze({
+  window.MoLifeApp = Object.freeze({
     stateVersion: STATE_VERSION,
     getState: () => deepClone(state),
     getDefaultState: () => freshState(),
