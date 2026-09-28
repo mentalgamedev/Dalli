@@ -2331,50 +2331,112 @@
     els.settingsMessage.textContent = 'Action added. Save settings to make it legally binding.';
   }
 
-  function saveSettingsFromDialog(event) {
-    if (event.submitter && event.submitter.value === 'cancel') {
-      settingsDraft = null;
-      return;
+  function buildSettingsFromDraft() {
+    if (!settingsDraft) {
+      return { ok: false, message: 'Settings are not open.' };
     }
 
-    if (!settingsDraft) return;
-
-    const emptyCategory = settingsDraft.categories.find(
-      category => category.id !== UNCATEGORIZED_ID && !category.name.trim()
+    const categories = ensureUncategorizedCategory(
+      settingsDraft.categories.map(category => ({
+        ...category,
+        name: String(category.name || '').trim(),
+        icon: String(category.icon || '•').trim() || '•',
+        focus: category.id === UNCATEGORIZED_ID
+          ? 0
+          : clampNumber(category.focus, 0.25, 10, 1),
+        color: category.id === UNCATEGORIZED_ID
+          ? DEFAULT_CATEGORY_COLORS.uncategorized
+          : normalizeHexColor(category.color, fallbackCategoryColor(category.id))
+      }))
     );
-    if (emptyCategory) {
-      event.preventDefault();
-      els.settingsMessage.textContent = 'Every category needs a name.';
-      return;
+
+    const regularCategories = categories.filter(category => category.id !== UNCATEGORIZED_ID);
+    if (regularCategories.some(category => !category.name)) {
+      return { ok: false, message: 'Every category needs a name.' };
     }
 
-    const duplicate = settingsDraft.categories.find((category, index, list) => (
-      category.id !== UNCATEGORIZED_ID
-      && list.findIndex(other => (
-        other.id !== UNCATEGORIZED_ID
-        && other.name.trim().toLocaleLowerCase() === category.name.trim().toLocaleLowerCase()
-      )) !== index
-    ));
-    if (duplicate) {
-      event.preventDefault();
-      els.settingsMessage.textContent = 'Category names must be unique.';
-      return;
+    const seenNames = new Set();
+    for (const category of regularCategories) {
+      const key = category.name.toLocaleLowerCase();
+      if (key === 'uncategorized' || seenNames.has(key)) {
+        return { ok: false, message: 'Category names must be unique.' };
+      }
+      seenNames.add(key);
     }
 
-    settingsDraft.goal = clampInt(els.goalInput.value, 20, 1000, 100);
-    settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
-    settingsDraft.actions = settingsDraft.actions.filter(action => action.name.trim());
+    const categoryIds = new Set(categories.map(category => category.id));
+    const actions = settingsDraft.actions.map(action => ({
+      ...action,
+      name: String(action.name || '').trim(),
+      categoryId: categoryIds.has(action.categoryId) ? action.categoryId : UNCATEGORIZED_ID,
+      baseXp: clampInt(action.baseXp, 1, 200, 10),
+      type: action.type === 'once' ? 'once' : 'repeatable',
+      trackVisible: action.trackVisible !== false
+    }));
 
-    const ids = new Set(settingsDraft.categories.map(category => category.id));
-    settingsDraft.actions.forEach(action => {
-      if (!ids.has(action.categoryId)) action.categoryId = UNCATEGORIZED_ID;
-    });
+    if (actions.some(action => !action.name)) {
+      return { ok: false, message: 'Every action needs a name.' };
+    }
 
-    state.settings = settingsDraft;
-    settingsDraft = null;
+    return {
+      ok: true,
+      settings: {
+        goal: clampInt(els.goalInput.value, 20, 1000, settingsDraft.goal || 100),
+        categories,
+        actions
+      }
+    };
+  }
+
+  function commitSettingsDraft({ announce = true } = {}) {
+    window.clearTimeout(settingsSaveTimer);
+    settingsSaveTimer = null;
+
+    const result = buildSettingsFromDraft();
+    if (!result.ok) {
+      els.settingsMessage.textContent = result.message;
+      return false;
+    }
+
+    state.settings = result.settings;
     const justCleared = finalizeClearIfNeeded();
+    if (justCleared) settingsTriggeredClear = true;
+
     saveState();
-    render({ showDayCard: justCleared });
+    render({ justCleared });
+
+    if (announce) {
+      els.settingsMessage.textContent = 'Saved automatically.';
+    }
+
+    return true;
+  }
+
+  function scheduleSettingsSave(delay = 260) {
+    window.clearTimeout(settingsSaveTimer);
+    settingsSaveTimer = window.setTimeout(() => {
+      if (settingsDraft) commitSettingsDraft();
+    }, delay);
+  }
+
+  function closeSettings() {
+    if (!settingsDraft) {
+      els.settingsDialog.close();
+      return;
+    }
+
+    if (!commitSettingsDraft({ announce: false })) {
+      return;
+    }
+
+    const showDayCard = settingsTriggeredClear && Boolean(state.current.dayCard);
+    settingsDraft = null;
+    settingsTriggeredClear = false;
+    els.settingsDialog.close();
+
+    if (showDayCard) {
+      requestAnimationFrame(() => render({ showDayCard: true, justCleared: true }));
+    }
   }
 
   function resetGameData() {
