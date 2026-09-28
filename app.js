@@ -2122,6 +2122,7 @@
         els.settingsMessage.textContent = moved
           ? `${moved} action${moved === 1 ? '' : 's'} moved to Uncategorized.`
           : 'Category removed.';
+        commitSettingsDraft();
       });
 
       row.style.setProperty('--editor-category-color', categoryColor(category));
@@ -2221,7 +2222,8 @@
       remove.addEventListener('click', () => {
         settingsDraft.actions = settingsDraft.actions.filter(item => item.id !== action.id);
         renderActionsEditor();
-        els.settingsMessage.textContent = 'Action removed. Save settings to keep the change.';
+        els.settingsMessage.textContent = 'Action removed.';
+        commitSettingsDraft();
       });
 
       grid.append(nameLabel, categoryLabel, xpLabel, typeLabel, visibilityLabel, remove);
@@ -2294,6 +2296,7 @@
     populateCategorySelect();
     els.newActionCategory.value = category.id;
     els.settingsMessage.textContent = 'Category added. The city has updated its paperwork.';
+    commitSettingsDraft();
   }
 
   function addActionFromForm() {
@@ -2328,7 +2331,8 @@
     els.newActionType.value = 'repeatable';
     if (els.newActionVisible) els.newActionVisible.checked = true;
     renderActionsEditor();
-    els.settingsMessage.textContent = 'Action added. Save settings to make it legally binding.';
+    els.settingsMessage.textContent = 'Action added. The paperwork filed itself.';
+    commitSettingsDraft();
   }
 
   function buildSettingsFromDraft() {
@@ -2466,15 +2470,46 @@
   });
 
   els.settingsButton.addEventListener('click', openSettings);
+  els.closeSettingsButton?.addEventListener('click', closeSettings);
+
   els.goalInput.addEventListener('input', () => {
     updateGoalRampPreview();
     renderCategoriesEditor();
   });
+
+  els.settingsDialog.addEventListener('input', event => {
+    if (!settingsDraft) return;
+    const target = event.target;
+    const editsExistingSetting = target === els.goalInput
+      || target.closest?.('.category-direct-editor, .action-direct-editor');
+
+    if (editsExistingSetting) {
+      scheduleSettingsSave(target.type === 'color' ? 0 : 260);
+    }
+  });
+
+  els.settingsDialog.addEventListener('change', event => {
+    if (!settingsDraft) return;
+    const target = event.target;
+    if (target === els.goalInput || target.closest?.('.category-direct-editor, .action-direct-editor')) {
+      scheduleSettingsSave(0);
+    }
+  });
+
+  els.settingsDialog.addEventListener('cancel', event => {
+    event.preventDefault();
+    closeSettings();
+  });
+
+  els.settingsForm.addEventListener('submit', event => {
+    event.preventDefault();
+    if (settingsDraft) commitSettingsDraft();
+  });
+
   els.addCategoryButton.addEventListener('click', addCategoryFromForm);
   els.addActionButton.addEventListener('click', addActionFromForm);
   els.resetGameButton.addEventListener('click', resetGameData);
   els.motionFxButton?.addEventListener('click', toggleMotionFx);
-  els.settingsForm.addEventListener('submit', saveSettingsFromDialog);
   els.viewDayCardButton.addEventListener('click', () => openDayCard(state.current.dayCard));
   els.closeDayCardButton.addEventListener('click', () => els.dayCardDialog.close());
 
