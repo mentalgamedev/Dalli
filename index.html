@@ -112,11 +112,34 @@
         <button id="viewDayCardButton" class="report-button" type="button">View report</button>
       </section>
 
+
+      <section id="arsenalPanel" class="arsenal-panel panel">
+        <div class="arsenal-head">
+          <div>
+            <div class="eyebrow">CRESTFALLEN CONTRABAND OFFICE</div>
+            <h2>Arsenal</h2>
+            <div id="arsenalStatus" class="arsenal-status">Empty. Win fights for a chance to find contraband.</div>
+          </div>
+          <div id="arsenalCount" class="arsenal-count">0 weapons</div>
+        </div>
+
+        <div id="lootDrop" class="loot-drop" hidden>
+          <button id="lootCrateButton" class="loot-crate" type="button" aria-label="Open mystery contraband crate">
+            <span class="loot-crate-lid" aria-hidden="true">?</span>
+            <strong>MYSTERY CRATE</strong>
+            <small>Tap to inspect suspicious package</small>
+          </button>
+        </div>
+        <div id="lootDropMessage" class="loot-drop-message">Each victory has a 40% chance to attract questionable hardware.</div>
+        <div id="arsenalList" class="arsenal-list"></div>
+        <div class="arsenal-note">Better weapons are rarer. Better condition is rarer. Weapons ignore category resistance, are consumed when fired, and can absolutely be used to cheat your way through a bad day.</div>
+      </section>
+
       <section id="combosPanel" class="combos-panel panel" hidden></section>
 
       <section class="section-head">
         <div>
-          <div class="eyebrow">DAILY ARSENAL</div>
+          <div class="eyebrow">DAILY MOVES</div>
           <h2>Track-o-Tron</h2>
           <div class="track-subtitle">Choose an attack</div>
         </div>
@@ -340,10 +363,27 @@
         </div>
       </section>
 
+
+      <section class="settings-section template-section">
+        <div class="settings-section-head">
+          <div>
+            <h3>Settings templates</h3>
+            <p>Export your current challenge setup as a lightweight template, then swap between different category/action/combo systems without touching your progression or arsenal.</p>
+          </div>
+        </div>
+        <div class="template-actions">
+          <button id="exportTemplateButton" class="secondary-button" type="button">Export template</button>
+          <button id="importTemplateButton" class="secondary-button" type="button">Import template</button>
+          <input id="importTemplateInput" type="file" accept=".json,application/json" hidden>
+        </div>
+        <p class="category-fallback-note">Templates include enemy HP, categories, colors, Focus, actions, ordering, visibility, values and combo links. They do not include Level, Street Cred, streak/history, today's logged damage or weapons.</p>
+        <div id="templateStatus" class="template-status" role="status" aria-live="polite"></div>
+      </section>
+
       <section class="settings-section danger-zone">
         <div>
           <h3>Fresh start</h3>
-          <p>Reset all game progress, categories, actions, Level, Street Cred and history. Your account/login remains untouched.</p>
+          <p>Reset all game progress, categories, actions, combos, weapons, Level, Street Cred and history. Your account/login remains untouched.</p>
         </div>
         <button id="resetGameButton" class="danger-button" type="button">Reset game data</button>
       </section>
