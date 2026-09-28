@@ -1461,6 +1461,9 @@
     root.style.setProperty('--motion-shift-y', `${(smoothPitch * 3.2).toFixed(2)}vh`);
     root.style.setProperty('--motion-rotate', `${(smoothRoll * 4.5).toFixed(2)}deg`);
     root.style.setProperty('--motion-scale', (1.04 + (motionEnergy * 0.07)).toFixed(3));
+    root.style.setProperty('--motion-saturation', (1.25 + (motionEnergy * 0.95)).toFixed(3));
+    root.style.setProperty('--motion-brightness', (1.02 + (motionEnergy * 0.12)).toFixed(3));
+    root.style.setProperty('--motion-opacity', (0.52 + (motionEnergy * 0.30)).toFixed(3));
   }
 
   function animateVisuals(timestamp) {
