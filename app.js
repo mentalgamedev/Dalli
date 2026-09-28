@@ -12,6 +12,17 @@
   const GOAL_RAMP_STEPS = 8;
   const CLEARS_PER_RAMP_STEP = 2;
 
+  const DEFAULT_ACTION_NAME_MIGRATIONS = Object.freeze({
+    'wellbeing-workout-30': ['Workout — 30 min', 'Proper workout'],
+    'wellbeing-walk-20': ['Walk — 20 min', 'Walk / fresh air'],
+    'wellbeing-mobility-10': ['Stretch / mobility — 10 min', 'Quick movement / stretch'],
+    'work-focus-25': ['Focused work — 25 min', 'Focus session'],
+    'work-focus-50': ['Focused work — 50 min', 'Deep focus session'],
+    'work-practice-20': ['Practice / skill — 20 min', 'Practice / skill'],
+    'chores-small': ['Small chore — 5–10 min', 'Tiny chore'],
+    'chores-medium': ['Cleaning — 15–30 min', 'Proper chore / cleaning']
+  });
+
   let activeStorageKey = STORAGE_KEY;
   let suppressCloudSave = false;
 
@@ -43,16 +54,16 @@
         { id: UNCATEGORIZED_ID, name: 'Uncategorized', icon: '•', focus: 0 }
       ],
       actions: [
-        { id: 'wellbeing-workout-30', categoryId: 'wellbeing', name: 'Workout — 30 min', baseXp: 20, type: 'repeatable', trackVisible: true },
-        { id: 'wellbeing-walk-20', categoryId: 'wellbeing', name: 'Walk — 20 min', baseXp: 10, type: 'repeatable', trackVisible: true },
-        { id: 'wellbeing-mobility-10', categoryId: 'wellbeing', name: 'Stretch / mobility — 10 min', baseXp: 5, type: 'repeatable', trackVisible: true },
+        { id: 'wellbeing-workout-30', categoryId: 'wellbeing', name: 'Proper workout', baseXp: 20, type: 'repeatable', trackVisible: true },
+        { id: 'wellbeing-walk-20', categoryId: 'wellbeing', name: 'Walk / fresh air', baseXp: 10, type: 'repeatable', trackVisible: true },
+        { id: 'wellbeing-mobility-10', categoryId: 'wellbeing', name: 'Quick movement / stretch', baseXp: 5, type: 'repeatable', trackVisible: true },
         { id: 'wellbeing-good-meal', categoryId: 'wellbeing', name: 'Proper healthy meal', baseXp: 10, type: 'once', trackVisible: true },
-        { id: 'work-focus-25', categoryId: 'work', name: 'Focused work — 25 min', baseXp: 15, type: 'repeatable', trackVisible: true },
-        { id: 'work-focus-50', categoryId: 'work', name: 'Focused work — 50 min', baseXp: 30, type: 'repeatable', trackVisible: true },
-        { id: 'work-practice-20', categoryId: 'work', name: 'Practice / skill — 20 min', baseXp: 10, type: 'repeatable', trackVisible: true },
+        { id: 'work-focus-25', categoryId: 'work', name: 'Focus session', baseXp: 15, type: 'repeatable', trackVisible: true },
+        { id: 'work-focus-50', categoryId: 'work', name: 'Deep focus session', baseXp: 30, type: 'repeatable', trackVisible: true },
+        { id: 'work-practice-20', categoryId: 'work', name: 'Practice / skill', baseXp: 10, type: 'repeatable', trackVisible: true },
         { id: 'work-admin', categoryId: 'work', name: 'Annoying admin task', baseXp: 10, type: 'once', trackVisible: true },
-        { id: 'chores-small', categoryId: 'chores', name: 'Small chore — 5–10 min', baseXp: 5, type: 'repeatable', trackVisible: true },
-        { id: 'chores-medium', categoryId: 'chores', name: 'Cleaning — 15–30 min', baseXp: 10, type: 'repeatable', trackVisible: true },
+        { id: 'chores-small', categoryId: 'chores', name: 'Tiny chore', baseXp: 5, type: 'repeatable', trackVisible: true },
+        { id: 'chores-medium', categoryId: 'chores', name: 'Proper chore / cleaning', baseXp: 10, type: 'repeatable', trackVisible: true },
         { id: 'chores-laundry', categoryId: 'chores', name: 'Laundry', baseXp: 10, type: 'once', trackVisible: true },
         { id: 'chores-big', categoryId: 'chores', name: 'Big chore / deep clean', baseXp: 20, type: 'repeatable', trackVisible: true }
       ]
@@ -152,7 +163,14 @@
   const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   const finePointerQuery = window.matchMedia('(pointer: fine)');
   let motionFxEnabled = false;
+  let motionSensorLive = false;
   let orientationListenerAttached = false;
+  let motionListenerAttached = false;
+  let motionProbeTimer = null;
+  let orientationSamples = 0;
+  let motionSamples = 0;
+  let lastOrientationSampleAt = 0;
+  let lastMotionSampleAt = 0;
   let targetRoll = 0;
   let targetPitch = 0;
   let targetYaw = 0;
@@ -259,14 +277,24 @@
       ? candidate.settings.actions
       : DEFAULT_STATE.settings.actions;
 
-    next.settings.actions = sourceActions.slice(0, 500).map((action, index) => ({
-      id: String(action?.id || `action-${index + 1}`).slice(0, 128),
-      categoryId: categoryIds.has(String(action?.categoryId)) ? String(action.categoryId) : UNCATEGORIZED_ID,
-      name: String(action?.name || 'Unnamed action').slice(0, 100),
-      baseXp: clampInt(action?.baseXp, 1, 200, 10),
-      type: action?.type === 'once' ? 'once' : 'repeatable',
-      trackVisible: action?.trackVisible !== false
-    }));
+    next.settings.actions = sourceActions.slice(0, 500).map((action, index) => {
+      const id = String(action?.id || `action-${index + 1}`).slice(0, 128);
+      let name = String(action?.name || 'Unnamed action').slice(0, 100);
+      const migration = DEFAULT_ACTION_NAME_MIGRATIONS[id];
+
+      if (migration && name === migration[0]) {
+        name = migration[1];
+      }
+
+      return {
+        id,
+        categoryId: categoryIds.has(String(action?.categoryId)) ? String(action.categoryId) : UNCATEGORIZED_ID,
+        name,
+        baseXp: clampInt(action?.baseXp, 1, 200, 10),
+        type: action?.type === 'once' ? 'once' : 'repeatable',
+        trackVisible: action?.trackVisible !== false
+      };
+    });
 
     next.progression.lifetimeXp = clampInt(candidate.progression?.lifetimeXp, 0, 1000000000, 0);
     next.progression.bestStreak = clampInt(candidate.progression?.bestStreak, 0, 1000000, 0);
