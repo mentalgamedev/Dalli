@@ -1,10 +1,10 @@
-const CACHE = 'dalli-v3-0';
+const CACHE = 'molife-v3-1';
 const ASSETS = [
   './',
   './index.html',
-  './styles.css?v=3.0.0',
-  './app.js?v=3.0.0',
-  './cloud.js?v=3.0.0',
+  './styles.css?v=3.1.0',
+  './app.js?v=3.1.0',
+  './cloud.js?v=3.1.0',
   './manifest.webmanifest',
   './icon.svg'
 ];
