@@ -6,11 +6,14 @@
   let suppressCloudSave = false;
   const BALANCE_FACTOR = 0.70;
   const HISTORY_LIMIT = 30;
+  const UNCATEGORIZED_ID = 'uncategorized';
 
   const CATEGORY_COLORS = {
+    wellbeing: '#48d99a',
     health: '#48d99a',
     work: '#7f8cff',
-    chores: '#ffb45f'
+    chores: '#ffb45f',
+    uncategorized: '#8a93a3'
   };
 
   const DEFAULT_STATE = {
@@ -18,15 +21,16 @@
     settings: {
       goal: 100,
       categories: [
-        { id: 'health', name: 'Health', icon: '♥', weight: 1 },
+        { id: 'wellbeing', name: 'Wellbeing', icon: '♥', weight: 1 },
         { id: 'work', name: 'Work', icon: '◆', weight: 1 },
-        { id: 'chores', name: 'Chores', icon: '⌂', weight: 1 }
+        { id: 'chores', name: 'Chores', icon: '⌂', weight: 1 },
+        { id: UNCATEGORIZED_ID, name: 'Uncategorized', icon: '•', weight: 0 }
       ],
       actions: [
-        { id: 'health-workout-30', categoryId: 'health', name: 'Workout — 30 min', xp: 20, type: 'repeatable' },
-        { id: 'health-walk-20', categoryId: 'health', name: 'Walk — 20 min', xp: 10, type: 'repeatable' },
-        { id: 'health-mobility-10', categoryId: 'health', name: 'Stretch / mobility — 10 min', xp: 5, type: 'repeatable' },
-        { id: 'health-good-meal', categoryId: 'health', name: 'Proper healthy meal', xp: 10, type: 'once' },
+        { id: 'health-workout-30', categoryId: 'wellbeing', name: 'Workout — 30 min', xp: 20, type: 'repeatable' },
+        { id: 'health-walk-20', categoryId: 'wellbeing', name: 'Walk — 20 min', xp: 10, type: 'repeatable' },
+        { id: 'health-mobility-10', categoryId: 'wellbeing', name: 'Stretch / mobility — 10 min', xp: 5, type: 'repeatable' },
+        { id: 'health-good-meal', categoryId: 'wellbeing', name: 'Proper healthy meal', xp: 10, type: 'once' },
         { id: 'work-focus-25', categoryId: 'work', name: 'Focused work — 25 min', xp: 15, type: 'repeatable' },
         { id: 'work-focus-50', categoryId: 'work', name: 'Focused work — 50 min', xp: 30, type: 'repeatable' },
         { id: 'work-practice-20', categoryId: 'work', name: 'Practice / skill — 20 min', xp: 10, type: 'repeatable' },
@@ -62,7 +66,11 @@
     settingsDialog: document.querySelector('#settingsDialog'),
     settingsForm: document.querySelector('#settingsForm'),
     goalInput: document.querySelector('#goalInput'),
-    weightsEditor: document.querySelector('#weightsEditor'),
+    categoriesEditor: document.querySelector('#categoriesEditor'),
+    newCategoryName: document.querySelector('#newCategoryName'),
+    newCategoryIcon: document.querySelector('#newCategoryIcon'),
+    newCategoryWeight: document.querySelector('#newCategoryWeight'),
+    addCategoryButton: document.querySelector('#addCategoryButton'),
     actionsEditor: document.querySelector('#actionsEditor'),
     newActionName: document.querySelector('#newActionName'),
     newActionCategory: document.querySelector('#newActionCategory'),
@@ -74,6 +82,7 @@
 
   let state = loadState();
   let settingsDraft = null;
+  let editingCategoryId = null;
   let editingActionId = null;
   let wasVictory = false;
 
