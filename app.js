@@ -1,16 +1,21 @@
 (() => {
   'use strict';
 
-  const STATE_VERSION = 2;
+  const STATE_VERSION = 3;
   const STORAGE_KEY = 'dailyXpGame.v2';
   const HISTORY_LIMIT = 365;
   const DETAILED_HISTORY_DAYS = 90;
   const UNCATEGORIZED_ID = 'uncategorized';
   const UNCATEGORIZED_EFFICIENCY = 0.50;
   const EFFICIENCY_TIERS = [1, 0.8, 0.6, 0.4];
-  const STARTER_GOAL_RATIO = 0.60;
-  const GOAL_RAMP_STEPS = 8;
-  const CLEARS_PER_RAMP_STEP = 2;
+  const STARTER_HP_RATIO = 0.60;
+  const HP_RAMP_STEPS = 8;
+  const VICTORIES_PER_RAMP_STEP = 2;
+  const VICTORY_XP = 20;
+  const COMBO_MIN_MULTIPLIER = 1.05;
+  const COMBO_MAX_MULTIPLIER = 3;
+  const COMBO_DEFAULT_MULTIPLIER = 1.25;
+  const COMBO_MAX_STEPS = 8;
 
   const DEFAULT_ACTION_NAME_MIGRATIONS = Object.freeze({
     'wellbeing-workout-30': ['Workout — 30 min', 'Proper workout'],
@@ -55,7 +60,7 @@
   const DEFAULT_STATE = {
     version: STATE_VERSION,
     settings: {
-      goal: 100,
+      fullEnemyHp: 100,
       categories: [
         { id: 'wellbeing', name: 'Wellbeing', icon: '♥', focus: 1, color: '#49d89b' },
         { id: 'work', name: 'Work', icon: '◆', focus: 1.5, color: '#818bff' },
@@ -63,30 +68,34 @@
         { id: UNCATEGORIZED_ID, name: 'Uncategorized', icon: '•', focus: 0, color: '#8b93a4' }
       ],
       actions: [
-        { id: 'wellbeing-workout-30', categoryId: 'wellbeing', name: 'Proper workout', baseXp: 20, type: 'repeatable', trackVisible: true },
-        { id: 'wellbeing-walk-20', categoryId: 'wellbeing', name: 'Walk / fresh air', baseXp: 10, type: 'repeatable', trackVisible: true },
-        { id: 'wellbeing-mobility-10', categoryId: 'wellbeing', name: 'Quick movement / stretch', baseXp: 5, type: 'repeatable', trackVisible: true },
-        { id: 'wellbeing-good-meal', categoryId: 'wellbeing', name: 'Proper healthy meal', baseXp: 10, type: 'once', trackVisible: true },
-        { id: 'work-focus-25', categoryId: 'work', name: 'Focus session', baseXp: 15, type: 'repeatable', trackVisible: true },
-        { id: 'work-focus-50', categoryId: 'work', name: 'Deep focus session', baseXp: 30, type: 'repeatable', trackVisible: true },
-        { id: 'work-practice-20', categoryId: 'work', name: 'Practice / skill', baseXp: 10, type: 'repeatable', trackVisible: true },
-        { id: 'work-admin', categoryId: 'work', name: 'Annoying admin task', baseXp: 10, type: 'once', trackVisible: true },
-        { id: 'chores-small', categoryId: 'chores', name: 'Tiny chore', baseXp: 5, type: 'repeatable', trackVisible: true },
-        { id: 'chores-medium', categoryId: 'chores', name: 'Proper chore / cleaning', baseXp: 10, type: 'repeatable', trackVisible: true },
-        { id: 'chores-laundry', categoryId: 'chores', name: 'Laundry', baseXp: 10, type: 'once', trackVisible: true },
-        { id: 'chores-big', categoryId: 'chores', name: 'Big chore / deep clean', baseXp: 20, type: 'repeatable', trackVisible: true }
-      ]
+        { id: 'wellbeing-workout-30', categoryId: 'wellbeing', name: 'Proper workout', baseDamage: 20, type: 'repeatable', trackVisible: true },
+        { id: 'wellbeing-walk-20', categoryId: 'wellbeing', name: 'Walk / fresh air', baseDamage: 10, type: 'repeatable', trackVisible: true },
+        { id: 'wellbeing-mobility-10', categoryId: 'wellbeing', name: 'Quick movement / stretch', baseDamage: 5, type: 'repeatable', trackVisible: true },
+        { id: 'wellbeing-good-meal', categoryId: 'wellbeing', name: 'Proper healthy meal', baseDamage: 10, type: 'once', trackVisible: true },
+        { id: 'work-focus-25', categoryId: 'work', name: 'Focus session', baseDamage: 15, type: 'repeatable', trackVisible: true },
+        { id: 'work-focus-50', categoryId: 'work', name: 'Deep focus session', baseDamage: 30, type: 'repeatable', trackVisible: true },
+        { id: 'work-practice-20', categoryId: 'work', name: 'Practice / skill', baseDamage: 10, type: 'repeatable', trackVisible: true },
+        { id: 'work-admin', categoryId: 'work', name: 'Annoying admin task', baseDamage: 10, type: 'once', trackVisible: true },
+        { id: 'chores-small', categoryId: 'chores', name: 'Tiny chore', baseDamage: 5, type: 'repeatable', trackVisible: true },
+        { id: 'chores-medium', categoryId: 'chores', name: 'Proper chore / cleaning', baseDamage: 10, type: 'repeatable', trackVisible: true },
+        { id: 'chores-laundry', categoryId: 'chores', name: 'Laundry', baseDamage: 10, type: 'once', trackVisible: true },
+        { id: 'chores-big', categoryId: 'chores', name: 'Big chore / deep clean', baseDamage: 20, type: 'repeatable', trackVisible: true }
+      ],
+      combos: []
     },
     progression: {
-      lifetimeXp: 0,
+      victoryXp: 0,
       bestStreak: 0,
       archivedStreak: 0,
       streakThrough: ''
     },
     current: {
       date: '',
+      maxHp: 0,
       transactions: [],
-      clearedAt: null,
+      comboProgress: {},
+      defeatedAt: null,
+      victoryXpAwarded: 0,
       dayCard: null
     },
     history: []
@@ -96,8 +105,12 @@
     todayLabel: document.querySelector('#todayLabel'),
     newswireViewport: document.querySelector('#newswireViewport'),
     newswireMessage: document.querySelector('#newswireMessage'),
-    totalXp: document.querySelector('#totalXp'),
-    goalXp: document.querySelector('#goalXp'),
+    enemyHp: document.querySelector('#enemyHp'),
+    enemyMaxHp: document.querySelector('#enemyMaxHp'),
+    totalDamage: document.querySelector('#totalDamage'),
+    overkillValue: document.querySelector('#overkillValue'),
+    fightFeedback: document.querySelector('#fightFeedback'),
+    combosPanel: document.querySelector('#combosPanel'),
     statusBadge: document.querySelector('#statusBadge'),
     heroMessage: document.querySelector('#heroMessage'),
     xpOrb: document.querySelector('#xpOrb'),
@@ -124,6 +137,10 @@
     dayCardDialog: document.querySelector('#dayCardDialog'),
     dayCardDate: document.querySelector('#dayCardDate'),
     dayCardXp: document.querySelector('#dayCardXp'),
+    dayCardEnemyHp: document.querySelector('#dayCardEnemyHp'),
+    dayCardDamage: document.querySelector('#dayCardDamage'),
+    dayCardOverkill: document.querySelector('#dayCardOverkill'),
+    dayCardCombos: document.querySelector('#dayCardCombos'),
     dayCardType: document.querySelector('#dayCardType'),
     dayCardHeadline: document.querySelector('#dayCardHeadline'),
     dayCardCopy: document.querySelector('#dayCardCopy'),
@@ -147,10 +164,14 @@
     actionSortSelect: document.querySelector('#actionSortSelect'),
     newActionName: document.querySelector('#newActionName'),
     newActionCategory: document.querySelector('#newActionCategory'),
-    newActionXp: document.querySelector('#newActionXp'),
+    newActionDamage: document.querySelector('#newActionDamage'),
     newActionType: document.querySelector('#newActionType'),
     newActionVisible: document.querySelector('#newActionVisible'),
     addActionButton: document.querySelector('#addActionButton'),
+    combosEditor: document.querySelector('#combosEditor'),
+    newComboName: document.querySelector('#newComboName'),
+    newComboMultiplier: document.querySelector('#newComboMultiplier'),
+    addComboButton: document.querySelector('#addComboButton'),
     resetGameButton: document.querySelector('#resetGameButton'),
     motionFxButton: document.querySelector('#motionFxButton'),
     motionFxStatus: document.querySelector('#motionFxStatus'),
@@ -320,20 +341,148 @@
     return cleaned;
   }
 
+
+  function legacyEnemyHp(candidate) {
+    const fullEnemyHp = clampInt(candidate?.settings?.goal, 20, 1000, 100);
+    const starterHp = Math.max(
+      20,
+      Math.min(fullEnemyHp, Math.round((fullEnemyHp * STARTER_HP_RATIO) / 5) * 5)
+    );
+    if (starterHp >= fullEnemyHp) return fullEnemyHp;
+
+    const clearCount = Array.isArray(candidate?.history)
+      ? candidate.history.reduce((count, day) => count + (day?.won ? 1 : 0), 0)
+      : 0;
+    const rampStep = Math.min(
+      HP_RAMP_STEPS,
+      Math.floor(clearCount / VICTORIES_PER_RAMP_STEP)
+    );
+    const progress = rampStep / HP_RAMP_STEPS;
+    return Math.min(
+      fullEnemyHp,
+      Math.max(20, Math.round((starterHp + ((fullEnemyHp - starterHp) * progress)) / 5) * 5)
+    );
+  }
+
+  function migrateLegacyTransaction(tx) {
+    return {
+      type: 'action',
+      id: String(tx?.id || makeId('tx')).slice(0, 128),
+      actionId: String(tx?.actionId || '').slice(0, 128),
+      actionName: String(tx?.actionName || 'Action').slice(0, 100),
+      categoryId: /^[A-Za-z0-9_-]{1,64}$/.test(String(tx?.categoryId || ''))
+        ? String(tx.categoryId)
+        : UNCATEGORIZED_ID,
+      categoryName: String(tx?.categoryName || 'Uncategorized').slice(0, 80),
+      baseDamage: clampInt(tx?.baseXp, 1, 200, 1),
+      damage: clampInt(tx?.effectiveXp, 1, 200, 1),
+      efficiency: clampNumber(tx?.efficiency, 0.01, 1, 1),
+      timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
+    };
+  }
+
+  function migrateLegacyDayCard(card, maxHp, damage, won) {
+    if (!card || typeof card !== 'object') return null;
+    return {
+      date: String(card.date || '').slice(0, 10),
+      type: String(card.type || (won ? 'VICTORY REPORT' : 'DAILY REPORT')).slice(0, 80),
+      headline: String(card.headline || (won ? 'DARK SELF DEFEATED' : 'FIGHT INCOMPLETE')).slice(0, 220),
+      copy: String(card.copy || '').slice(0, 500),
+      victoryXp: won ? VICTORY_XP : 0,
+      enemyHp: clampInt(maxHp, 20, 1000, 100),
+      damage: clampInt(damage, 0, 100000, 0),
+      overkill: Math.max(0, clampInt(damage, 0, 100000, 0) - clampInt(maxHp, 20, 1000, 100)),
+      combos: 0,
+      rank: String(card.rank || 'Nobody').slice(0, 40),
+      streak: clampInt(card.streak, 0, 1000000, 0)
+    };
+  }
+
+  function migrateV2State(candidate) {
+    const maxHp = candidate?.current?.date ? legacyEnemyHp(candidate) : 0;
+    const currentDamage = Array.isArray(candidate?.current?.transactions)
+      ? candidate.current.transactions.reduce((sum, tx) => sum + clampInt(tx?.effectiveXp, 0, 200, 0), 0)
+      : 0;
+    const currentWon = Boolean(candidate?.current?.clearedAt);
+    const historicalVictories = Array.isArray(candidate?.history)
+      ? candidate.history.reduce((count, day) => count + (day?.won ? 1 : 0), 0)
+      : 0;
+
+    return {
+      version: STATE_VERSION,
+      settings: {
+        fullEnemyHp: clampInt(candidate?.settings?.goal, 20, 1000, 100),
+        categories: deepClone(Array.isArray(candidate?.settings?.categories)
+          ? candidate.settings.categories
+          : DEFAULT_STATE.settings.categories),
+        actions: (Array.isArray(candidate?.settings?.actions)
+          ? candidate.settings.actions
+          : DEFAULT_STATE.settings.actions
+        ).map(action => ({
+          id: action?.id,
+          categoryId: action?.categoryId,
+          name: action?.name,
+          baseDamage: action?.baseXp,
+          type: action?.type,
+          trackVisible: action?.trackVisible
+        })),
+        combos: []
+      },
+      progression: {
+        victoryXp: VICTORY_XP * (historicalVictories + (currentWon ? 1 : 0)),
+        bestStreak: candidate?.progression?.bestStreak,
+        archivedStreak: candidate?.progression?.archivedStreak,
+        streakThrough: candidate?.progression?.streakThrough
+      },
+      current: {
+        date: candidate?.current?.date || '',
+        maxHp,
+        transactions: Array.isArray(candidate?.current?.transactions)
+          ? candidate.current.transactions.map(migrateLegacyTransaction)
+          : [],
+        comboProgress: {},
+        defeatedAt: normalizeTimestamp(candidate?.current?.clearedAt),
+        victoryXpAwarded: currentWon ? VICTORY_XP : 0,
+        dayCard: migrateLegacyDayCard(candidate?.current?.dayCard, maxHp || 100, currentDamage, currentWon)
+      },
+      history: Array.isArray(candidate?.history)
+        ? candidate.history.map(day => {
+          const dayMaxHp = clampInt(day?.goal, 20, 1000, 100);
+          const damage = clampInt(day?.xp, 0, 100000, 0);
+          return {
+            date: day?.date,
+            damage,
+            baseDamage: clampInt(day?.baseXp, 0, 100000, 0),
+            maxHp: dayMaxHp,
+            won: Boolean(day?.won),
+            categoryDamage: day?.categoryXp,
+            categoryBaseDamage: day?.categoryBaseXp,
+            defeatedAt: normalizeTimestamp(day?.clearedAt),
+            victoryXp: day?.won ? VICTORY_XP : 0,
+            combosLanded: 0,
+            overkill: Math.max(0, damage - dayMaxHp),
+            dayCard: migrateLegacyDayCard(day?.dayCard, dayMaxHp, damage, Boolean(day?.won)),
+            transactions: Array.isArray(day?.transactions)
+              ? day.transactions.map(migrateLegacyTransaction)
+              : []
+          };
+        })
+        : []
+    };
+  }
+
   function normalizeState(candidate) {
-    if (!candidate || candidate.version !== STATE_VERSION) {
-      return freshState();
-    }
+    if (candidate?.version === 2) candidate = migrateV2State(candidate);
+    if (!candidate || candidate.version !== STATE_VERSION) return freshState();
 
     const next = freshState();
-    next.settings.goal = clampInt(candidate.settings?.goal, 20, 1000, 100);
+    next.settings.fullEnemyHp = clampInt(candidate.settings?.fullEnemyHp, 20, 1000, 100);
 
     const seen = new Set();
     const categories = [];
     const sourceCategories = Array.isArray(candidate.settings?.categories)
       ? candidate.settings.categories
       : DEFAULT_STATE.settings.categories;
-
     sourceCategories.forEach((category, index) => {
       const id = String(category?.id || `category-${index + 1}`);
       if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || seen.has(id) || id === UNCATEGORIZED_ID) return;
@@ -348,60 +497,93 @@
     });
     next.settings.categories = ensureUncategorizedCategory(categories);
 
-    const nonFallback = next.settings.categories.filter(category => category.id !== UNCATEGORIZED_ID);
-    const isLegacyDefaultFocus = nonFallback.length === 3
-      && nonFallback.every(category => ['wellbeing', 'work', 'chores'].includes(category.id))
-      && nonFallback.every(category => category.focus === 1);
-
-    if (isLegacyDefaultFocus) {
-      const work = next.settings.categories.find(category => category.id === 'work');
-      const chores = next.settings.categories.find(category => category.id === 'chores');
-      if (work) work.focus = 1.5;
-      if (chores) chores.focus = 0.75;
-    }
-
     const categoryIds = new Set(next.settings.categories.map(category => category.id));
     const sourceActions = Array.isArray(candidate.settings?.actions)
       ? candidate.settings.actions
       : DEFAULT_STATE.settings.actions;
-
+    const actionIds = new Set();
     next.settings.actions = sourceActions.slice(0, 500).map((action, index) => {
-      const id = String(action?.id || `action-${index + 1}`).slice(0, 128);
+      let id = String(action?.id || `action-${index + 1}`).slice(0, 128);
+      if (!id || actionIds.has(id)) id = makeId('action');
+      actionIds.add(id);
       let name = String(action?.name || 'Unnamed action').slice(0, 100);
       const migration = DEFAULT_ACTION_NAME_MIGRATIONS[id];
-
-      if (migration && name === migration[0]) {
-        name = migration[1];
-      }
-
+      if (migration && name === migration[0]) name = migration[1];
       return {
         id,
         categoryId: categoryIds.has(String(action?.categoryId)) ? String(action.categoryId) : UNCATEGORIZED_ID,
         name,
-        baseXp: clampInt(action?.baseXp, 1, 200, 10),
+        baseDamage: clampInt(action?.baseDamage, 1, 200, 10),
         type: action?.type === 'once' ? 'once' : 'repeatable',
         trackVisible: action?.trackVisible !== false
       };
     });
 
-    next.progression.lifetimeXp = clampInt(candidate.progression?.lifetimeXp, 0, 1000000000, 0);
+    const normalizedActionIds = new Set(next.settings.actions.map(action => action.id));
+    const comboIds = new Set();
+    const enabledSequences = new Set();
+    next.settings.combos = (Array.isArray(candidate.settings?.combos) ? candidate.settings.combos : [])
+      .slice(0, 100)
+      .map((combo, index) => {
+        let id = String(combo?.id || `combo-${index + 1}`).slice(0, 128);
+        if (!id || comboIds.has(id)) id = makeId('combo');
+        comboIds.add(id);
+        const actionIds = (Array.isArray(combo?.actionIds) ? combo.actionIds : [])
+          .slice(0, COMBO_MAX_STEPS)
+          .map(value => String(value))
+          .filter(actionId => normalizedActionIds.has(actionId));
+        let enabled = combo?.enabled !== false && actionIds.length >= 2;
+        const fingerprint = actionIds.join('\u001f');
+        if (enabled && enabledSequences.has(fingerprint)) enabled = false;
+        if (enabled) enabledSequences.add(fingerprint);
+        return {
+          id,
+          name: String(combo?.name || `Combo ${index + 1}`).slice(0, 80),
+          multiplier: clampNumber(combo?.multiplier, COMBO_MIN_MULTIPLIER, COMBO_MAX_MULTIPLIER, COMBO_DEFAULT_MULTIPLIER),
+          enabled,
+          actionIds
+        };
+      });
+
+    next.progression.victoryXp = clampInt(candidate.progression?.victoryXp, 0, 1000000000, 0);
     next.progression.bestStreak = clampInt(candidate.progression?.bestStreak, 0, 1000000, 0);
     next.progression.archivedStreak = clampInt(candidate.progression?.archivedStreak, 0, 1000000, 0);
     next.progression.streakThrough = /^\d{4}-\d{2}-\d{2}$/.test(String(candidate.progression?.streakThrough || ''))
       ? String(candidate.progression.streakThrough)
       : '';
 
-    next.current.date = /^\d{4}-\d{2}-\d{2}$/.test(String(candidate.current?.date || ''))
-      ? String(candidate.current.date)
-      : '';
-    next.current.transactions = normalizeTransactions(candidate.current?.transactions);
-    next.current.clearedAt = normalizeTimestamp(candidate.current?.clearedAt);
-    next.current.dayCard = normalizeDayCard(candidate.current?.dayCard);
-
     next.history = Array.isArray(candidate.history)
       ? candidate.history.slice(0, HISTORY_LIMIT).map(normalizeHistoryDay).filter(Boolean)
       : [];
+    next.current.date = /^\d{4}-\d{2}-\d{2}$/.test(String(candidate.current?.date || ''))
+      ? String(candidate.current.date)
+      : '';
+    next.current.maxHp = next.current.date
+      ? clampInt(candidate.current?.maxHp, 20, 1000, enemyHpForClearCount(next.settings, next.history.filter(day => day.won).length))
+      : 0;
+    next.current.transactions = normalizeTransactions(candidate.current?.transactions);
+    next.current.defeatedAt = normalizeTimestamp(candidate.current?.defeatedAt);
+    next.current.victoryXpAwarded = next.current.defeatedAt
+      ? clampInt(candidate.current?.victoryXpAwarded, 0, VICTORY_XP, VICTORY_XP)
+      : 0;
+    next.current.dayCard = normalizeDayCard(candidate.current?.dayCard);
 
+    const comboIdSet = new Set(next.settings.combos.map(combo => combo.id));
+    const transactionIds = new Set(next.current.transactions.filter(tx => tx.type === 'action').map(tx => tx.id));
+    const rawProgress = candidate.current?.comboProgress;
+    next.current.comboProgress = {};
+    if (rawProgress && typeof rawProgress === 'object') {
+      Object.entries(rawProgress).forEach(([comboId, progress]) => {
+        if (!comboIdSet.has(comboId)) return;
+        const combo = next.settings.combos.find(item => item.id === comboId);
+        const sources = (Array.isArray(progress?.sourceTransactionIds) ? progress.sourceTransactionIds : [])
+          .map(String)
+          .filter(id => transactionIds.has(id))
+          .slice(0, Math.max(0, combo.actionIds.length - 1));
+        const index = Math.min(sources.length, clampInt(progress?.index, 0, Math.max(0, combo.actionIds.length - 1), sources.length));
+        next.current.comboProgress[comboId] = { index, sourceTransactionIds: sources.slice(0, index) };
+      });
+    }
     return next;
   }
 
@@ -413,29 +595,47 @@
 
   function normalizeTransactions(value) {
     if (!Array.isArray(value)) return [];
-    return value.slice(0, 3000).map(tx => ({
-      id: String(tx?.id || makeId('tx')).slice(0, 128),
-      actionId: String(tx?.actionId || '').slice(0, 128),
-      actionName: String(tx?.actionName || 'Action').slice(0, 100),
-      categoryId: /^[A-Za-z0-9_-]{1,64}$/.test(String(tx?.categoryId || ''))
-        ? String(tx.categoryId)
-        : UNCATEGORIZED_ID,
-      categoryName: String(tx?.categoryName || 'Uncategorized').slice(0, 80),
-      baseXp: clampInt(tx?.baseXp, 1, 200, 1),
-      effectiveXp: clampInt(tx?.effectiveXp, 1, 200, 1),
-      efficiency: clampNumber(tx?.efficiency, 0.01, 1, 1),
-      timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
-    }));
+    return value.slice(0, 3000).map(tx => {
+      const type = tx?.type === 'combo' ? 'combo' : 'action';
+      if (type === 'combo') {
+        return {
+          type,
+          id: String(tx?.id || makeId('combo-tx')).slice(0, 128),
+          comboId: String(tx?.comboId || '').slice(0, 128),
+          comboName: String(tx?.comboName || 'Combo').slice(0, 80),
+          multiplier: clampNumber(tx?.multiplier, COMBO_MIN_MULTIPLIER, COMBO_MAX_MULTIPLIER, COMBO_DEFAULT_MULTIPLIER),
+          damage: clampInt(tx?.damage, 1, 100000, 1),
+          sourceTransactionIds: (Array.isArray(tx?.sourceTransactionIds) ? tx.sourceTransactionIds : []).map(id => String(id).slice(0, 128)).slice(0, COMBO_MAX_STEPS),
+          timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
+        };
+      }
+      return {
+        type,
+        id: String(tx?.id || makeId('tx')).slice(0, 128),
+        actionId: String(tx?.actionId || '').slice(0, 128),
+        actionName: String(tx?.actionName || 'Action').slice(0, 100),
+        categoryId: /^[A-Za-z0-9_-]{1,64}$/.test(String(tx?.categoryId || '')) ? String(tx.categoryId) : UNCATEGORIZED_ID,
+        categoryName: String(tx?.categoryName || 'Uncategorized').slice(0, 80),
+        baseDamage: clampInt(tx?.baseDamage, 1, 200, 1),
+        damage: clampInt(tx?.damage, 1, 200, 1),
+        efficiency: clampNumber(tx?.efficiency, 0.01, 1, 1),
+        timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
+      };
+    });
   }
 
   function normalizeDayCard(value) {
     if (!value || typeof value !== 'object') return null;
     return {
       date: String(value.date || '').slice(0, 10),
-      type: String(value.type || 'DAILY REPORT').slice(0, 80),
-      headline: String(value.headline || 'PRODUCTIVITY OCCURRED').slice(0, 220),
+      type: String(value.type || 'VICTORY REPORT').slice(0, 80),
+      headline: String(value.headline || 'DARK SELF DEFEATED').slice(0, 220),
       copy: String(value.copy || '').slice(0, 500),
-      xp: clampInt(value.xp, 0, 100000, 0),
+      victoryXp: clampInt(value.victoryXp, 0, VICTORY_XP, 0),
+      enemyHp: clampInt(value.enemyHp, 20, 1000, 100),
+      damage: clampInt(value.damage, 0, 100000, 0),
+      overkill: clampInt(value.overkill, 0, 100000, 0),
+      combos: clampInt(value.combos, 0, 10000, 0),
       rank: String(value.rank || 'Nobody').slice(0, 40),
       streak: clampInt(value.streak, 0, 1000000, 0)
     };
@@ -444,27 +644,28 @@
   function normalizeHistoryDay(day) {
     const date = String(day?.date || '');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
-
     const cleanMap = value => {
       const result = {};
       if (!value || typeof value !== 'object') return result;
       Object.entries(value).forEach(([key, amount]) => {
-        if (/^[A-Za-z0-9_-]{1,64}$/.test(key)) {
-          result[key] = clampInt(amount, 0, 100000, 0);
-        }
+        if (/^[A-Za-z0-9_-]{1,64}$/.test(key)) result[key] = clampInt(amount, 0, 100000, 0);
       });
       return result;
     };
-
+    const maxHp = clampInt(day?.maxHp, 20, 1000, 100);
+    const damage = clampInt(day?.damage, 0, 100000, 0);
     return {
       date,
-      xp: clampInt(day?.xp, 0, 100000, 0),
-      baseXp: clampInt(day?.baseXp, 0, 100000, 0),
-      goal: clampInt(day?.goal, 20, 1000, 100),
+      damage,
+      baseDamage: clampInt(day?.baseDamage, 0, 100000, 0),
+      maxHp,
       won: Boolean(day?.won),
-      categoryXp: cleanMap(day?.categoryXp),
-      categoryBaseXp: cleanMap(day?.categoryBaseXp),
-      clearedAt: normalizeTimestamp(day?.clearedAt),
+      categoryDamage: cleanMap(day?.categoryDamage),
+      categoryBaseDamage: cleanMap(day?.categoryBaseDamage),
+      defeatedAt: normalizeTimestamp(day?.defeatedAt),
+      victoryXp: clampInt(day?.victoryXp, 0, VICTORY_XP, day?.won ? VICTORY_XP : 0),
+      combosLanded: clampInt(day?.combosLanded, 0, 10000, 0),
+      overkill: clampInt(day?.overkill, 0, 100000, Math.max(0, damage - maxHp)),
       dayCard: normalizeDayCard(day?.dayCard),
       transactions: normalizeTransactions(day?.transactions)
     };
@@ -486,7 +687,7 @@
       const raw = localStorage.getItem(storageKey);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      if (!parsed || parsed.version !== STATE_VERSION) return null;
+      if (!parsed || ![2, STATE_VERSION].includes(parsed.version)) return null;
       return normalizeState(parsed);
     } catch (error) {
       console.warn('Could not read cached MoLife data:', error);
@@ -526,45 +727,45 @@
     }
   }
 
-  function getPriorClearCount() {
+
+  function getPriorVictoryCount() {
     return state.history.reduce((count, day) => count + (day.won ? 1 : 0), 0);
   }
 
-  function getDailyGoal(settings = state.settings) {
-    const matureGoal = clampInt(settings.goal, 20, 1000, 100);
-    const starterGoal = Math.max(
+  function enemyHpForClearCount(settings, victoryCount) {
+    const fullEnemyHp = clampInt(settings.fullEnemyHp, 20, 1000, 100);
+    const starterHp = Math.max(
       20,
-      Math.min(matureGoal, Math.round((matureGoal * STARTER_GOAL_RATIO) / 5) * 5)
+      Math.min(fullEnemyHp, Math.round((fullEnemyHp * STARTER_HP_RATIO) / 5) * 5)
     );
+    if (starterHp >= fullEnemyHp) return fullEnemyHp;
 
-    if (starterGoal >= matureGoal) return matureGoal;
-
-    const clearCount = getPriorClearCount();
     const rampStep = Math.min(
-      GOAL_RAMP_STEPS,
-      Math.floor(clearCount / CLEARS_PER_RAMP_STEP)
+      HP_RAMP_STEPS,
+      Math.floor(Math.max(0, victoryCount) / VICTORIES_PER_RAMP_STEP)
     );
-    const progress = rampStep / GOAL_RAMP_STEPS;
-    const ramped = starterGoal + ((matureGoal - starterGoal) * progress);
-
+    const progress = rampStep / HP_RAMP_STEPS;
     return Math.min(
-      matureGoal,
-      Math.max(20, Math.round(ramped / 5) * 5)
+      fullEnemyHp,
+      Math.max(20, Math.round((starterHp + ((fullEnemyHp - starterHp) * progress)) / 5) * 5)
     );
   }
 
-  function getGoalRampInfo(settings = state.settings) {
-    const matureGoal = clampInt(settings.goal, 20, 1000, 100);
-    const currentGoal = getDailyGoal(settings);
-    const clearCount = getPriorClearCount();
-    const clearsToMature = GOAL_RAMP_STEPS * CLEARS_PER_RAMP_STEP;
+  function getEnemyHp(settings = state.settings) {
+    return enemyHpForClearCount(settings, getPriorVictoryCount());
+  }
 
+  function getHpRampInfo(settings = state.settings) {
+    const fullEnemyHp = clampInt(settings.fullEnemyHp, 20, 1000, 100);
+    const nextFightHp = getEnemyHp(settings);
+    const victoryCount = getPriorVictoryCount();
+    const victoriesToMature = HP_RAMP_STEPS * VICTORIES_PER_RAMP_STEP;
     return {
-      matureGoal,
-      currentGoal,
-      clearCount,
-      clearsToMature,
-      active: currentGoal < matureGoal
+      fullEnemyHp,
+      nextFightHp,
+      victoryCount,
+      victoriesToMature,
+      active: nextFightHp < fullEnemyHp
     };
   }
 
@@ -579,7 +780,10 @@
 
     const categories = balancedCategories(settings);
     const totalFocus = categories.reduce((sum, item) => sum + item.focus, 0) || 1;
-    return Math.max(1, getDailyGoal(settings) * (category.focus / totalFocus));
+    const hpReference = settings === state.settings && state.current.maxHp
+      ? state.current.maxHp
+      : getEnemyHp(settings);
+    return Math.max(1, hpReference * (category.focus / totalFocus));
   }
 
   function currentCategoryIdForTransaction(tx) {
@@ -589,55 +793,68 @@
   }
 
   function getSummary() {
-    const categoryXp = Object.fromEntries(state.settings.categories.map(category => [category.id, 0]));
-    const categoryBaseXp = Object.fromEntries(state.settings.categories.map(category => [category.id, 0]));
-    let totalXp = 0;
-    let totalBaseXp = 0;
+    const categoryDamage = Object.fromEntries(state.settings.categories.map(category => [category.id, 0]));
+    const categoryBaseDamage = Object.fromEntries(state.settings.categories.map(category => [category.id, 0]));
+    let totalDamage = 0;
+    let totalBaseDamage = 0;
+    let comboDamage = 0;
+    let combosLanded = 0;
 
     state.current.transactions.forEach(tx => {
+      totalDamage += tx.damage;
+      if (tx.type === 'combo') {
+        comboDamage += tx.damage;
+        combosLanded += 1;
+        return;
+      }
+
       const categoryId = currentCategoryIdForTransaction(tx);
-      totalXp += tx.effectiveXp;
-      totalBaseXp += tx.baseXp;
-      categoryXp[categoryId] = (categoryXp[categoryId] || 0) + tx.effectiveXp;
-      categoryBaseXp[categoryId] = (categoryBaseXp[categoryId] || 0) + tx.baseXp;
+      totalBaseDamage += tx.baseDamage;
+      categoryDamage[categoryId] = (categoryDamage[categoryId] || 0) + tx.damage;
+      categoryBaseDamage[categoryId] = (categoryBaseDamage[categoryId] || 0) + tx.baseDamage;
     });
 
-    const goal = getDailyGoal();
+    const maxHp = Math.max(20, state.current.maxHp || getEnemyHp());
+    const currentHp = Math.max(0, maxHp - totalDamage);
+    const overkill = Math.max(0, totalDamage - maxHp);
 
     return {
-      totalXp,
-      totalBaseXp,
-      categoryXp,
-      categoryBaseXp,
-      goal,
-      isVictory: totalXp >= goal
+      totalDamage,
+      totalBaseDamage,
+      comboDamage,
+      combosLanded,
+      categoryDamage,
+      categoryBaseDamage,
+      maxHp,
+      currentHp,
+      overkill,
+      isVictory: totalDamage >= maxHp
     };
   }
 
-  function calculateReward(action, usedBaseXp = null, settings = state.settings) {
-    const baseXp = action.baseXp;
+  function calculateDamage(action, usedBaseDamage = null, settings = state.settings) {
+    const baseDamage = action.baseDamage;
     const categoryId = action.categoryId;
 
     if (categoryId === UNCATEGORIZED_ID || !settings.categories.some(category => category.id === categoryId)) {
-      const raw = baseXp * UNCATEGORIZED_EFFICIENCY;
+      const raw = baseDamage * UNCATEGORIZED_EFFICIENCY;
       return {
-        baseXp,
-        effectiveXp: Math.max(1, Math.round(raw)),
+        baseDamage,
+        damage: Math.max(1, Math.round(raw)),
         efficiency: UNCATEGORIZED_EFFICIENCY,
         raw
       };
     }
 
-    const summary = usedBaseXp === null ? getSummary() : null;
-    let cursor = usedBaseXp === null ? (summary.categoryBaseXp[categoryId] || 0) : usedBaseXp;
+    const summary = usedBaseDamage === null ? getSummary() : null;
+    let cursor = usedBaseDamage === null ? (summary.categoryBaseDamage[categoryId] || 0) : usedBaseDamage;
     const band = getFocusBand(categoryId, settings);
-    let remaining = baseXp;
+    let remaining = baseDamage;
     let raw = 0;
 
     for (let tier = 0; tier < EFFICIENCY_TIERS.length && remaining > 0; tier += 1) {
       const multiplier = EFFICIENCY_TIERS[tier];
       const upper = tier < EFFICIENCY_TIERS.length - 1 ? band * (tier + 1) : Infinity;
-
       if (cursor >= upper) continue;
 
       const available = upper === Infinity ? remaining : Math.max(0, upper - cursor);
@@ -649,16 +866,16 @@
       remaining -= amount;
     }
 
-    const effectiveXp = Math.max(1, Math.round(raw));
+    const damage = Math.max(1, Math.round(raw));
     return {
-      baseXp,
-      effectiveXp,
-      efficiency: Math.max(0.01, Math.min(1, raw / Math.max(1, baseXp))),
+      baseDamage,
+      damage,
+      efficiency: Math.max(0.01, Math.min(1, raw / Math.max(1, baseDamage))),
       raw
     };
   }
 
-  function getCategoryEfficiency(categoryId, usedBaseXp) {
+  function getCategoryEfficiency(categoryId, usedBaseDamage) {
     if (categoryId === UNCATEGORIZED_ID) {
       return {
         multiplier: UNCATEGORIZED_EFFICIENCY,
@@ -670,25 +887,85 @@
     }
 
     const band = getFocusBand(categoryId);
-    if (usedBaseXp < band) {
-      return { multiplier: 1, tier: 0, progress: usedBaseXp / band, untilNext: band - usedBaseXp, band };
+    if (usedBaseDamage < band) {
+      return { multiplier: 1, tier: 0, progress: usedBaseDamage / band, untilNext: band - usedBaseDamage, band };
     }
-    if (usedBaseXp < band * 2) {
-      return { multiplier: 0.8, tier: 1, progress: (usedBaseXp - band) / band, untilNext: band * 2 - usedBaseXp, band };
+    if (usedBaseDamage < band * 2) {
+      return { multiplier: 0.8, tier: 1, progress: (usedBaseDamage - band) / band, untilNext: band * 2 - usedBaseDamage, band };
     }
-    if (usedBaseXp < band * 3) {
-      return { multiplier: 0.6, tier: 2, progress: (usedBaseXp - band * 2) / band, untilNext: band * 3 - usedBaseXp, band };
+    if (usedBaseDamage < band * 3) {
+      return { multiplier: 0.6, tier: 2, progress: (usedBaseDamage - band * 2) / band, untilNext: band * 3 - usedBaseDamage, band };
     }
     return { multiplier: 0.4, tier: 3, progress: 1, untilNext: null, band };
   }
 
   function hasCompletedOnceAction(actionId) {
-    return state.current.transactions.some(tx => tx.actionId === actionId);
+    return state.current.transactions.some(tx => tx.type === 'action' && tx.actionId === actionId);
+  }
+
+  function comboProgress(comboId) {
+    return state.current.comboProgress[comboId] || { index: 0, sourceTransactionIds: [] };
+  }
+
+  function processCombosForAction(actionTx) {
+    const completions = [];
+    const actionTransactions = new Map(
+      state.current.transactions
+        .filter(tx => tx.type === 'action')
+        .map(tx => [tx.id, tx])
+    );
+
+    state.settings.combos.forEach(combo => {
+      if (!combo.enabled || combo.actionIds.length < 2) {
+        delete state.current.comboProgress[combo.id];
+        return;
+      }
+
+      const progress = comboProgress(combo.id);
+      const expectedActionId = combo.actionIds[progress.index] || combo.actionIds[0];
+      if (actionTx.actionId !== expectedActionId) return;
+
+      const sourceTransactionIds = [...progress.sourceTransactionIds, actionTx.id];
+      const nextIndex = progress.index + 1;
+
+      if (nextIndex < combo.actionIds.length) {
+        state.current.comboProgress[combo.id] = {
+          index: nextIndex,
+          sourceTransactionIds
+        };
+        return;
+      }
+
+      const sequenceDamage = sourceTransactionIds.reduce(
+        (sum, id) => sum + (actionTransactions.get(id)?.damage || 0),
+        0
+      );
+      const bonusDamage = Math.max(1, Math.round(sequenceDamage * (combo.multiplier - 1)));
+      completions.push({ combo, sourceTransactionIds, sequenceDamage, bonusDamage });
+      state.current.comboProgress[combo.id] = { index: 0, sourceTransactionIds: [] };
+    });
+
+    if (!completions.length) return null;
+
+    completions.sort((a, b) => b.bonusDamage - a.bonusDamage || b.combo.multiplier - a.combo.multiplier);
+    const winner = completions[0];
+    const event = {
+      type: 'combo',
+      id: makeId('combo-tx'),
+      comboId: winner.combo.id,
+      comboName: winner.combo.name,
+      multiplier: Number(winner.combo.multiplier.toFixed(2)),
+      damage: winner.bonusDamage,
+      sourceTransactionIds: winner.sourceTransactionIds,
+      timestamp: Date.now() + 1
+    };
+    state.current.transactions.push(event);
+    return event;
   }
 
   function completedDateSet() {
     const set = new Set(state.history.filter(day => day.won).map(day => day.date));
-    if (state.current.clearedAt) set.add(state.current.date);
+    if (state.current.defeatedAt) set.add(state.current.date);
     return set;
   }
 
@@ -721,7 +998,7 @@
     const today = localDateKey();
     const yesterday = addDays(today, -1);
 
-    if (state.current.clearedAt && state.current.date === today) {
+    if (state.current.defeatedAt && state.current.date === today) {
       if (state.progression.streakThrough === yesterday) {
         return state.progression.archivedStreak + 1;
       }
@@ -740,14 +1017,14 @@
   }
 
   function getLevelProgress() {
-    const lifetimeXp = state.progression.lifetimeXp;
+    const victoryXp = state.progression.victoryXp;
     const completedLevels = Math.max(
       0,
-      Math.floor((-50 + Math.sqrt(2500 + (40 * lifetimeXp))) / 20)
+      Math.floor((-50 + Math.sqrt(2500 + (40 * victoryXp))) / 20)
     );
     const level = completedLevels + 1;
     const threshold = (10 * completedLevels * completedLevels) + (50 * completedLevels);
-    const into = lifetimeXp - threshold;
+    const into = victoryXp - threshold;
     const requirement = levelRequirement(level);
 
     return {
@@ -787,19 +1064,23 @@
     }
   }
 
+
   function archiveCurrentDay() {
     if (!state.current.date) return;
 
     const summary = getSummary();
     const record = {
       date: state.current.date,
-      xp: summary.totalXp,
-      baseXp: summary.totalBaseXp,
-      goal: summary.goal,
+      damage: summary.totalDamage,
+      baseDamage: summary.totalBaseDamage,
+      maxHp: summary.maxHp,
       won: summary.isVictory,
-      categoryXp: summary.categoryXp,
-      categoryBaseXp: summary.categoryBaseXp,
-      clearedAt: state.current.clearedAt,
+      categoryDamage: summary.categoryDamage,
+      categoryBaseDamage: summary.categoryBaseDamage,
+      defeatedAt: state.current.defeatedAt,
+      victoryXp: state.current.victoryXpAwarded,
+      combosLanded: summary.combosLanded,
+      overkill: summary.overkill,
       dayCard: state.current.dayCard,
       transactions: deepClone(state.current.transactions)
     };
@@ -820,7 +1101,15 @@
     const today = localDateKey();
 
     if (!state.current.date) {
-      state.current.date = today;
+      state.current = {
+        date: today,
+        maxHp: getEnemyHp(),
+        transactions: [],
+        comboProgress: {},
+        defeatedAt: null,
+        victoryXpAwarded: 0,
+        dayCard: null
+      };
       saveState();
       return;
     }
@@ -830,8 +1119,11 @@
     archiveCurrentDay();
     state.current = {
       date: today,
+      maxHp: getEnemyHp(),
       transactions: [],
-      clearedAt: null,
+      comboProgress: {},
+      defeatedAt: null,
+      victoryXpAwarded: 0,
       dayCard: null
     };
     wasVictory = false;
@@ -856,7 +1148,7 @@
       .filter(category => category.id !== UNCATEGORIZED_ID)
       .map(category => ({
         ...category,
-        base: summary.categoryBaseXp[category.id] || 0
+        base: summary.categoryBaseDamage[category.id] || 0
       }))
       .filter(category => category.base > 0)
       .sort((a, b) => b.base - a.base);
@@ -864,89 +1156,88 @@
     const total = active.reduce((sum, category) => sum + category.base, 0) || 1;
     const dominant = active[0] || { id: UNCATEGORIZED_ID, name: 'Uncategorized', base: 0 };
     const share = dominant.base / total;
-    const ratio = summary.totalXp / Math.max(1, summary.goal);
 
-    if (ratio >= 1.5) {
-      return { key: 'overkill', type: 'NEEDS INTERVENTION', dominant };
+    if (summary.overkill >= Math.max(10, summary.maxHp * 0.5)) {
+      return { key: 'overkill', type: 'EXCESSIVE FORCE', dominant };
+    }
+    if (summary.combosLanded >= 2) {
+      return { key: 'combo', type: 'COMBO OFFENDER', dominant };
     }
     if (share >= 0.9 && active.length > 0) {
-      return { key: 'one-track', type: 'ONE-TRACK MIND', dominant };
+      return { key: 'one-track', type: 'ONE-TRACK ASSAILANT', dominant };
     }
-    if (ratio <= 1.05) {
+    if (summary.overkill <= Math.max(2, Math.round(summary.maxHp * 0.05))) {
       return { key: 'barely', type: 'TECHNICALLY VICTORIOUS', dominant };
     }
     if (active.length >= 3 && share < 0.46) {
-      return { key: 'balanced', type: 'SUSPICIOUSLY FUNCTIONAL ADULT', dominant };
+      return { key: 'balanced', type: 'MULTI-VECTOR THREAT', dominant };
     }
-    if (dominant.id === 'work') {
-      return { key: 'work', type: 'CORPORATE DRONE', dominant };
-    }
-    if (dominant.id === 'chores') {
-      return { key: 'chores', type: 'DOMESTIC MENACE', dominant };
-    }
-    if (dominant.id === 'wellbeing') {
-      return { key: 'wellbeing', type: 'WELLNESS CRIMINAL', dominant };
-    }
-
-    return { key: 'custom', type: `${dominant.name.toUpperCase().slice(0, 48)} ENTHUSIAST`, dominant };
+    if (dominant.id === 'work') return { key: 'work', type: 'CORPORATE COMBATANT', dominant };
+    if (dominant.id === 'chores') return { key: 'chores', type: 'DOMESTIC MENACE', dominant };
+    if (dominant.id === 'wellbeing') return { key: 'wellbeing', type: 'WELLNESS ENFORCER', dominant };
+    return { key: 'custom', type: `${dominant.name.toUpperCase().slice(0, 48)} SPECIALIST`, dominant };
   }
 
   function headlineContent(personality, summary) {
     const category = personality.dominant.name;
     const pools = {
       overkill: [
-        ['LOCAL CITIZEN EXCEEDS RECOMMENDED PRODUCTIVITY; NEIGHBORS CONCERNED', 'Municipal experts advise sitting down before this becomes a personality.'],
-        ['DAILY TARGET OBLITERATED; AUTHORITIES ASK WHO THIS IS FOR', 'Witnesses report the subject continued earning XP after being legally allowed to stop.'],
-        ['PRODUCTIVITY LEVELS NOW VISIBLE FROM SPACE', 'Crestfallen emergency services have declined to comment.']
+        ['DARK SELF DEFEATED; USER CONTINUES HITTING IT FOR ADMINISTRATIVE REASONS', `${summary.overkill} points of overkill were recorded. Authorities insist this was probably unnecessary.`],
+        ['INTERNAL HOSTILITY ENDS IN DISPROPORTIONATE RESPONSE', 'Crestfallen observers describe the damage total as “legally a bit much.”'],
+        ['DARK YOU FILES COMPLAINT AFTER FIGHT ALREADY OVER', 'mo.les.tech confirms there is currently no appeals process for hostile internal entities.']
+      ],
+      combo: [
+        ['COMBO ACTIVITY LINKED TO COLLAPSE OF LOCAL DARKNESS', `${summary.combosLanded} combo attacks landed before the paperwork could intervene.`],
+        ['ORDERED BEHAVIOR PRODUCES ALARMING RESULTS', 'Investigators say several unrelated responsible decisions may have been coordinated.'],
+        ['DARK YOU CLAIMS ACTION SEQUENCE WAS “CHEAP”', 'Officials reviewed the footage and awarded the damage anyway.']
       ],
       'one-track': [
-        [`RESIDENT DISCOVERS ${category.toUpperCase()}, REFUSES TO LOOK AWAY`, 'Experts confirm that other categories continued to exist throughout the incident.'],
-        [`${category.toUpperCase()} MONOPOLIZES ENTIRE DAY IN HOSTILE TAKEOVER`, 'Diversification was reportedly discussed and immediately rejected.'],
-        ['ONE-TRACK MIND ACHIEVES TECHNICAL SUCCESS', `Nearly every road today somehow led back to ${category}.`]
+        [`${category.toUpperCase()} USED REPEATEDLY IN SUSTAINED ASSAULT`, 'Experts confirm other life categories remained available throughout the incident.'],
+        ['ONE-TRACK STRATEGY SOMEHOW WORKS', `Nearly every road today led through ${category}, with progressively less efficient results.`],
+        [`${category.toUpperCase()} MONOPOLIZES DAILY OFFENSIVE`, 'Diversification was reportedly discussed and immediately ignored.']
       ],
       barely: [
-        ['DAILY TARGET CLEARED BY MARGIN TOO SMALL TO PROSECUTE', 'Officials confirm that a win remains a win, irritatingly.'],
-        ['CITIZEN SLIDES ACROSS FINISH LINE; CLAIMS THIS WAS THE PLAN', 'No witnesses were willing to support that version of events.'],
-        ['MINIMUM VIABLE PRODUCTIVITY DECLARED A TRIUMPH', 'The paperwork says cleared. The paperwork is legally binding.']
+        ['DARK SELF DEFEATED BY MARGIN TOO SMALL TO PROSECUTE', 'Officials confirm that zero remaining HP is still zero remaining HP.'],
+        ['CITIZEN WINS FIGHT; FORENSIC TEAM REQUESTS MAGNIFYING GLASS', 'The final margin was narrow enough to qualify as paperwork.'],
+        ['MINIMUM VIABLE VIOLENCE DECLARED A VICTORY', 'The enemy is down. The method will not be entered into textbooks.']
       ],
       balanced: [
-        ['LOCAL ADULT FUNCTIONS NORMALLY; INVESTIGATION OPENED', 'A suspicious amount of different life areas received attention today.'],
-        ['CITIZEN DEMONSTRATES BALANCE, ALARMING FRIENDS AND FAMILY', 'Authorities are checking whether this behavior is sustainable or merely showing off.'],
-        ['MULTIPLE RESPONSIBILITIES HANDLED IN SINGLE DAY', 'Crestfallen officials call the event statistically unsettling.']
+        ['DARK SELF ATTACKED FROM SUSPICIOUS NUMBER OF LIFE AREAS', 'Investigators found damage from several categories and no obvious single motive.'],
+        ['MULTIPLE RESPONSIBILITIES COOPERATE IN INTERNAL TAKEDOWN', 'Crestfallen officials call cross-category coordination statistically unsettling.'],
+        ['BALANCED ASSAULT LEAVES DARK YOU WITH NOWHERE TO HIDE', 'No single category received enough attention to claim full credit.']
       ],
       work: [
-        ['LOCAL OFFICE WORKER COMPLETES TASKS WITHOUT DIRECT SUPERVISION', 'Management immediately scheduled a meeting to determine how this happened.'],
-        ['EMPLOYEE PRODUCES MEASURABLE OUTPUT; COMPANY TAKES CREDIT', 'The worker was unavailable for comment because apparently there was more work.'],
-        ['WORK OCCURRED. VOLUNTARILY.', 'mo.les.tech representatives describe the incident as a promising compliance signal.']
+        ['WORK-RELATED DAMAGE FORCES DARK SELF INTO LIQUIDATION', 'Management has already scheduled a meeting to claim responsibility.'],
+        ['PRODUCTIVITY USED AS BLUNT INSTRUMENT', 'mo.les.tech representatives describe the incident as a promising compliance signal.'],
+        ['LOCAL OFFICE WORKER WEAPONIZES FOCUS', 'The hostile internal entity was unavailable for comment because apparently there was more work.']
       ],
       chores: [
-        ['RESIDENT CLEANS HOME; AUTHORITIES SEEK MOTIVE', 'Several surfaces were reportedly left visibly less disgusting.'],
-        ['DOMESTIC ORDER RESTORED IN LIMITED AREA', 'Experts warn that entropy remains at large.'],
-        ['LAUNDRY AND RELATED ACTIVITIES SHAKE LOCAL ECONOMY', 'One chair may finally be used as a chair again.']
+        ['DOMESTIC TASKS USED IN SUCCESSFUL INTERNAL ASSAULT', 'Several surfaces and one dark self were reportedly left in worse condition than before.'],
+        ['LAUNDRY-ADJACENT ACTIVITY SHAKES LOCAL DARKNESS', 'One chair may finally be used as a chair again.'],
+        ['HOUSEHOLD ORDER RESTORED; INTERNAL ENTITY NOT SO LUCKY', 'Entropy remains at large despite one confirmed casualty.']
       ],
       wellbeing: [
-        ['RESIDENT PRACTICES SELF-CARE, IMMEDIATELY BECOMES INSUFFERABLE', 'Sources confirm hydration and movement were both involved.'],
-        ['LOCAL BODY RECEIVES ROUTINE MAINTENANCE', 'Owner reportedly surprised to learn warranty conditions still apply.'],
-        ['WELLBEING ACTIVITY DETECTED IN CRESTFALLEN', 'Officials are monitoring the situation for signs of optimism.']
+        ['SELF-CARE SOMEHOW COUNTS AS ATTACK DAMAGE', 'Legal scholars are reviewing whether this creates a conflict of interest.'],
+        ['LOCAL BODY RECEIVES MAINTENANCE; DARK SELF RECEIVES CONSEQUENCES', 'Hydration and movement were both mentioned in the incident report.'],
+        ['WELLBEING ACTIVITY PROVES HOSTILE TO INTERNAL DARKNESS', 'Officials are monitoring the situation for signs of optimism.']
       ],
       custom: [
-        [`${category.toUpperCase()} ACTIVITY SURGES ACROSS ONE HOUSEHOLD`, 'The city has formed a committee and will report back in six to eight months.'],
-        [`LOCAL SPECIALIST DEVOTES SUSPICIOUS ENERGY TO ${category.toUpperCase()}`, 'No permit was found, but the XP appears valid.'],
-        [`${category.toUpperCase()} SECTOR POSTS STRONG GAINS`, 'Analysts have upgraded the day from “meh” to “technically productive.”']
+        [`${category.toUpperCase()} DAMAGE SURGES ACROSS ONE HOUSEHOLD`, 'The city has formed a committee and will report back in six to eight months.'],
+        [`LOCAL SPECIALIST WEAPONIZES ${category.toUpperCase()}`, 'No permit was found, but the damage appears valid.'],
+        [`${category.toUpperCase()} SECTOR CLAIMS CREDIT FOR DARK SELF DEFEAT`, 'Analysts have upgraded the day from “ongoing” to “victorious.”']
       ]
     };
 
     return deterministicPick(
       pools[personality.key] || pools.custom,
-      `${state.current.date}|${personality.key}|${summary.totalXp}`
+      `${state.current.date}|${personality.key}|${summary.totalDamage}|${summary.combosLanded}`
     );
   }
 
   function createDayCard(summary) {
     const personality = getDayPersonality(summary);
     const [headline, copy] = headlineContent(personality, summary);
-    const cred = getStreetCred();
-    const rank = getRank(cred);
+    const rank = getRank(getStreetCred());
     const streak = getCurrentStreak();
 
     return {
@@ -954,31 +1245,46 @@
       type: personality.type,
       headline,
       copy,
-      xp: summary.totalXp,
+      victoryXp: state.current.victoryXpAwarded,
+      enemyHp: summary.maxHp,
+      damage: summary.totalDamage,
+      overkill: summary.overkill,
+      combos: summary.combosLanded,
       rank: rank.name,
       streak
     };
   }
 
-  function finalizeClearIfNeeded() {
+  function finalizeVictoryIfNeeded() {
     const summary = getSummary();
 
     if (!summary.isVictory) {
-      if (state.current.clearedAt) {
-        state.current.clearedAt = null;
-        state.current.dayCard = null;
+      if (state.current.victoryXpAwarded > 0) {
+        state.progression.victoryXp = Math.max(
+          0,
+          state.progression.victoryXp - state.current.victoryXpAwarded
+        );
       }
+      state.current.defeatedAt = null;
+      state.current.victoryXpAwarded = 0;
+      state.current.dayCard = null;
       return false;
     }
 
-    if (state.current.clearedAt) return false;
+    const justDefeated = !state.current.defeatedAt;
+    if (justDefeated) state.current.defeatedAt = Date.now();
 
-    state.current.clearedAt = Date.now();
+    if (state.current.victoryXpAwarded !== VICTORY_XP) {
+      const delta = VICTORY_XP - state.current.victoryXpAwarded;
+      state.progression.victoryXp = Math.max(0, state.progression.victoryXp + delta);
+      state.current.victoryXpAwarded = VICTORY_XP;
+    }
+
     state.current.dayCard = createDayCard(summary);
-    return true;
+    return justDefeated;
   }
 
-  function addXp(actionId) {
+  function addDamage(actionId) {
     ensureToday();
 
     const action = state.settings.actions.find(item => item.id === actionId);
@@ -987,33 +1293,50 @@
 
     const category = state.settings.categories.find(item => item.id === action.categoryId)
       || uncategorizedCategory();
-    const reward = calculateReward(action);
+    const reward = calculateDamage(action);
 
-    state.current.transactions.push({
+    const actionTx = {
+      type: 'action',
       id: makeId('tx'),
       actionId: action.id,
       actionName: action.name,
       categoryId: category.id,
       categoryName: category.name,
-      baseXp: action.baseXp,
-      effectiveXp: reward.effectiveXp,
+      baseDamage: action.baseDamage,
+      damage: reward.damage,
       efficiency: Number(reward.efficiency.toFixed(4)),
       timestamp: Date.now()
-    });
+    };
+    state.current.transactions.push(actionTx);
 
-    state.progression.lifetimeXp += reward.effectiveXp;
-    const justCleared = finalizeClearIfNeeded();
+    const comboEvent = processCombosForAction(actionTx);
+    const justDefeated = finalizeVictoryIfNeeded();
     saveState();
-    render({ showDayCard: justCleared, justCleared });
+    render({
+      showDayCard: justDefeated,
+      justDefeated,
+      hitDamage: actionTx.damage,
+      hitName: actionTx.actionName,
+      comboEvent
+    });
   }
 
   function undoTransaction(transactionId) {
-    const index = state.current.transactions.findIndex(tx => tx.id === transactionId);
-    if (index < 0) return;
+    const target = state.current.transactions.find(tx => tx.id === transactionId && tx.type === 'action');
+    if (!target) return;
 
-    const [removed] = state.current.transactions.splice(index, 1);
-    state.progression.lifetimeXp = Math.max(0, state.progression.lifetimeXp - removed.effectiveXp);
-    finalizeClearIfNeeded();
+    state.current.transactions = state.current.transactions.filter(tx => (
+      tx.id !== transactionId
+      && !(tx.type === 'combo' && tx.sourceTransactionIds.includes(transactionId))
+    ));
+
+    Object.entries(state.current.comboProgress).forEach(([comboId, progress]) => {
+      if (progress.sourceTransactionIds.includes(transactionId)) {
+        state.current.comboProgress[comboId] = { index: 0, sourceTransactionIds: [] };
+      }
+    });
+
+    finalizeVictoryIfNeeded();
     saveState();
     render();
   }
@@ -1037,21 +1360,21 @@
   }
 
 
+
   function getDominantCategory(summary) {
     return state.settings.categories
       .filter(category => category.id !== UNCATEGORIZED_ID)
       .map(category => ({
         ...category,
-        baseXp: summary.categoryBaseXp[category.id] || 0
+        baseDamage: summary.categoryBaseDamage[category.id] || 0
       }))
-      .sort((a, b) => b.baseXp - a.baseXp)[0] || null;
+      .sort((a, b) => b.baseDamage - a.baseDamage)[0] || null;
   }
 
   function getNewswireMessages(summary) {
     const messages = [];
-    const goal = summary.goal;
-    const remaining = Math.max(0, goal - summary.totalXp);
-    const ratio = summary.totalXp / Math.max(1, goal);
+    const remaining = summary.currentHp;
+    const damageRatio = summary.totalDamage / Math.max(1, summary.maxHp);
     const cred = getStreetCred();
     const rank = getRank(cred);
     const streak = getCurrentStreak();
@@ -1063,76 +1386,73 @@
 
     if (summary.isVictory) {
       messages.push(
-        'FINE. YOU DID IT.',
-        'DAILY TARGET CLEARED; NEWSROOM FORCED TO RETRACT EARLIER COMMENTS',
-        'MO.LIFE CONFIRMS USER WAS, AGAINST EXPECTATIONS, PRODUCTIVE',
-        `${summary.totalXp} XP RECORDED; EXCUSES DEPARTMENT CLOSED FOR THE DAY`
+        'DARK YOU DEFEATED; MOLIFE RELUCTANTLY AUTHORIZES 20 XP',
+        `${summary.totalDamage} DAMAGE RECORDED; HOSTILE INTERNAL ENTITY NO LONGER OPERATIONAL`,
+        summary.overkill > 0
+          ? `${summary.overkill} POINTS OF OVERKILL RECORDED; AUTHORITIES DECLINE TO INVESTIGATE`
+          : 'DARK YOU REACHES EXACTLY ZERO HP; ACCOUNTANTS DESCRIBE RESULT AS DISTURBINGLY TIDY'
       );
 
-      if (streak >= 3) {
-        messages.push(`${streak}-DAY STREAK CONTINUES; SITUATION NOW TOO EXPENSIVE TO ABANDON`);
+      if (summary.combosLanded > 0) {
+        messages.push(`${summary.combosLanded} COMBO ATTACK${summary.combosLanded === 1 ? '' : 'S'} LANDED; INTERNAL DARKNESS ALLEGES COLLUSION`);
       }
-
+      if (streak >= 3) {
+        messages.push(`${streak}-DAY VICTORY STREAK CONTINUES; SITUATION NOW TOO EXPENSIVE TO ABANDON`);
+      }
       if (rank.name !== 'Nobody') {
         messages.push(`STREET CRED OFFICE RELUCTANTLY CONFIRMS ${rank.name.toUpperCase()} STATUS`);
       }
-    } else if (summary.totalXp === 0) {
+    } else if (summary.totalDamage === 0) {
       messages.push(
-        'BREAKING: DAILY PRODUCTIVITY REMAINS ENTIRELY THEORETICAL',
-        'USER HAS OPENED MOLIFE. FURTHER ACTION UNCONFIRMED.',
-        'STREET CRED OFFICIALS REPORT NO NEW EVIDENCE AT THIS TIME',
-        'TRACK-O-TRON STANDING BY. IT CANNOT, LEGALLY, DO THE TASKS FOR YOU.'
+        'DARK YOU ENTERS DAY AT FULL HEALTH; CONFIDENCE DESCRIBED AS PREMATURE',
+        'USER HAS OPENED MOLIFE. HOSTILITIES HAVE NOT YET COMMENCED.',
+        'TRACK-O-TRON STANDING BY. IT CANNOT, LEGALLY, DO THE TASKS FOR YOU.',
+        `HOSTILE INTERNAL ENTITY CURRENTLY REPORTS ${summary.maxHp} / ${summary.maxHp} HP`
       );
-
-      if (hour >= 18) {
-        messages.push('EVENING UPDATE: ZERO XP CONTINUES ITS UNPRECEDENTED RUN');
-      }
-    } else if (ratio < 0.25) {
+      if (hour >= 18) messages.push('EVENING UPDATE: DARK YOU REMAINS EMBARRASSINGLY UNINJURED');
+    } else if (damageRatio < 0.25) {
       messages.push(
-        `CITIZEN EARNS ${summary.totalXp} XP, IMMEDIATELY EXPECTS RECOGNITION`,
-        `PRODUCTIVITY INCREASES FROM “NONE” TO “TECHNICALLY SOME”`,
-        `${remaining} XP STILL MISSING; AUTHORITIES DESCRIBE PROGRESS AS ADORABLE`
+        `LOCAL ACTIONS INFLICT ${summary.totalDamage} DAMAGE; USER IMMEDIATELY EXPECTS RECOGNITION`,
+        `DARK YOU STILL HAS ${remaining} HP; AUTHORITIES DESCRIBE PROGRESS AS ADORABLE`
       );
-    } else if (ratio < 0.5) {
+    } else if (damageRatio < 0.5) {
       messages.push(
-        `DAILY TARGET NOW ${Math.round(ratio * 100)}% COMPLETE; CONFIDENCE REMAINS UNAUTHORIZED`,
-        `${remaining} XP REMAIN. NEWSROOM ADVISES AGAINST PREMATURE CELEBRATION`,
-        'PRODUCTIVITY DETECTED. EXPERTS CAUTION AGAINST CALLING IT A HABIT.'
+        `DARK YOU DOWN TO ${remaining} HP; CONFIDENCE REMAINS UNAUTHORIZED`,
+        'DAMAGE DETECTED. EXPERTS CAUTION AGAINST CALLING IT A HABIT.'
       );
-    } else if (ratio < 0.75) {
+    } else if (damageRatio < 0.75) {
       messages.push(
-        'DEVELOPING: FINISHING TODAY HAS BECOME AN EMBARRASSINGLY REALISTIC POSSIBILITY',
-        `${remaining} XP REMAIN; LOCAL EXCUSES BEGIN LOSING CREDIBILITY`,
-        `USER CROSSES HALFWAY MARK, NOW PERSONALLY RESPONSIBLE FOR WHAT HAPPENS NEXT`
+        'DEVELOPING: DEFEATING YOURSELF HAS BECOME AN EMBARRASSINGLY REALISTIC POSSIBILITY',
+        `DARK YOU AT ${remaining} HP; LOCAL EXCUSES BEGIN LOSING CREDIBILITY`
       );
     } else {
       messages.push(
-        `ONLY ${remaining} XP REMAIN. EXCUSES DEPARTMENT RUNNING OUT OF OPTIONS.`,
-        'NEWSROOM PREPARES RELUCTANT “YOU DID IT” GRAPHIC',
-        `DAILY TARGET WITHIN REACH; ABANDONING NOW WOULD REQUIRE EXPLANATION`
+        `DARK YOU DOWN TO ${remaining} HP; EXCUSES DEPARTMENT REQUESTS EMERGENCY FUNDING`,
+        'NEWSROOM PREPARES RELUCTANT “VICTORY” GRAPHIC'
       );
     }
 
-    if (goal < state.settings.goal) {
+    const ramp = getHpRampInfo();
+    if (state.current.maxHp < state.settings.fullEnemyHp) {
       messages.push(
-        `STARTER PROTOCOL ACTIVE: TODAY'S GOAL REDUCED TO ${goal} XP. TRY NOT TO GET USED TO IT.`
+        `STARTER PROTOCOL ACTIVE: TODAY'S DARK YOU SPAWNED WITH ${state.current.maxHp} HP. FULL STRENGTH IS ${ramp.fullEnemyHp} HP.`
       );
     }
 
     if (!summary.isVictory && hour >= 22) {
-      messages.push('LATE BULLETIN: THE GOAL HAS NOT GONE TO BED JUST BECAUSE YOU WANT TO');
+      messages.push('LATE BULLETIN: DARK YOU HAS NOT GONE TO BED JUST BECAUSE YOU WANT TO');
     }
 
     if (yesterday) {
       messages.push(
         yesterday.won
-          ? 'ARCHIVES CONFIRM YESTERDAY WAS PRODUCTIVE. TODAY HAS BEEN INFORMED.'
-          : 'ARCHIVES CONFIRM YESTERDAY WAS MOSTLY A CONCEPT'
+          ? 'ARCHIVES CONFIRM YESTERDAY’S DARK YOU WAS DEFEATED. TODAY’S HAS BEEN INFORMED.'
+          : 'ARCHIVES CONFIRM YESTERDAY’S FIGHT REMAINS OFFICIALLY UNRESOLVED'
       );
     }
 
     if (streak >= 7) {
-      messages.push(`LOCAL OVERACHIEVER'S ${streak}-DAY STREAK ENTERS “THIS IS GETTING PERSONAL” TERRITORY`);
+      messages.push(`LOCAL OVERACHIEVER'S ${streak}-DAY VICTORY STREAK ENTERS “THIS IS GETTING PERSONAL” TERRITORY`);
     } else if (!streak && best >= 7) {
       messages.push(`FORMER ${best}-DAY STREAK NOW PRESERVED IN MUSEUM CONDITIONS`);
     }
@@ -1140,17 +1460,17 @@
     if (cred === 0) {
       messages.push('STREET CRED REMAINS WITHIN LEGAL DEFINITION OF “NONE”');
     } else if (rank.next) {
-      messages.push(`${rank.name.toUpperCase()} STATUS ACTIVE; ${Math.max(0, rank.next.min - cred)} MORE CLEARED DAYS TO NEXT BAD DECISION`);
+      messages.push(`${rank.name.toUpperCase()} STATUS ACTIVE; ${Math.max(0, rank.next.min - cred)} MORE VICTORIES TO NEXT BAD DECISION`);
     } else {
       messages.push('HEAD HONCHO STATUS CONFIRMED; POWER APPEARS TO HAVE GONE TO USER’S HEAD');
     }
 
-    if (dominant && dominant.baseXp > 0) {
-      const efficiency = getCategoryEfficiency(dominant.id, dominant.baseXp);
+    if (dominant && dominant.baseDamage > 0) {
+      const efficiency = getCategoryEfficiency(dominant.id, dominant.baseDamage);
       if (efficiency.multiplier <= 0.6) {
-        messages.push(`TRACK-O-TRON REPORTS ${dominant.name.toUpperCase()} SATURATION; OTHER PARTS OF LIFE STILL AVAILABLE`);
-      } else if (summary.totalXp > 0) {
-        messages.push(`${dominant.name.toUpperCase()} CURRENTLY LEADS LOCAL XP MARKETS`);
+        messages.push(`TRACK-O-TRON REPORTS ${dominant.name.toUpperCase()} SATURATION; DARK YOU HAS DEVELOPED RESISTANCE`);
+      } else {
+        messages.push(`${dominant.name.toUpperCase()} CURRENTLY LEADS LOCAL DAMAGE MARKETS`);
       }
     }
 
@@ -1642,6 +1962,7 @@
     deck.classList.toggle('can-scroll-down', overflow && !atBottom);
   }
 
+
   function render(options = {}) {
     ensureToday();
     const summary = getSummary();
@@ -1649,17 +1970,27 @@
     renderHero(summary);
     renderProgression();
     renderCategories(summary);
+    renderCombos();
     renderLog();
     renderHistory();
 
-    refreshNewswire(
-      summary,
-      options.justCleared ? '…WE HAVE RECEIVED UPDATED INFORMATION. FINE. YOU DID IT.' : ''
-    );
+    let specialMessage = '';
+    if (options.comboEvent) {
+      specialMessage = `${options.comboEvent.comboName.toUpperCase()} COMBO LANDS; LOCAL DARKNESS TAKES ADDITIONAL ${options.comboEvent.damage} DAMAGE`;
+    } else if (options.justDefeated) {
+      specialMessage = '…WE HAVE RECEIVED UPDATED INFORMATION. DARK YOU IS DOWN. VICTORY +20 XP.';
+    } else if (options.hitDamage && options.hitName) {
+      specialMessage = `${options.hitName.toUpperCase()} INFLICTS ${options.hitDamage} DAMAGE ON HOSTILE INTERNAL ENTITY`;
+    }
+    refreshNewswire(summary, specialMessage);
 
     if (summary.isVictory && !wasVictory) {
       els.victoryBanner.classList.remove('victory-pop');
       requestAnimationFrame(() => els.victoryBanner.classList.add('victory-pop'));
+    }
+
+    if (options.hitDamage) {
+      showFightFeedback(options.hitDamage, options.comboEvent);
     }
 
     wasVictory = summary.isVictory;
@@ -1678,36 +2009,48 @@
     }
   }
 
+  function showFightFeedback(hitDamage, comboEvent = null) {
+    if (!els.fightFeedback) return;
+    els.fightFeedback.textContent = comboEvent
+      ? `-${hitDamage} HP · COMBO +${comboEvent.damage} DMG`
+      : `-${hitDamage} HP`;
+    els.fightFeedback.classList.remove('fight-feedback-pop', 'is-combo');
+    void els.fightFeedback.offsetWidth;
+    if (comboEvent) els.fightFeedback.classList.add('is-combo');
+    els.fightFeedback.classList.add('fight-feedback-pop');
+  }
+
   function renderHero(summary) {
     els.todayLabel.textContent = formatDate(state.current.date, {
       weekday: 'long',
       day: 'numeric',
       month: 'long'
     });
-    els.totalXp.textContent = summary.totalXp;
-    els.goalXp.textContent = summary.goal;
 
-    const progress = Math.min(1, summary.totalXp / summary.goal);
-    const percent = Math.round(progress * 100);
-    els.totalProgress.style.width = `${percent}%`;
-    els.xpOrb.style.setProperty('--progress', `${progress * 360}deg`);
-    els.orbPercent.textContent = `${percent}%`;
+    els.enemyHp.textContent = summary.currentHp;
+    els.enemyMaxHp.textContent = summary.maxHp;
+    els.totalDamage.textContent = summary.totalDamage;
+    els.overkillValue.textContent = summary.overkill;
+
+    const healthRatio = Math.max(0, Math.min(1, summary.currentHp / Math.max(1, summary.maxHp)));
+    const healthPercent = Math.round(healthRatio * 100);
+    els.totalProgress.style.width = `${healthPercent}%`;
+    els.xpOrb.style.setProperty('--progress', `${healthRatio * 360}deg`);
+    els.orbPercent.textContent = summary.isVictory ? '0%' : `${healthPercent}%`;
 
     if (summary.isVictory) {
-      els.statusBadge.textContent = 'DAY CLEARED';
-      els.heroMessage.textContent = 'Officially productive. Anything else today is extracurricular showing off.';
+      els.statusBadge.textContent = 'DEFEATED';
+      els.heroMessage.textContent = summary.overkill > 0
+        ? `Dark You is down. ${summary.overkill} overkill recorded. Further actions still count as damage, not additional XP.`
+        : 'Dark You is down. Victory XP secured. Further actions still count as damage, not additional XP.';
       els.victoryBanner.hidden = false;
-      const card = state.current.dayCard;
-      els.victorySummary.textContent = card
-        ? `${card.type} · ${card.xp} XP · report filed`
-        : 'Your official Crestfallen report is ready.';
+      els.victorySummary.textContent = `VICTORY +${VICTORY_XP} XP · ${summary.totalDamage} DMG${summary.overkill ? ` · ${summary.overkill} overkill` : ''}`;
     } else {
-      const remaining = Math.max(0, summary.goal - summary.totalXp);
-      const ramp = getGoalRampInfo();
-      els.statusBadge.textContent = 'IN PROGRESS';
+      const ramp = getHpRampInfo();
+      els.statusBadge.textContent = 'FIGHT IN PROGRESS';
       els.heroMessage.textContent = ramp.active
-        ? `${remaining} XP to clear the day. Starter ramp: ${summary.goal} XP now → ${ramp.matureGoal} XP later.`
-        : `${remaining} XP to clear the day. No category is mandatory; stubbornness merely gets less profitable.`;
+        ? `${summary.currentHp} HP remaining. Today's enemy spawned at ${summary.maxHp} HP; full strength eventually reaches ${ramp.fullEnemyHp} HP.`
+        : `${summary.currentHp} HP remaining. Repeating one category makes Dark You increasingly resistant to it.`;
       els.victoryBanner.hidden = true;
     }
   }
@@ -1726,13 +2069,13 @@
 
     if (rank.next) {
       const needed = Math.max(0, rank.next.min - cred);
-      els.rankHint.textContent = `${needed} more cleared day${needed === 1 ? '' : 's'} in the rolling month to reach ${rank.next.name}.`;
+      els.rankHint.textContent = `${needed} more victor${needed === 1 ? 'y' : 'ies'} in the rolling month to reach ${rank.next.name}.`;
     } else {
       els.rankHint.textContent = 'Top of the food chain. Please behave irresponsibly with this power.';
     }
 
     els.levelNumber.textContent = level.level;
-    els.levelProgressText.textContent = `${level.into} / ${level.requirement} XP`;
+    els.levelProgressText.textContent = `${level.into} / ${level.requirement} Victory XP`;
     els.levelProgress.style.width = `${Math.round(level.percent * 100)}%`;
 
     els.streakCount.textContent = `${streak} day${streak === 1 ? '' : 's'}`;
@@ -1752,8 +2095,8 @@
       const hasActions = state.settings.actions.some(
         action => action.categoryId === UNCATEGORIZED_ID && action.trackVisible !== false
       );
-      const hasXp = (summary.categoryBaseXp[UNCATEGORIZED_ID] || 0) > 0;
-      return hasActions || hasXp;
+      const hasDamage = (summary.categoryBaseDamage[UNCATEGORIZED_ID] || 0) > 0;
+      return hasActions || hasDamage;
     });
 
     visibleCategories.forEach((category, index) => {
@@ -1769,8 +2112,8 @@
       const actionDeck = fragment.querySelector('.action-deck');
       const actionsList = fragment.querySelector('.actions-list');
 
-      const usedBase = summary.categoryBaseXp[category.id] || 0;
-      const earnedXp = summary.categoryXp[category.id] || 0;
+      const usedBase = summary.categoryBaseDamage[category.id] || 0;
+      const dealtDamage = summary.categoryDamage[category.id] || 0;
       const efficiency = getCategoryEfficiency(category.id, usedBase);
       applyCategoryPaletteVars(card, category, index);
       card.dataset.categoryId = category.id;
@@ -1778,20 +2121,20 @@
 
       icon.textContent = category.icon;
       title.textContent = category.name;
-      score.textContent = `${earnedXp} XP`;
+      score.textContent = `${dealtDamage} DMG`;
 
       if (category.id === UNCATEGORIZED_ID) {
-        subtitle.textContent = 'Fallback · fixed 50% payout';
+        subtitle.textContent = 'Fallback · fixed 50% damage';
         efficiencyValue.textContent = '50%';
         fill.style.width = '100%';
         next.textContent = 'Assign these actions to a real category when convenient.';
       } else {
-        subtitle.textContent = `Focus ${category.focus}× · ${Math.round(efficiency.band)} base XP full-value band`;
+        subtitle.textContent = `Focus ${category.focus}× · ${Math.round(efficiency.band)} base DMG full-damage band`;
         efficiencyValue.textContent = `${Math.round(efficiency.multiplier * 100)}%`;
         fill.style.width = `${Math.round(Math.max(0, Math.min(1, efficiency.progress)) * 100)}%`;
         next.textContent = efficiency.untilNext === null
-          ? 'Floor reached · further actions still pay 40%'
-          : `≈ ${Math.max(1, Math.ceil(efficiency.untilNext))} base XP until next drop`;
+          ? 'Resistance floor reached · further actions still deal 40%'
+          : `≈ ${Math.max(1, Math.ceil(efficiency.untilNext))} base DMG until next resistance tier`;
       }
 
       const actions = state.settings.actions.filter(
@@ -1806,12 +2149,12 @@
         empty.textContent = category.id === UNCATEGORIZED_ID
           ? 'Deleted-category actions will hide here.'
           : hasHiddenActions
-            ? 'No visible actions. Unhide one in Settings.'
+            ? 'No visible attacks. Unhide one in Settings.'
             : 'No actions yet. Add one in Settings.';
         actionsList.append(empty);
       } else {
         actions.forEach(action => {
-          const reward = calculateReward(action, usedBase);
+          const reward = calculateDamage(action, usedBase);
           const button = document.createElement('button');
           button.type = 'button';
           button.className = 'action-button';
@@ -1832,18 +2175,18 @@
             const payout = Math.round(reward.efficiency * 100);
             const typeText = action.type === 'once' ? 'Once per day' : 'Repeatable';
             small.textContent = payout < 100
-              ? `${typeText} · ${payout}% payout · base ${action.baseXp}`
-              : `${typeText} · full payout`;
+              ? `${typeText} · ${payout}% damage · base ${action.baseDamage}`
+              : `${typeText} · full damage`;
           }
 
           nameWrap.append(strong, small);
 
-          const xp = document.createElement('span');
-          xp.className = 'action-xp';
-          xp.textContent = `+${reward.effectiveXp}`;
+          const damage = document.createElement('span');
+          damage.className = 'action-xp';
+          damage.textContent = `+${reward.damage} DMG`;
 
-          button.append(nameWrap, xp);
-          button.addEventListener('click', () => addXp(action.id));
+          button.append(nameWrap, damage);
+          button.addEventListener('click', () => addDamage(action.id));
           actionsList.append(button);
         });
       }
@@ -1862,6 +2205,69 @@
     });
   }
 
+  function renderCombos() {
+    if (!els.combosPanel) return;
+    els.combosPanel.replaceChildren();
+
+    const combos = state.settings.combos;
+    els.combosPanel.hidden = combos.length === 0;
+    if (!combos.length) return;
+
+    const head = document.createElement('div');
+    head.className = 'combos-panel-head';
+    const copy = document.createElement('div');
+    copy.innerHTML = '<div class="eyebrow">CHAIN ATTACKS</div><h2>Combos</h2>';
+    const note = document.createElement('div');
+    note.className = 'balance-note';
+    note.textContent = 'Unrelated actions do not break a sequence';
+    head.append(copy, note);
+    els.combosPanel.append(head);
+
+    const grid = document.createElement('div');
+    grid.className = 'combo-grid';
+
+    combos.forEach(combo => {
+      const card = document.createElement('article');
+      card.className = `combo-card${combo.enabled ? '' : ' is-disabled'}`;
+      const title = document.createElement('div');
+      title.className = 'combo-card-title';
+      const strong = document.createElement('strong');
+      strong.textContent = combo.name;
+      const multiplier = document.createElement('span');
+      multiplier.textContent = `×${combo.multiplier.toFixed(2)}`;
+      title.append(strong, multiplier);
+      card.append(title);
+
+      if (combo.actionIds.length < 2) {
+        const warning = document.createElement('div');
+        warning.className = 'combo-warning';
+        warning.textContent = 'Needs at least 2 actions · disabled';
+        card.append(warning);
+      } else {
+        const progress = comboProgress(combo.id);
+        const steps = document.createElement('div');
+        steps.className = 'combo-steps';
+        combo.actionIds.forEach((actionId, index) => {
+          const action = state.settings.actions.find(item => item.id === actionId);
+          const row = document.createElement('div');
+          row.className = 'combo-step';
+          const mark = document.createElement('span');
+          mark.className = 'combo-step-mark';
+          mark.textContent = !combo.enabled ? '○' : index < progress.index ? '✓' : index === progress.index ? '●' : '○';
+          const name = document.createElement('span');
+          name.textContent = action?.name || 'Missing action';
+          row.append(mark, name);
+          steps.append(row);
+        });
+        card.append(steps);
+      }
+
+      grid.append(card);
+    });
+
+    els.combosPanel.append(grid);
+  }
+
   function renderLog() {
     els.logList.replaceChildren();
     const transactions = [...state.current.transactions].sort((a, b) => b.timestamp - a.timestamp);
@@ -1869,38 +2275,44 @@
     if (!transactions.length) {
       const empty = document.createElement('div');
       empty.className = 'empty-state';
-      empty.textContent = 'No XP yet. The municipal surveillance apparatus is bored.';
+      empty.textContent = 'No damage yet. The hostile internal entity appears smug.';
       els.logList.append(empty);
       return;
     }
 
     transactions.forEach(tx => {
       const row = document.createElement('div');
-      row.className = 'log-row';
+      row.className = `log-row${tx.type === 'combo' ? ' combo-log-row' : ''}`;
 
       const main = document.createElement('div');
       main.className = 'log-main';
       const strong = document.createElement('strong');
-      strong.textContent = tx.actionName;
+      strong.textContent = tx.type === 'combo' ? `COMBO · ${tx.comboName}` : tx.actionName;
       const meta = document.createElement('span');
       const time = new Intl.DateTimeFormat(undefined, {
         hour: '2-digit',
         minute: '2-digit'
       }).format(new Date(tx.timestamp));
-      meta.textContent = `${tx.categoryName} · ${Math.round(tx.efficiency * 100)}% · ${time}`;
+      meta.textContent = tx.type === 'combo'
+        ? `×${tx.multiplier.toFixed(2)} · ${tx.sourceTransactionIds.length} matched actions · ${time}`
+        : `${tx.categoryName} · ${Math.round(tx.efficiency * 100)}% · ${time}`;
       main.append(strong, meta);
 
       const actions = document.createElement('div');
       actions.className = 'log-actions';
-      const xp = document.createElement('span');
-      xp.className = 'log-xp';
-      xp.textContent = `+${tx.effectiveXp} XP`;
-      const undo = document.createElement('button');
-      undo.type = 'button';
-      undo.className = 'undo-button';
-      undo.textContent = 'Undo';
-      undo.addEventListener('click', () => undoTransaction(tx.id));
-      actions.append(xp, undo);
+      const damage = document.createElement('span');
+      damage.className = 'log-xp';
+      damage.textContent = `+${tx.damage} DMG`;
+      actions.append(damage);
+
+      if (tx.type === 'action') {
+        const undo = document.createElement('button');
+        undo.type = 'button';
+        undo.className = 'undo-button';
+        undo.textContent = 'Undo';
+        undo.addEventListener('click', () => undoTransaction(tx.id));
+        actions.append(undo);
+      }
 
       row.append(main, actions);
       els.logList.append(row);
@@ -1913,7 +2325,7 @@
     if (!state.history.length) {
       const empty = document.createElement('div');
       empty.className = 'empty-state';
-      empty.textContent = 'Past case files will appear here automatically.';
+      empty.textContent = 'Past fight records will appear here automatically.';
       els.historyList.append(empty);
       return;
     }
@@ -1929,15 +2341,15 @@
       strong.textContent = formatDate(day.date, { weekday: 'short', day: 'numeric', month: 'short' });
       const detail = document.createElement('span');
       detail.textContent = day.won
-        ? (day.dayCard?.type || 'Day cleared')
-        : 'Case unresolved';
+        ? (day.dayCard?.type || 'Dark You defeated')
+        : 'Fight unresolved';
       date.append(strong, detail);
 
       const score = document.createElement('div');
       score.className = 'history-score';
-      score.textContent = `${day.xp} / ${day.goal}`;
+      score.textContent = `${day.damage} / ${day.maxHp}`;
       const status = document.createElement('span');
-      status.textContent = day.won ? 'CLEARED' : 'XP';
+      status.textContent = day.won ? 'VICTORY' : 'DMG';
       if (day.won) status.className = 'win-mark';
       score.append(status);
 
@@ -1956,7 +2368,11 @@
       month: 'long',
       year: 'numeric'
     });
-    els.dayCardXp.textContent = `${card.xp} XP`;
+    els.dayCardXp.textContent = `VICTORY +${card.victoryXp} XP`;
+    els.dayCardEnemyHp.textContent = card.enemyHp;
+    els.dayCardDamage.textContent = card.damage;
+    els.dayCardOverkill.textContent = card.overkill;
+    els.dayCardCombos.textContent = card.combos;
     els.dayCardType.textContent = card.type;
     els.dayCardHeadline.textContent = card.headline;
     els.dayCardCopy.textContent = card.copy;
@@ -1980,11 +2396,13 @@
     );
   }
 
+
   function openSettings() {
     settingsDraft = deepClone(state.settings);
     settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
-    els.goalInput.value = settingsDraft.goal;
-    els.settingsMessage.textContent = 'Changes save automatically.';
+    settingsDraft.combos = Array.isArray(settingsDraft.combos) ? settingsDraft.combos : [];
+    els.goalInput.value = settingsDraft.fullEnemyHp;
+    els.settingsMessage.textContent = 'Changes save automatically. Enemy HP changes apply to the next fight.';
     settingsTriggeredClear = false;
     if (els.newCategoryColor) {
       const customCount = settingsDraft.categories.filter(
@@ -1995,6 +2413,7 @@
     updateGoalRampPreview();
     renderCategoriesEditor();
     renderActionsEditor();
+    renderCombosEditor();
     populateCategorySelect();
 
     if (typeof els.settingsDialog.showModal === 'function') {
@@ -2009,22 +2428,22 @@
 
     const temporarySettings = {
       ...settingsDraft,
-      goal: clampInt(els.goalInput.value, 20, 1000, settingsDraft.goal)
+      fullEnemyHp: clampInt(els.goalInput.value, 20, 1000, settingsDraft.fullEnemyHp)
     };
-    const ramp = getGoalRampInfo(temporarySettings);
+    const ramp = getHpRampInfo(temporarySettings);
 
     els.goalRampPreview.textContent = ramp.active
-      ? `Current target: ${ramp.currentGoal} XP · ${ramp.clearCount}/${ramp.clearsToMature} cleared days toward the full ${ramp.matureGoal} XP goal.`
-      : `Current target: ${ramp.currentGoal} XP · starter ramp complete.`;
+      ? `Next fight: ${ramp.nextFightHp} HP · ${ramp.victoryCount}/${ramp.victoriesToMature} victories toward full ${ramp.fullEnemyHp} HP strength. Today's ${state.current.maxHp} HP is already locked.`
+      : `Next fight: ${ramp.nextFightHp} HP · full-strength ramp complete. Today's ${state.current.maxHp} HP is already locked.`;
   }
 
   function previewBandText(category) {
-    if (category.id === UNCATEGORIZED_ID) return 'Fixed 50% payout';
+    if (category.id === UNCATEGORIZED_ID) return 'Fixed 50% damage';
     const temporarySettings = {
       ...settingsDraft,
-      goal: clampInt(els.goalInput.value, 20, 1000, settingsDraft.goal)
+      fullEnemyHp: clampInt(els.goalInput.value, 20, 1000, settingsDraft.fullEnemyHp)
     };
-    return `≈ ${Math.round(getFocusBand(category.id, temporarySettings))} base XP at 100%`;
+    return `≈ ${Math.round(getFocusBand(category.id, temporarySettings))} base DMG at 100%`;
   }
 
   function renderCategoriesEditor() {
@@ -2044,7 +2463,7 @@
         const strong = document.createElement('strong');
         strong.textContent = category.name;
         const note = document.createElement('span');
-        note.textContent = 'Permanent fallback · fixed 50% payout';
+        note.textContent = 'Permanent fallback · fixed 50% damage';
         copy.append(strong, note);
         main.append(icon, copy);
         row.append(main);
@@ -2236,13 +2655,13 @@
     handle.addEventListener('pointercancel', cancel);
   }
 
+
   function sortActions(mode) {
     if (!settingsDraft || !mode) return;
 
     const categoryOrder = new Map(
       settingsDraft.categories.map((category, index) => [category.id, index])
     );
-
     const indexed = settingsDraft.actions.map((action, index) => ({ action, index }));
 
     if (mode === 'category') {
@@ -2251,9 +2670,9 @@
         - (categoryOrder.get(b.action.categoryId) ?? 999)
         || a.index - b.index
       ));
-    } else if (mode === 'xp') {
+    } else if (mode === 'damage') {
       indexed.sort((a, b) => (
-        b.action.baseXp - a.action.baseXp
+        b.action.baseDamage - a.action.baseDamage
         || a.action.name.localeCompare(b.action.name, undefined, { sensitivity: 'base' })
         || a.index - b.index
       ));
@@ -2268,16 +2687,14 @@
 
     settingsDraft.actions = indexed.map(item => item.action);
     renderActionsEditor();
+    renderCombosEditor();
     commitSettingsDraft({ announce: false });
     if (els.actionSortSelect) els.actionSortSelect.value = '';
 
-    const labels = {
-      category: 'category',
-      xp: 'XP',
-      name: 'name'
-    };
+    const labels = { category: 'category', damage: 'damage', name: 'name' };
     els.settingsMessage.textContent = `Actions sorted by ${labels[mode]}.`;
   }
+
 
   function renderActionsEditor() {
     els.actionsEditor.replaceChildren();
@@ -2310,39 +2727,40 @@
       nameInput.value = action.name;
       nameInput.addEventListener('input', () => {
         action.name = nameInput.value.slice(0, 100);
+        renderCombosEditor();
       });
       nameLabel.append(nameInput);
 
       const categoryLabel = document.createElement('label');
       categoryLabel.innerHTML = '<span>Category</span>';
       const categorySelect = document.createElement('select');
-      settingsDraft.categories.forEach(category => {
+      settingsDraft.categories.forEach(categoryItem => {
         const option = document.createElement('option');
-        option.value = category.id;
-        option.textContent = category.name;
+        option.value = categoryItem.id;
+        option.textContent = categoryItem.name;
         categorySelect.append(option);
       });
       categorySelect.value = action.categoryId;
       categorySelect.addEventListener('change', () => {
         action.categoryId = categorySelect.value;
-        const nextIndex = settingsDraft.categories.findIndex(category => category.id === action.categoryId);
+        const nextIndex = settingsDraft.categories.findIndex(categoryItem => categoryItem.id === action.categoryId);
         const nextCategory = settingsDraft.categories[nextIndex] || uncategorizedCategory();
         applyCategoryPaletteVars(row, nextCategory, Math.max(0, nextIndex));
       });
       categoryLabel.append(categorySelect);
 
-      const xpLabel = document.createElement('label');
-      xpLabel.innerHTML = '<span>Base XP</span>';
-      const xpInput = document.createElement('input');
-      xpInput.type = 'number';
-      xpInput.min = '1';
-      xpInput.max = '200';
-      xpInput.step = '1';
-      xpInput.value = action.baseXp;
-      xpInput.addEventListener('input', () => {
-        action.baseXp = clampInt(xpInput.value, 1, 200, action.baseXp);
+      const damageLabel = document.createElement('label');
+      damageLabel.innerHTML = '<span>Base Damage</span>';
+      const damageInput = document.createElement('input');
+      damageInput.type = 'number';
+      damageInput.min = '1';
+      damageInput.max = '200';
+      damageInput.step = '1';
+      damageInput.value = action.baseDamage;
+      damageInput.addEventListener('input', () => {
+        action.baseDamage = clampInt(damageInput.value, 1, 200, action.baseDamage);
       });
-      xpLabel.append(xpInput);
+      damageLabel.append(damageInput);
 
       const typeLabel = document.createElement('label');
       typeLabel.innerHTML = '<span>Type</span>';
@@ -2384,12 +2802,21 @@
       remove.setAttribute('aria-label', `Delete ${action.name}`);
       remove.addEventListener('click', () => {
         settingsDraft.actions = settingsDraft.actions.filter(item => item.id !== action.id);
+        settingsDraft.combos.forEach(combo => {
+          combo.actionIds = combo.actionIds.filter(actionId => actionId !== action.id);
+          if (combo.actionIds.length < 2) combo.enabled = false;
+        });
+        const duplicateCombosDisabled = disableDuplicateEnabledCombos(settingsDraft.combos);
         renderActionsEditor();
-        els.settingsMessage.textContent = 'Action removed.';
+        renderCombosEditor();
+        populateCategorySelect();
+        els.settingsMessage.textContent = duplicateCombosDisabled
+          ? 'Action removed. Affected combos were updated; a duplicate sequence was disabled.'
+          : 'Action removed. Affected combo steps were updated.';
         commitSettingsDraft();
       });
 
-      grid.append(nameLabel, categoryLabel, xpLabel, typeLabel, visibilityLabel, remove);
+      grid.append(nameLabel, categoryLabel, damageLabel, typeLabel, visibilityLabel, remove);
       row.append(dragHandle, grid);
       els.actionsEditor.append(row);
     });
@@ -2462,10 +2889,11 @@
     commitSettingsDraft();
   }
 
+
   function addActionFromForm() {
     const name = els.newActionName.value.trim();
     const categoryId = els.newActionCategory.value;
-    const baseXp = clampInt(els.newActionXp.value, 1, 200, 10);
+    const baseDamage = clampInt(els.newActionDamage.value, 1, 200, 10);
     const type = els.newActionType.value === 'once' ? 'once' : 'repeatable';
     const trackVisible = els.newActionVisible ? els.newActionVisible.checked : true;
 
@@ -2484,17 +2912,288 @@
       id: makeId('action'),
       categoryId,
       name,
-      baseXp,
+      baseDamage,
       type,
       trackVisible
     });
 
     els.newActionName.value = '';
-    els.newActionXp.value = '10';
+    els.newActionDamage.value = '10';
     els.newActionType.value = 'repeatable';
     if (els.newActionVisible) els.newActionVisible.checked = true;
     renderActionsEditor();
-    els.settingsMessage.textContent = 'Action added. The paperwork filed itself.';
+    renderCombosEditor();
+    els.settingsMessage.textContent = 'Action added. Dark You has been notified.';
+    commitSettingsDraft();
+  }
+
+  function comboFingerprint(actionIds) {
+    return actionIds.join('\u001f');
+  }
+
+  function disableDuplicateEnabledCombos(combos) {
+    const seen = new Set();
+    let disabled = 0;
+    combos.forEach(combo => {
+      if (!combo.enabled || combo.actionIds.length < 2) return;
+      const fingerprint = comboFingerprint(combo.actionIds);
+      if (seen.has(fingerprint)) {
+        combo.enabled = false;
+        disabled += 1;
+      } else {
+        seen.add(fingerprint);
+      }
+    });
+    return disabled;
+  }
+
+  function comboChanged(a, b) {
+    if (!a || !b) return true;
+    return a.name !== b.name
+      || Number(a.multiplier) !== Number(b.multiplier)
+      || Boolean(a.enabled) !== Boolean(b.enabled)
+      || comboFingerprint(a.actionIds || []) !== comboFingerprint(b.actionIds || []);
+  }
+
+  function actionOption(action, selectedId) {
+    const option = document.createElement('option');
+    option.value = action.id;
+    option.textContent = action.name;
+    option.selected = action.id === selectedId;
+    return option;
+  }
+
+  function renderCombosEditor() {
+    if (!els.combosEditor) return;
+    els.combosEditor.replaceChildren();
+
+    if (!settingsDraft.combos.length) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state combo-editor-empty';
+      empty.textContent = 'No combos yet. Coordinated self-improvement remains legally unproven.';
+      els.combosEditor.append(empty);
+      return;
+    }
+
+    settingsDraft.combos.forEach(combo => {
+      const card = document.createElement('div');
+      card.className = 'combo-editor-card combo-direct-editor';
+      card.dataset.comboId = combo.id;
+
+      const head = document.createElement('div');
+      head.className = 'combo-editor-head';
+
+      const nameLabel = document.createElement('label');
+      nameLabel.className = 'combo-name-field';
+      nameLabel.innerHTML = '<span>Name</span>';
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.maxLength = 80;
+      nameInput.value = combo.name;
+      nameInput.addEventListener('input', () => {
+        combo.name = nameInput.value.slice(0, 80);
+      });
+      nameLabel.append(nameInput);
+
+      const multiplierLabel = document.createElement('label');
+      multiplierLabel.innerHTML = '<span>Multiplier</span>';
+      const multiplierInput = document.createElement('input');
+      multiplierInput.type = 'number';
+      multiplierInput.min = String(COMBO_MIN_MULTIPLIER);
+      multiplierInput.max = String(COMBO_MAX_MULTIPLIER);
+      multiplierInput.step = '0.05';
+      multiplierInput.inputMode = 'decimal';
+      multiplierInput.value = Number(combo.multiplier).toFixed(2);
+      multiplierInput.addEventListener('input', () => {
+        combo.multiplier = clampNumber(
+          multiplierInput.value,
+          COMBO_MIN_MULTIPLIER,
+          COMBO_MAX_MULTIPLIER,
+          combo.multiplier
+        );
+      });
+      multiplierLabel.append(multiplierInput);
+
+      const enabledLabel = document.createElement('label');
+      enabledLabel.className = 'combo-enabled-field';
+      const enabledTitle = document.createElement('span');
+      enabledTitle.textContent = 'Enabled';
+      const enabledToggle = document.createElement('span');
+      enabledToggle.className = 'checkbox-row';
+      const enabledInput = document.createElement('input');
+      enabledInput.type = 'checkbox';
+      enabledInput.checked = combo.enabled !== false;
+      const enabledText = document.createElement('span');
+      enabledText.textContent = enabledInput.checked ? 'On' : 'Off';
+      enabledInput.addEventListener('change', () => {
+        combo.enabled = enabledInput.checked && combo.actionIds.length >= 2;
+        enabledInput.checked = combo.enabled;
+        enabledText.textContent = combo.enabled ? 'On' : 'Off';
+      });
+      enabledToggle.append(enabledInput, enabledText);
+      enabledLabel.append(enabledTitle, enabledToggle);
+
+      const removeCombo = document.createElement('button');
+      removeCombo.type = 'button';
+      removeCombo.className = 'delete-action combo-delete';
+      removeCombo.textContent = '×';
+      removeCombo.setAttribute('aria-label', `Delete combo ${combo.name}`);
+      removeCombo.addEventListener('click', () => {
+        settingsDraft.combos = settingsDraft.combos.filter(item => item.id !== combo.id);
+        renderCombosEditor();
+        els.settingsMessage.textContent = 'Combo removed.';
+        commitSettingsDraft();
+      });
+
+      head.append(nameLabel, multiplierLabel, enabledLabel, removeCombo);
+      card.append(head);
+
+      const sequence = document.createElement('div');
+      sequence.className = 'combo-sequence-editor';
+
+      combo.actionIds.forEach((actionId, stepIndex) => {
+        const step = document.createElement('div');
+        step.className = 'combo-step-editor';
+
+        const number = document.createElement('span');
+        number.className = 'combo-step-number';
+        number.textContent = String(stepIndex + 1);
+
+        const select = document.createElement('select');
+        select.setAttribute('aria-label', `Step ${stepIndex + 1} action`);
+        settingsDraft.actions.forEach(action => select.append(actionOption(action, actionId)));
+        select.value = actionId;
+        select.addEventListener('change', () => {
+          combo.actionIds[stepIndex] = select.value;
+          renderCombosEditor();
+          els.settingsMessage.textContent = 'Combo sequence updated. Today’s progress for it was reset.';
+          commitSettingsDraft();
+        });
+
+        const up = document.createElement('button');
+        up.type = 'button';
+        up.className = 'combo-step-button';
+        up.textContent = '↑';
+        up.title = 'Move step up';
+        up.disabled = stepIndex === 0;
+        up.addEventListener('click', () => {
+          [combo.actionIds[stepIndex - 1], combo.actionIds[stepIndex]] = [
+            combo.actionIds[stepIndex],
+            combo.actionIds[stepIndex - 1]
+          ];
+          renderCombosEditor();
+          commitSettingsDraft();
+        });
+
+        const down = document.createElement('button');
+        down.type = 'button';
+        down.className = 'combo-step-button';
+        down.textContent = '↓';
+        down.title = 'Move step down';
+        down.disabled = stepIndex === combo.actionIds.length - 1;
+        down.addEventListener('click', () => {
+          [combo.actionIds[stepIndex + 1], combo.actionIds[stepIndex]] = [
+            combo.actionIds[stepIndex],
+            combo.actionIds[stepIndex + 1]
+          ];
+          renderCombosEditor();
+          commitSettingsDraft();
+        });
+
+        const removeStep = document.createElement('button');
+        removeStep.type = 'button';
+        removeStep.className = 'combo-step-button is-delete';
+        removeStep.textContent = '×';
+        removeStep.title = 'Remove step';
+        removeStep.addEventListener('click', () => {
+          combo.actionIds.splice(stepIndex, 1);
+          if (combo.actionIds.length < 2) combo.enabled = false;
+          renderCombosEditor();
+          els.settingsMessage.textContent = combo.actionIds.length < 2
+            ? 'Combo disabled: it needs at least 2 actions.'
+            : 'Combo step removed. Today’s progress for it was reset.';
+          commitSettingsDraft();
+        });
+
+        step.append(number, select, up, down, removeStep);
+        sequence.append(step);
+      });
+
+      card.append(sequence);
+
+      const footer = document.createElement('div');
+      footer.className = 'combo-editor-footer';
+
+      const addStep = document.createElement('button');
+      addStep.type = 'button';
+      addStep.className = 'secondary-button combo-add-step';
+      addStep.textContent = '+ Add step';
+      addStep.disabled = settingsDraft.actions.length === 0 || combo.actionIds.length >= COMBO_MAX_STEPS;
+      addStep.addEventListener('click', () => {
+        if (!settingsDraft.actions.length || combo.actionIds.length >= COMBO_MAX_STEPS) return;
+        combo.actionIds.push(settingsDraft.actions[0].id);
+        renderCombosEditor();
+        els.settingsMessage.textContent = 'Combo step added. Today’s progress for it was reset.';
+        commitSettingsDraft();
+      });
+
+      const status = document.createElement('span');
+      status.className = 'combo-editor-status';
+      if (combo.actionIds.length < 2) {
+        status.classList.add('is-warning');
+        status.textContent = 'Needs at least 2 actions · disabled';
+      } else {
+        status.textContent = `${combo.actionIds.length}/${COMBO_MAX_STEPS} steps · ordered, non-strict`;
+      }
+
+      footer.append(addStep, status);
+      card.append(footer);
+      els.combosEditor.append(card);
+    });
+  }
+
+  function addComboFromForm() {
+    if (!settingsDraft.actions.length) {
+      els.settingsMessage.textContent = 'Add at least one action before creating a combo.';
+      return;
+    }
+
+    const name = els.newComboName.value.trim();
+    if (!name) {
+      els.settingsMessage.textContent = 'Give the combo a name first.';
+      els.newComboName.focus();
+      return;
+    }
+
+    const multiplier = clampNumber(
+      els.newComboMultiplier.value,
+      COMBO_MIN_MULTIPLIER,
+      COMBO_MAX_MULTIPLIER,
+      COMBO_DEFAULT_MULTIPLIER
+    );
+    const actionIds = settingsDraft.actions.length >= 2
+      ? [settingsDraft.actions[0].id, settingsDraft.actions[1].id]
+      : [settingsDraft.actions[0].id, settingsDraft.actions[0].id];
+
+    const fingerprint = comboFingerprint(actionIds);
+    const starterSequenceIsDuplicate = settingsDraft.combos.some(
+      combo => combo.enabled && comboFingerprint(combo.actionIds) === fingerprint
+    );
+
+    settingsDraft.combos.push({
+      id: makeId('combo'),
+      name: name.slice(0, 80),
+      multiplier,
+      enabled: !starterSequenceIsDuplicate,
+      actionIds
+    });
+
+    els.newComboName.value = '';
+    els.newComboMultiplier.value = COMBO_DEFAULT_MULTIPLIER.toFixed(2);
+    renderCombosEditor();
+    els.settingsMessage.textContent = starterSequenceIsDuplicate
+      ? 'Combo created disabled because its starter sequence duplicates an enabled combo. Edit its sequence, then enable it.'
+      : 'Combo created. Configure its ordered sequence below.';
     commitSettingsDraft();
   }
 
@@ -2536,7 +3235,7 @@
       ...action,
       name: String(action.name || '').trim(),
       categoryId: categoryIds.has(action.categoryId) ? action.categoryId : UNCATEGORIZED_ID,
-      baseXp: clampInt(action.baseXp, 1, 200, 10),
+      baseDamage: clampInt(action.baseDamage, 1, 200, 10),
       type: action.type === 'once' ? 'once' : 'repeatable',
       trackVisible: action.trackVisible !== false
     }));
@@ -2545,12 +3244,48 @@
       return { ok: false, message: 'Every action needs a name.' };
     }
 
+    const actionIds = new Set(actions.map(action => action.id));
+    const enabledSequences = new Set();
+    const combos = settingsDraft.combos.map((combo, index) => {
+      const sequence = (Array.isArray(combo.actionIds) ? combo.actionIds : [])
+        .slice(0, COMBO_MAX_STEPS)
+        .map(String)
+        .filter(actionId => actionIds.has(actionId));
+      const enabled = combo.enabled !== false && sequence.length >= 2;
+      return {
+        id: String(combo.id || `combo-${index + 1}`).slice(0, 128),
+        name: String(combo.name || '').trim().slice(0, 80),
+        multiplier: Number(clampNumber(
+          combo.multiplier,
+          COMBO_MIN_MULTIPLIER,
+          COMBO_MAX_MULTIPLIER,
+          COMBO_DEFAULT_MULTIPLIER
+        ).toFixed(2)),
+        enabled,
+        actionIds: sequence
+      };
+    });
+
+    if (combos.some(combo => !combo.name)) {
+      return { ok: false, message: 'Every combo needs a name.' };
+    }
+
+    for (const combo of combos) {
+      if (!combo.enabled) continue;
+      const fingerprint = comboFingerprint(combo.actionIds);
+      if (enabledSequences.has(fingerprint)) {
+        return { ok: false, message: 'Two enabled combos cannot use the exact same action sequence.' };
+      }
+      enabledSequences.add(fingerprint);
+    }
+
     return {
       ok: true,
       settings: {
-        goal: clampInt(els.goalInput.value, 20, 1000, settingsDraft.goal || 100),
+        fullEnemyHp: clampInt(els.goalInput.value, 20, 1000, settingsDraft.fullEnemyHp || 100),
         categories,
-        actions
+        actions,
+        combos
       }
     };
   }
@@ -2565,12 +3300,27 @@
       return false;
     }
 
+    const previousCombos = new Map(state.settings.combos.map(combo => [combo.id, combo]));
     state.settings = result.settings;
-    const justCleared = finalizeClearIfNeeded();
-    if (justCleared) settingsTriggeredClear = true;
+
+    const nextComboIds = new Set(state.settings.combos.map(combo => combo.id));
+    Object.keys(state.current.comboProgress).forEach(comboId => {
+      const nextCombo = state.settings.combos.find(combo => combo.id === comboId);
+      const previousCombo = previousCombos.get(comboId);
+      if (!nextComboIds.has(comboId) || comboChanged(previousCombo, nextCombo)) {
+        delete state.current.comboProgress[comboId];
+      }
+    });
+
+    state.settings.combos.forEach(combo => {
+      const previousCombo = previousCombos.get(combo.id);
+      if (comboChanged(previousCombo, combo)) {
+        state.current.comboProgress[combo.id] = { index: 0, sourceTransactionIds: [] };
+      }
+    });
 
     saveState();
-    render({ justCleared });
+    render();
 
     if (announce) {
       els.settingsMessage.textContent = 'Saved automatically.';
@@ -2596,24 +3346,27 @@
       return;
     }
 
-    const showDayCard = settingsTriggeredClear && Boolean(state.current.dayCard);
     settingsDraft = null;
     settingsTriggeredClear = false;
     els.settingsDialog.close();
-
-    if (showDayCard) {
-      requestAnimationFrame(() => render({ showDayCard: true, justCleared: true }));
-    }
   }
 
   function resetGameData() {
     const confirmed = window.confirm(
-      'Reset ALL MoLife game data?\n\nThis wipes categories, actions, history, Level, Street Cred and streaks. Your login/account remains.\n\nThe Crestfallen Department of Records will pretend none of this ever happened.'
+      'Reset ALL MoLife game data?\n\nThis wipes categories, actions, combos, history, Level, Street Cred and streaks. Your login/account remains.\n\nThe Crestfallen Department of Records will pretend none of this ever happened.'
     );
     if (!confirmed) return;
 
     state = freshState();
-    state.current.date = localDateKey();
+    state.current = {
+      date: localDateKey(),
+      maxHp: getEnemyHp(),
+      transactions: [],
+      comboProgress: {},
+      defeatedAt: null,
+      victoryXpAwarded: 0,
+      dayCard: null
+    };
     settingsDraft = null;
     wasVictory = false;
     saveState();
@@ -2644,7 +3397,7 @@
     if (!settingsDraft) return;
     const target = event.target;
     const editsExistingSetting = target === els.goalInput
-      || target.closest?.('.category-direct-editor, .action-direct-editor');
+      || target.closest?.('.category-direct-editor, .action-direct-editor, .combo-direct-editor');
 
     if (editsExistingSetting) {
       scheduleSettingsSave(target.type === 'color' ? 0 : 260);
@@ -2654,7 +3407,7 @@
   els.settingsDialog.addEventListener('change', event => {
     if (!settingsDraft) return;
     const target = event.target;
-    if (target === els.goalInput || target.closest?.('.category-direct-editor, .action-direct-editor')) {
+    if (target === els.goalInput || target.closest?.('.category-direct-editor, .action-direct-editor, .combo-direct-editor')) {
       scheduleSettingsSave(0);
     }
   });
@@ -2676,6 +3429,7 @@
 
   els.addCategoryButton.addEventListener('click', addCategoryFromForm);
   els.addActionButton.addEventListener('click', addActionFromForm);
+  els.addComboButton?.addEventListener('click', addComboFromForm);
   els.resetGameButton.addEventListener('click', resetGameData);
   els.motionFxButton?.addEventListener('click', toggleMotionFx);
   els.viewDayCardButton.addEventListener('click', () => openDayCard(state.current.dayCard));
@@ -2713,9 +3467,9 @@
   }
 
   ensureToday();
-  const starterRampClear = finalizeClearIfNeeded();
-  if (starterRampClear) saveState();
-  render({ showDayCard: starterRampClear, justCleared: starterRampClear });
+  const migratedVictory = finalizeVictoryIfNeeded();
+  if (migratedVictory) saveState();
+  render({ showDayCard: migratedVictory, justDefeated: migratedVictory });
   initializeMotionFx();
   nudgePortraitOrientation();
   startVisualLoop();

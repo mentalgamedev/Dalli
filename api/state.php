@@ -79,6 +79,23 @@ try {
         ], 409);
     }
 
+    $currentState = $envelope['state'];
+    $currentVersion = is_array($currentState) ? (int) ($currentState['version'] ?? 0) : 0;
+    $incomingVersion = (int) ($state['version'] ?? 0);
+    if ($currentVersion > $incomingVersion) {
+        $updatedAt = $row === null ? null : (string) $row['updated_at'];
+        $pdo->rollBack();
+
+        dalli_json_response([
+            'ok' => false,
+            'error' => 'A newer MoLife state is already stored in the cloud.',
+            'conflict' => true,
+            'state' => $currentState,
+            'revision' => $currentRevision,
+            'updatedAt' => $updatedAt,
+        ], 409);
+    }
+
     $envelope['state'] = $state;
     $nextRevision = $currentRevision + 1;
     $json = dalli_encode_envelope($envelope);

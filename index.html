@@ -8,7 +8,7 @@
   <title>MoLife</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=3.8.0">
+  <link rel="stylesheet" href="styles.css?v=4.0.0">
 </head>
 <body>
   <div class="motion-shimmer" aria-hidden="true"></div>
@@ -28,29 +28,36 @@
       <div class="brand-block">
         <h1 class="brand-title" aria-label="MoLife"><span class="brand-mo">Mo</span><span class="brand-life">Life</span><span class="brand-tm">™</span></h1>
         <div class="brand-subline">Gains for citizens with nothing to lose</div>
-        <div class="app-version" aria-label="MoLife version 3.8.0">v3.8.0 · Orderly Conduct build</div>
+        <div class="app-version" aria-label="MoLife version 4.0.0">v4.0.0 · Internal Hostilities build</div>
         <div id="todayLabel" class="muted"></div>
       </div>
       <button id="settingsButton" class="icon-button" type="button" aria-label="Open settings" title="Settings">⚙</button>
     </header>
 
     <main>
-      <section class="hero-card" aria-labelledby="xpHeading">
-        <div class="hero-sticker" aria-hidden="true">TODAY</div>
+
+      <section class="hero-card fight-card" aria-labelledby="fightHeading">
+        <div class="hero-sticker" aria-hidden="true">TODAY'S FIGHT</div>
         <div class="hero-copy">
-          <div id="statusBadge" class="status-badge">IN PROGRESS</div>
-          <h2 id="xpHeading"><span id="totalXp">0</span><span class="hero-goal"> / <span id="goalXp">100</span> XP</span></h2>
-          <p id="heroMessage" class="muted">Earn XP any way you like. Repeating one category gradually pays less.</p>
+          <div id="statusBadge" class="status-badge">FIGHT IN PROGRESS</div>
+          <div class="fight-name">DARK YOU™</div>
+          <h2 id="fightHeading"><span id="enemyHp">60</span><span class="hero-goal"> / <span id="enemyMaxHp">60</span> HP</span></h2>
+          <div class="fight-stats" aria-label="Fight statistics">
+            <span><strong id="totalDamage">0</strong> DAMAGE DEALT</span>
+            <span><strong id="overkillValue">0</strong> OVERKILL</span>
+          </div>
+          <p id="heroMessage" class="muted">Hostile internal entity remains annoyingly operational.</p>
         </div>
-        <div class="xp-orb-wrap" aria-hidden="true">
-          <div id="xpOrb" class="xp-orb">
+        <div class="xp-orb-wrap fight-orb-wrap" aria-hidden="true">
+          <div id="xpOrb" class="xp-orb fight-orb">
             <div class="xp-orb-inner">
-              <strong id="orbPercent">0%</strong>
-              <span>goal</span>
+              <strong id="orbPercent">100%</strong>
+              <span>HP</span>
             </div>
           </div>
+          <div id="fightFeedback" class="fight-feedback" aria-live="polite"></div>
         </div>
-        <div class="hero-progress" aria-label="MoLife progress">
+        <div class="hero-progress enemy-health" aria-label="Dark You health">
           <div id="totalProgress" class="hero-progress-fill"></div>
         </div>
       </section>
@@ -64,7 +71,7 @@
               <span id="streetCred" class="street-cred">0 / 30</span>
             </div>
             <div class="rank-meter" aria-hidden="true"><div id="rankProgress" class="rank-meter-fill"></div></div>
-            <div id="rankHint" class="rank-hint">Clear days to become somebody. Allegedly.</div>
+            <div id="rankHint" class="rank-hint">Win fights to become somebody. Allegedly.</div>
           </div>
           <div id="rankStamp" class="rank-stamp" aria-hidden="true">NOBODY</div>
         </article>
@@ -93,18 +100,21 @@
       <section id="victoryBanner" class="victory-banner" hidden>
         <div class="victory-icon">★</div>
         <div class="victory-copy">
-          <strong>Day cleared. Bureaucracy defeated.</strong>
-          <span id="victorySummary">Your official Crestfallen report is ready.</span>
+          <strong>VICTORY +20 XP</strong>
+          <span id="victorySummary">Dark You defeated. Your official Crestfallen report is ready.</span>
         </div>
         <button id="viewDayCardButton" class="report-button" type="button">View report</button>
       </section>
+
+      <section id="combosPanel" class="combos-panel panel" hidden></section>
 
       <section class="section-head">
         <div>
           <div class="eyebrow">IMPROVE YOURSELF</div>
           <h2>Track-o-Tron</h2>
+          <div class="track-subtitle">Choose an attack</div>
         </div>
-        <div class="balance-note">Focus decides how long a category stays lucrative</div>
+        <div class="balance-note">Focus decides how long a category stays at full damage</div>
       </section>
 
       <section id="categoriesGrid" class="categories-grid"></section>
@@ -113,8 +123,8 @@
         <div class="panel">
           <div class="panel-head">
             <div>
-              <div class="eyebrow">RECENT MOVES</div>
-              <h2>Today's log</h2>
+              <div class="eyebrow">RECENT HITS</div>
+              <h2>Today's fight log</h2>
             </div>
           </div>
           <div id="logList" class="log-list"></div>
@@ -123,7 +133,7 @@
         <div class="panel">
           <div class="panel-head">
             <div>
-              <div class="eyebrow">CASE FILES</div>
+              <div class="eyebrow">FIGHT ARCHIVES</div>
               <h2>Recent days</h2>
             </div>
           </div>
@@ -149,6 +159,12 @@
       <div class="day-card-meta">
         <span id="dayCardDate"></span>
         <span id="dayCardXp"></span>
+      </div>
+      <div class="day-battle-stats">
+        <div><span>Enemy HP</span><strong id="dayCardEnemyHp">0</strong></div>
+        <div><span>Damage dealt</span><strong id="dayCardDamage">0</strong></div>
+        <div><span>Overkill</span><strong id="dayCardOverkill">0</strong></div>
+        <div><span>Combos landed</span><strong id="dayCardCombos">0</strong></div>
       </div>
       <div id="dayCardType" class="day-type-stamp">SUSPICIOUSLY FUNCTIONAL ADULT</div>
       <h2 id="dayCardHeadline" class="day-card-headline"></h2>
@@ -181,8 +197,8 @@
         <h3>Daily challenge</h3>
         <label class="field-row">
           <span>
-            <strong>Full XP goal</strong>
-            <small>MoLife starts easier and gradually ramps toward this target as you clear days.</small>
+            <strong>Full enemy HP</strong>
+            <small>Dark You starts weaker and gradually reaches this strength as you win fights. Changing this affects future fights, never today's enemy.</small>
             <small id="goalRampPreview" class="goal-ramp-preview"></small>
           </span>
           <input id="goalInput" type="number" min="20" max="1000" step="5" inputmode="numeric">
@@ -209,7 +225,7 @@
         <div class="settings-section-head">
           <div>
             <h3>Categories & Focus</h3>
-            <p>Higher Focus means a category can produce full-value XP for longer before diminishing returns kick in. Color tints the category throughout Track-o-Tron.</p>
+            <p>Higher Focus means a category deals full damage for longer before Dark You develops resistance. Color tints the category throughout Track-o-Tron.</p>
           </div>
         </div>
         <div id="categoriesEditor" class="categories-editor"></div>
@@ -235,7 +251,7 @@
             </label>
           </div>
           <button id="addCategoryButton" class="secondary-button" type="button">+ Add category</button>
-          <p class="category-fallback-note">Uncategorized is the permanent fallback. It pays a fixed 50% until you assign those actions somewhere respectable.</p>
+          <p class="category-fallback-note">Uncategorized is the permanent fallback. It deals a fixed 50% damage until you assign those actions somewhere respectable.</p>
         </div>
       </section>
 
@@ -250,7 +266,7 @@
             <select id="actionSortSelect" aria-label="Sort actions">
               <option value="">Choose…</option>
               <option value="category">Category</option>
-              <option value="xp">XP · high to low</option>
+              <option value="damage">Damage · high to low</option>
               <option value="name">Name · A to Z</option>
             </select>
           </label>
@@ -269,8 +285,8 @@
               <select id="newActionCategory"></select>
             </label>
             <label>
-              <span>Base XP</span>
-              <input id="newActionXp" type="number" min="1" max="200" step="1" value="10" inputmode="numeric">
+              <span>Base Damage</span>
+              <input id="newActionDamage" type="number" min="1" max="200" step="1" value="10" inputmode="numeric">
             </label>
             <label>
               <span>Type</span>
@@ -288,6 +304,33 @@
             </label>
           </div>
           <button id="addActionButton" class="secondary-button" type="button">+ Add action</button>
+        </div>
+      </section>
+
+
+      <section class="settings-section">
+        <div class="settings-section-head">
+          <div>
+            <h3>Combos</h3>
+            <p>Build ordered attack sequences from your actions. Unrelated actions do not break progress. When a combo lands, its bonus uses the actual effective damage of the matched actions.</p>
+          </div>
+        </div>
+        <div id="combosEditor" class="combos-editor"></div>
+
+        <div class="add-combo-card">
+          <h4>Add combo</h4>
+          <div class="add-combo-grid">
+            <label>
+              <span>Name</span>
+              <input id="newComboName" type="text" maxlength="80" placeholder="e.g. Morning Assault">
+            </label>
+            <label>
+              <span>Multiplier</span>
+              <input id="newComboMultiplier" type="number" min="1.05" max="3" step="0.05" value="1.25" inputmode="decimal">
+            </label>
+          </div>
+          <button id="addComboButton" class="secondary-button" type="button">+ Add combo</button>
+          <p class="category-fallback-note">2–8 steps · repeated actions are allowed · one action can finish only one combo attack.</p>
         </div>
       </section>
 
@@ -317,7 +360,7 @@
       </div>
       <div class="efficiency-row">
         <div class="efficiency-copy">
-          <span class="efficiency-label">Efficiency</span>
+          <span class="efficiency-label">Damage efficiency</span>
           <strong class="efficiency-value">100%</strong>
         </div>
         <div class="category-meter"><div class="category-meter-fill"></div></div>
@@ -327,7 +370,7 @@
     </article>
   </template>
 
-  <script src="app.js?v=3.8.0" defer></script>
-  <script src="cloud.js?v=3.8.0" defer></script>
+  <script src="app.js?v=4.0.0" defer></script>
+  <script src="cloud.js?v=4.0.0" defer></script>
 </body>
 </html>

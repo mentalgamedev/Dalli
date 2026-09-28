@@ -2385,3 +2385,384 @@ body {
     transform: none;
   }
 }
+
+
+/* MoLife v4.0 — Internal Hostilities */
+.fight-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.fight-name {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 900;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.fight-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 7px 0 10px;
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.fight-stats strong {
+  color: var(--text);
+  font-size: .92rem;
+}
+
+.enemy-health .hero-progress-fill {
+  transform-origin: left center;
+}
+
+.fight-orb-wrap {
+  position: relative;
+}
+
+.fight-orb {
+  filter: saturate(.72);
+}
+
+.fight-feedback {
+  position: absolute;
+  left: 50%;
+  bottom: -22px;
+  z-index: 4;
+  width: max-content;
+  max-width: 220px;
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  color: var(--text);
+  font-size: .72rem;
+  font-weight: 950;
+  letter-spacing: .06em;
+  text-align: center;
+  text-transform: uppercase;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, .7);
+}
+
+.fight-feedback.is-combo {
+  color: var(--accent);
+}
+
+.fight-feedback-pop {
+  animation: fight-feedback-pop 900ms cubic-bezier(.2,.8,.2,1);
+}
+
+@keyframes fight-feedback-pop {
+  0% { opacity: 0; transform: translate(-50%, 8px) scale(.88); }
+  20% { opacity: 1; transform: translate(-50%, -5px) scale(1.06); }
+  70% { opacity: 1; transform: translate(-50%, -11px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -18px) scale(.98); }
+}
+
+.track-subtitle {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: .74rem;
+}
+
+.combos-panel {
+  margin: 18px 0;
+}
+
+.combos-panel-head,
+.combo-card-title,
+.combo-editor-head,
+.combo-editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.combos-panel-head {
+  margin-bottom: 14px;
+}
+
+.combos-panel-head h2 {
+  margin-top: 2px;
+}
+
+.combo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 12px;
+}
+
+.combo-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(255,255,255,.025);
+  padding: 13px;
+}
+
+.combo-card.is-disabled {
+  opacity: .62;
+}
+
+.combo-card-title strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.combo-card-title span {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-weight: 900;
+}
+
+.combo-steps {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.combo-step {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 7px;
+  align-items: center;
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+.combo-step-mark {
+  color: var(--accent);
+  font-weight: 900;
+  text-align: center;
+}
+
+.combo-warning,
+.combo-editor-status.is-warning {
+  margin-top: 9px;
+  color: var(--danger, #ff8f8f);
+  font-size: .72rem;
+  font-weight: 800;
+}
+
+.combo-log-row {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.day-battle-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 13px 0 5px;
+}
+
+.day-battle-stats > div {
+  border-top: 1px solid currentColor;
+  padding-top: 7px;
+}
+
+.day-battle-stats span,
+.day-battle-stats strong {
+  display: block;
+}
+
+.day-battle-stats span {
+  font-size: .61rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.day-battle-stats strong {
+  margin-top: 2px;
+  font-size: 1.05rem;
+}
+
+.combos-editor {
+  display: grid;
+  gap: 12px;
+}
+
+.combo-editor-card,
+.add-combo-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface, rgba(255,255,255,.025));
+  padding: 14px;
+}
+
+.combo-editor-head {
+  display: grid;
+  grid-template-columns: minmax(150px, 2fr) minmax(100px, .7fr) minmax(100px, .7fr) auto;
+  align-items: end;
+}
+
+.combo-editor-head label,
+.add-combo-grid label {
+  min-width: 0;
+}
+
+.combo-editor-head label > span:first-child,
+.add-combo-grid label > span:first-child {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.combo-editor-head input,
+.combo-editor-head select,
+.add-combo-grid input,
+.combo-step-editor select {
+  width: 100%;
+}
+
+.combo-enabled-field .checkbox-row {
+  min-height: 42px;
+}
+
+.combo-sequence-editor {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.combo-step-editor {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 36px 36px 36px;
+  align-items: center;
+  gap: 6px;
+}
+
+.combo-step-number {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.combo-step-button {
+  min-width: 0;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255,255,255,.035);
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.combo-step-button:disabled {
+  opacity: .28;
+  cursor: default;
+}
+
+.combo-step-button.is-delete {
+  color: var(--danger, #ff8f8f);
+}
+
+.combo-editor-footer {
+  margin-top: 10px;
+}
+
+.combo-editor-status {
+  color: var(--muted);
+  font-size: .7rem;
+  text-align: right;
+}
+
+.add-combo-card {
+  margin-top: 12px;
+}
+
+.add-combo-card h4 {
+  margin-bottom: 10px;
+}
+
+.add-combo-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, .35fr);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 760px) {
+  .combo-editor-head {
+    grid-template-columns: minmax(0, 1fr) minmax(100px, .45fr);
+  }
+
+  .combo-enabled-field {
+    grid-column: 1 / 2;
+  }
+
+  .combo-delete {
+    grid-column: 2 / 3;
+    grid-row: 2;
+    justify-self: end;
+  }
+
+  .day-battle-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .fight-stats {
+    padding-right: 76px;
+  }
+
+  .fight-feedback {
+    bottom: -18px;
+  }
+
+  .combos-panel-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .combo-step-editor {
+    grid-template-columns: 22px minmax(0, 1fr) 32px 32px 32px;
+    gap: 4px;
+  }
+
+  .combo-step-button {
+    height: 36px;
+  }
+
+  .combo-editor-head,
+  .add-combo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .combo-enabled-field,
+  .combo-delete {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .combo-delete {
+    justify-self: end;
+  }
+
+  .combo-editor-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .combo-editor-status {
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fight-feedback-pop {
+    animation: none;
+    opacity: 1;
+  }
+}

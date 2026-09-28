@@ -2,6 +2,7 @@
   'use strict';
 
   const API_ROOT = './api';
+  // Keep the legacy key so signed-in users migrate in place instead of starting over.
   const USER_STORAGE_PREFIX = 'dailyXpGame.v2.user.';
   const INVITE_SESSION_KEY = 'dalli.pendingInvite.v1';
   const SAVE_DELAY_MS = 450;
@@ -583,7 +584,7 @@
       if (remoteVersion !== window.DalliApp.stateVersion) {
         try {
           await saveNow(window.DalliApp.getState());
-          setSyncStatus('Fresh v3 game · synced', 'ok');
+          setSyncStatus('MoLife v4 state migrated · synced', 'ok');
         } catch (error) {
           handleSaveError(error, window.DalliApp.getState());
         }
