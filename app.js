@@ -304,11 +304,16 @@
     state.history = state.history.slice(0, HISTORY_LIMIT);
   }
 
-  function getCategoryRequirements() {
-    const categories = state.settings.categories;
-    const weightTotal = categories.reduce((sum, category) => sum + category.weight, 0) || 1;
-    return Object.fromEntries(categories.map(category => {
-      const weightedShare = state.settings.goal * (category.weight / weightTotal);
+  function balancedCategories(categories = state.settings.categories) {
+    return categories.filter(category => category.id !== UNCATEGORIZED_ID);
+  }
+
+  function getCategoryRequirements(categories = state.settings.categories, goal = state.settings.goal) {
+    const balanced = balancedCategories(categories);
+    const weightTotal = balanced.reduce((sum, category) => sum + category.weight, 0) || 1;
+
+    return Object.fromEntries(balanced.map(category => {
+      const weightedShare = goal * (category.weight / weightTotal);
       const minimum = Math.max(1, Math.round(weightedShare * BALANCE_FACTOR));
       return [category.id, minimum];
     }));
@@ -317,12 +322,18 @@
   function getSummary() {
     const categoryXp = Object.fromEntries(state.settings.categories.map(c => [c.id, 0]));
     let totalXp = 0;
+
     for (const tx of state.current.transactions) {
       totalXp += tx.xp;
       if (tx.categoryId in categoryXp) categoryXp[tx.categoryId] += tx.xp;
+      else categoryXp[UNCATEGORIZED_ID] = (categoryXp[UNCATEGORIZED_ID] || 0) + tx.xp;
     }
+
     const requirements = getCategoryRequirements();
-    const allMinimumsMet = state.settings.categories.every(category => (categoryXp[category.id] || 0) >= requirements[category.id]);
+    const allMinimumsMet = balancedCategories().every(
+      category => (categoryXp[category.id] || 0) >= requirements[category.id]
+    );
+
     return {
       totalXp,
       categoryXp,
