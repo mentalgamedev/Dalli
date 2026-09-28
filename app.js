@@ -1966,6 +1966,13 @@
     }
   });
 
+  window.addEventListener('resize', () => {
+    document.querySelectorAll('.action-deck').forEach(deck => {
+      updateActionDeckState(deck, deck.querySelector('.actions-list'));
+    });
+    resetNewswirePosition(250);
+  }, { passive: true });
+
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('./service-worker.js').catch(error => {
       console.warn('Service worker registration failed:', error);
