@@ -715,45 +715,45 @@
     }
   }
 
-  function getPriorClearCount() {
+
+  function getPriorVictoryCount() {
     return state.history.reduce((count, day) => count + (day.won ? 1 : 0), 0);
   }
 
-  function getDailyGoal(settings = state.settings) {
-    const matureGoal = clampInt(settings.goal, 20, 1000, 100);
-    const starterGoal = Math.max(
+  function enemyHpForClearCount(settings, victoryCount) {
+    const fullEnemyHp = clampInt(settings.fullEnemyHp, 20, 1000, 100);
+    const starterHp = Math.max(
       20,
-      Math.min(matureGoal, Math.round((matureGoal * STARTER_GOAL_RATIO) / 5) * 5)
+      Math.min(fullEnemyHp, Math.round((fullEnemyHp * STARTER_HP_RATIO) / 5) * 5)
     );
+    if (starterHp >= fullEnemyHp) return fullEnemyHp;
 
-    if (starterGoal >= matureGoal) return matureGoal;
-
-    const clearCount = getPriorClearCount();
     const rampStep = Math.min(
-      GOAL_RAMP_STEPS,
-      Math.floor(clearCount / CLEARS_PER_RAMP_STEP)
+      HP_RAMP_STEPS,
+      Math.floor(Math.max(0, victoryCount) / VICTORIES_PER_RAMP_STEP)
     );
-    const progress = rampStep / GOAL_RAMP_STEPS;
-    const ramped = starterGoal + ((matureGoal - starterGoal) * progress);
-
+    const progress = rampStep / HP_RAMP_STEPS;
     return Math.min(
-      matureGoal,
-      Math.max(20, Math.round(ramped / 5) * 5)
+      fullEnemyHp,
+      Math.max(20, Math.round((starterHp + ((fullEnemyHp - starterHp) * progress)) / 5) * 5)
     );
   }
 
-  function getGoalRampInfo(settings = state.settings) {
-    const matureGoal = clampInt(settings.goal, 20, 1000, 100);
-    const currentGoal = getDailyGoal(settings);
-    const clearCount = getPriorClearCount();
-    const clearsToMature = GOAL_RAMP_STEPS * CLEARS_PER_RAMP_STEP;
+  function getEnemyHp(settings = state.settings) {
+    return enemyHpForClearCount(settings, getPriorVictoryCount());
+  }
 
+  function getHpRampInfo(settings = state.settings) {
+    const fullEnemyHp = clampInt(settings.fullEnemyHp, 20, 1000, 100);
+    const nextFightHp = getEnemyHp(settings);
+    const victoryCount = getPriorVictoryCount();
+    const victoriesToMature = HP_RAMP_STEPS * VICTORIES_PER_RAMP_STEP;
     return {
-      matureGoal,
-      currentGoal,
-      clearCount,
-      clearsToMature,
-      active: currentGoal < matureGoal
+      fullEnemyHp,
+      nextFightHp,
+      victoryCount,
+      victoriesToMature,
+      active: nextFightHp < fullEnemyHp
     };
   }
 
@@ -768,7 +768,10 @@
 
     const categories = balancedCategories(settings);
     const totalFocus = categories.reduce((sum, item) => sum + item.focus, 0) || 1;
-    return Math.max(1, getDailyGoal(settings) * (category.focus / totalFocus));
+    const hpReference = settings === state.settings && state.current.maxHp
+      ? state.current.maxHp
+      : getEnemyHp(settings);
+    return Math.max(1, hpReference * (category.focus / totalFocus));
   }
 
   function currentCategoryIdForTransaction(tx) {
@@ -778,55 +781,68 @@
   }
 
   function getSummary() {
-    const categoryXp = Object.fromEntries(state.settings.categories.map(category => [category.id, 0]));
-    const categoryBaseXp = Object.fromEntries(state.settings.categories.map(category => [category.id, 0]));
-    let totalXp = 0;
-    let totalBaseXp = 0;
+    const categoryDamage = Object.fromEntries(state.settings.categories.map(category => [category.id, 0]));
+    const categoryBaseDamage = Object.fromEntries(state.settings.categories.map(category => [category.id, 0]));
+    let totalDamage = 0;
+    let totalBaseDamage = 0;
+    let comboDamage = 0;
+    let combosLanded = 0;
 
     state.current.transactions.forEach(tx => {
+      totalDamage += tx.damage;
+      if (tx.type === 'combo') {
+        comboDamage += tx.damage;
+        combosLanded += 1;
+        return;
+      }
+
       const categoryId = currentCategoryIdForTransaction(tx);
-      totalXp += tx.effectiveXp;
-      totalBaseXp += tx.baseXp;
-      categoryXp[categoryId] = (categoryXp[categoryId] || 0) + tx.effectiveXp;
-      categoryBaseXp[categoryId] = (categoryBaseXp[categoryId] || 0) + tx.baseXp;
+      totalBaseDamage += tx.baseDamage;
+      categoryDamage[categoryId] = (categoryDamage[categoryId] || 0) + tx.damage;
+      categoryBaseDamage[categoryId] = (categoryBaseDamage[categoryId] || 0) + tx.baseDamage;
     });
 
-    const goal = getDailyGoal();
+    const maxHp = Math.max(20, state.current.maxHp || getEnemyHp());
+    const currentHp = Math.max(0, maxHp - totalDamage);
+    const overkill = Math.max(0, totalDamage - maxHp);
 
     return {
-      totalXp,
-      totalBaseXp,
-      categoryXp,
-      categoryBaseXp,
-      goal,
-      isVictory: totalXp >= goal
+      totalDamage,
+      totalBaseDamage,
+      comboDamage,
+      combosLanded,
+      categoryDamage,
+      categoryBaseDamage,
+      maxHp,
+      currentHp,
+      overkill,
+      isVictory: totalDamage >= maxHp
     };
   }
 
-  function calculateReward(action, usedBaseXp = null, settings = state.settings) {
-    const baseXp = action.baseXp;
+  function calculateDamage(action, usedBaseDamage = null, settings = state.settings) {
+    const baseDamage = action.baseDamage;
     const categoryId = action.categoryId;
 
     if (categoryId === UNCATEGORIZED_ID || !settings.categories.some(category => category.id === categoryId)) {
-      const raw = baseXp * UNCATEGORIZED_EFFICIENCY;
+      const raw = baseDamage * UNCATEGORIZED_EFFICIENCY;
       return {
-        baseXp,
-        effectiveXp: Math.max(1, Math.round(raw)),
+        baseDamage,
+        damage: Math.max(1, Math.round(raw)),
         efficiency: UNCATEGORIZED_EFFICIENCY,
         raw
       };
     }
 
-    const summary = usedBaseXp === null ? getSummary() : null;
-    let cursor = usedBaseXp === null ? (summary.categoryBaseXp[categoryId] || 0) : usedBaseXp;
+    const summary = usedBaseDamage === null ? getSummary() : null;
+    let cursor = usedBaseDamage === null ? (summary.categoryBaseDamage[categoryId] || 0) : usedBaseDamage;
     const band = getFocusBand(categoryId, settings);
-    let remaining = baseXp;
+    let remaining = baseDamage;
     let raw = 0;
 
     for (let tier = 0; tier < EFFICIENCY_TIERS.length && remaining > 0; tier += 1) {
       const multiplier = EFFICIENCY_TIERS[tier];
       const upper = tier < EFFICIENCY_TIERS.length - 1 ? band * (tier + 1) : Infinity;
-
       if (cursor >= upper) continue;
 
       const available = upper === Infinity ? remaining : Math.max(0, upper - cursor);
@@ -838,16 +854,16 @@
       remaining -= amount;
     }
 
-    const effectiveXp = Math.max(1, Math.round(raw));
+    const damage = Math.max(1, Math.round(raw));
     return {
-      baseXp,
-      effectiveXp,
-      efficiency: Math.max(0.01, Math.min(1, raw / Math.max(1, baseXp))),
+      baseDamage,
+      damage,
+      efficiency: Math.max(0.01, Math.min(1, raw / Math.max(1, baseDamage))),
       raw
     };
   }
 
-  function getCategoryEfficiency(categoryId, usedBaseXp) {
+  function getCategoryEfficiency(categoryId, usedBaseDamage) {
     if (categoryId === UNCATEGORIZED_ID) {
       return {
         multiplier: UNCATEGORIZED_EFFICIENCY,
@@ -859,25 +875,85 @@
     }
 
     const band = getFocusBand(categoryId);
-    if (usedBaseXp < band) {
-      return { multiplier: 1, tier: 0, progress: usedBaseXp / band, untilNext: band - usedBaseXp, band };
+    if (usedBaseDamage < band) {
+      return { multiplier: 1, tier: 0, progress: usedBaseDamage / band, untilNext: band - usedBaseDamage, band };
     }
-    if (usedBaseXp < band * 2) {
-      return { multiplier: 0.8, tier: 1, progress: (usedBaseXp - band) / band, untilNext: band * 2 - usedBaseXp, band };
+    if (usedBaseDamage < band * 2) {
+      return { multiplier: 0.8, tier: 1, progress: (usedBaseDamage - band) / band, untilNext: band * 2 - usedBaseDamage, band };
     }
-    if (usedBaseXp < band * 3) {
-      return { multiplier: 0.6, tier: 2, progress: (usedBaseXp - band * 2) / band, untilNext: band * 3 - usedBaseXp, band };
+    if (usedBaseDamage < band * 3) {
+      return { multiplier: 0.6, tier: 2, progress: (usedBaseDamage - band * 2) / band, untilNext: band * 3 - usedBaseDamage, band };
     }
     return { multiplier: 0.4, tier: 3, progress: 1, untilNext: null, band };
   }
 
   function hasCompletedOnceAction(actionId) {
-    return state.current.transactions.some(tx => tx.actionId === actionId);
+    return state.current.transactions.some(tx => tx.type === 'action' && tx.actionId === actionId);
+  }
+
+  function comboProgress(comboId) {
+    return state.current.comboProgress[comboId] || { index: 0, sourceTransactionIds: [] };
+  }
+
+  function processCombosForAction(actionTx) {
+    const completions = [];
+    const actionTransactions = new Map(
+      state.current.transactions
+        .filter(tx => tx.type === 'action')
+        .map(tx => [tx.id, tx])
+    );
+
+    state.settings.combos.forEach(combo => {
+      if (!combo.enabled || combo.actionIds.length < 2) {
+        delete state.current.comboProgress[combo.id];
+        return;
+      }
+
+      const progress = comboProgress(combo.id);
+      const expectedActionId = combo.actionIds[progress.index] || combo.actionIds[0];
+      if (actionTx.actionId !== expectedActionId) return;
+
+      const sourceTransactionIds = [...progress.sourceTransactionIds, actionTx.id];
+      const nextIndex = progress.index + 1;
+
+      if (nextIndex < combo.actionIds.length) {
+        state.current.comboProgress[combo.id] = {
+          index: nextIndex,
+          sourceTransactionIds
+        };
+        return;
+      }
+
+      const sequenceDamage = sourceTransactionIds.reduce(
+        (sum, id) => sum + (actionTransactions.get(id)?.damage || 0),
+        0
+      );
+      const bonusDamage = Math.max(1, Math.round(sequenceDamage * (combo.multiplier - 1)));
+      completions.push({ combo, sourceTransactionIds, sequenceDamage, bonusDamage });
+      state.current.comboProgress[combo.id] = { index: 0, sourceTransactionIds: [] };
+    });
+
+    if (!completions.length) return null;
+
+    completions.sort((a, b) => b.bonusDamage - a.bonusDamage || b.combo.multiplier - a.combo.multiplier);
+    const winner = completions[0];
+    const event = {
+      type: 'combo',
+      id: makeId('combo-tx'),
+      comboId: winner.combo.id,
+      comboName: winner.combo.name,
+      multiplier: Number(winner.combo.multiplier.toFixed(2)),
+      damage: winner.bonusDamage,
+      sourceTransactionIds: winner.sourceTransactionIds,
+      timestamp: Date.now() + 1
+    };
+    state.current.transactions.push(event);
+    return event;
   }
 
   function completedDateSet() {
     const set = new Set(state.history.filter(day => day.won).map(day => day.date));
-    if (state.current.clearedAt) set.add(state.current.date);
+    if (state.current.defeatedAt) set.add(state.current.date);
     return set;
   }
 
@@ -910,7 +986,7 @@
     const today = localDateKey();
     const yesterday = addDays(today, -1);
 
-    if (state.current.clearedAt && state.current.date === today) {
+    if (state.current.defeatedAt && state.current.date === today) {
       if (state.progression.streakThrough === yesterday) {
         return state.progression.archivedStreak + 1;
       }
@@ -929,7 +1005,7 @@
   }
 
   function getLevelProgress() {
-    const lifetimeXp = state.progression.lifetimeXp;
+    const lifetimeXp = state.progression.victoryXp;
     const completedLevels = Math.max(
       0,
       Math.floor((-50 + Math.sqrt(2500 + (40 * lifetimeXp))) / 20)
@@ -988,7 +1064,7 @@
       won: summary.isVictory,
       categoryXp: summary.categoryXp,
       categoryBaseXp: summary.categoryBaseXp,
-      clearedAt: state.current.clearedAt,
+      clearedAt: state.current.defeatedAt,
       dayCard: state.current.dayCard,
       transactions: deepClone(state.current.transactions)
     };
@@ -1153,16 +1229,16 @@
     const summary = getSummary();
 
     if (!summary.isVictory) {
-      if (state.current.clearedAt) {
-        state.current.clearedAt = null;
+      if (state.current.defeatedAt) {
+        state.current.defeatedAt = null;
         state.current.dayCard = null;
       }
       return false;
     }
 
-    if (state.current.clearedAt) return false;
+    if (state.current.defeatedAt) return false;
 
-    state.current.clearedAt = Date.now();
+    state.current.defeatedAt = Date.now();
     state.current.dayCard = createDayCard(summary);
     return true;
   }
