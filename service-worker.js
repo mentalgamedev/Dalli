@@ -1,10 +1,10 @@
-const CACHE = 'molife-v3-2';
+const CACHE = 'molife-v3-3';
 const ASSETS = [
   './',
   './index.html',
-  './styles.css?v=3.2.0',
-  './app.js?v=3.2.0',
-  './cloud.js?v=3.2.0',
+  './styles.css?v=3.3.0',
+  './app.js?v=3.3.0',
+  './cloud.js?v=3.3.0',
   './manifest.webmanifest',
   './icon.svg'
 ];
