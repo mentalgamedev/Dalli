@@ -14,6 +14,8 @@ MoLife is a small daily XP game from the deeply questionable civic ecosystem of 
 
 There are no mandatory categories. A work-only day is valid; Dark You simply becomes increasingly resistant to repeated attacks from the same category. Damage after defeat is retained as **overkill** but never awards extra Victory XP.
 
+The interface treats this as a finite daily fight, not an endless self-improvement meter: Dark You gets one prominent fighting-game HP bar, HP never drops below 0, and anything after the victory is optional.
+
 ### Starter difficulty ramp
 
 The configured enemy HP is the **full / mature** strength. New or reset games begin at roughly 60% of that target and move one step closer every two victories, reaching full strength after 16 victories. Missed days do not make the game harder. With the default full strength of 100 HP, the progression is:
