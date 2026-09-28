@@ -2,8 +2,10 @@
 declare(strict_types=1);
 require __DIR__ . '/bootstrap.php';
 
+dalli_require_method('POST');
+dalli_require_same_origin();
+
 $userId = dalli_require_auth();
-$method = strtoupper($_SERVER['REQUEST_METHOD'] ?? '');
 $pdo = dalli_pdo();
 
 function dalli_state_snapshot(PDO $pdo, int $userId): array
@@ -34,22 +36,22 @@ function dalli_state_snapshot(PDO $pdo, int $userId): array
     ];
 }
 
-if ($method === 'GET') {
+$body = dalli_read_json_body();
+$operation = $body['operation'] ?? '';
+
+if ($operation === 'read') {
     dalli_json_response([
         'ok' => true,
         ...dalli_state_snapshot($pdo, $userId),
     ]);
 }
 
-if ($method !== 'POST') {
-    header('Allow: GET, POST');
-    dalli_fail('Method not allowed.', 405);
+if ($operation !== 'save') {
+    dalli_fail('Invalid state operation.', 400);
 }
 
-dalli_require_same_origin();
 dalli_require_csrf();
 
-$body = dalli_read_json_body();
 $expectedRevision = $body['expectedRevision'] ?? null;
 if (!is_int($expectedRevision) || $expectedRevision < 0 || $expectedRevision > 2147483647) {
     dalli_fail('Invalid revision.', 422);
