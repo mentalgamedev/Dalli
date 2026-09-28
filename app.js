@@ -1185,12 +1185,12 @@
       overkill: [
         ['DARK SELF DEFEATED; USER CONTINUES HITTING IT FOR ADMINISTRATIVE REASONS', `${summary.overkill} points of overkill were recorded. Authorities insist this was probably unnecessary.`],
         ['INTERNAL HOSTILITY ENDS IN DISPROPORTIONATE RESPONSE', 'Crestfallen observers describe the damage total as “legally a bit much.”'],
-        ['DARK YOU FILES COMPLAINT AFTER FIGHT ALREADY OVER', 'mo.les.tech confirms there is currently no appeals process for hostile internal entities.']
+        ['DARK DOPPELGÄNGER FILES COMPLAINT AFTER FIGHT ALREADY OVER', 'mo.les.tech confirms there is currently no appeals process for hostile internal entities.']
       ],
       combo: [
         ['COMBO ACTIVITY LINKED TO COLLAPSE OF LOCAL DARKNESS', `${summary.combosLanded} combo attacks landed before the paperwork could intervene.`],
         ['ORDERED BEHAVIOR PRODUCES ALARMING RESULTS', 'Investigators say several unrelated responsible decisions may have been coordinated.'],
-        ['DARK YOU CLAIMS ACTION SEQUENCE WAS “CHEAP”', 'Officials reviewed the footage and awarded the damage anyway.']
+        ['DARK DOPPELGÄNGER CLAIMS ACTION SEQUENCE WAS “CHEAP”', 'Officials reviewed the footage and awarded the damage anyway.']
       ],
       'one-track': [
         [`${category.toUpperCase()} USED REPEATEDLY IN SUSTAINED ASSAULT`, 'Experts confirm other life categories remained available throughout the incident.'],
@@ -1205,7 +1205,7 @@
       balanced: [
         ['DARK SELF ATTACKED FROM SUSPICIOUS NUMBER OF LIFE AREAS', 'Investigators found damage from several categories and no obvious single motive.'],
         ['MULTIPLE RESPONSIBILITIES COOPERATE IN INTERNAL TAKEDOWN', 'Crestfallen officials call cross-category coordination statistically unsettling.'],
-        ['BALANCED ASSAULT LEAVES DARK YOU WITH NOWHERE TO HIDE', 'No single category received enough attention to claim full credit.']
+        ['BALANCED ASSAULT LEAVES DARK DOPPELGÄNGER WITH NOWHERE TO HIDE', 'No single category received enough attention to claim full credit.']
       ],
       work: [
         ['WORK-RELATED DAMAGE FORCES DARK SELF INTO LIQUIDATION', 'Management has already scheduled a meeting to claim responsibility.'],
@@ -1387,11 +1387,11 @@
 
     if (summary.isVictory) {
       messages.push(
-        'DARK YOU DEFEATED; MOLIFE RELUCTANTLY AUTHORIZES 20 XP',
+        'DARK DOPPELGÄNGER DEFEATED; MOLIFE RELUCTANTLY AUTHORIZES 20 XP',
         `${summary.totalDamage} DAMAGE RECORDED; HOSTILE INTERNAL ENTITY NO LONGER OPERATIONAL`,
         summary.overkill > 0
           ? `${summary.overkill} POINTS OF OVERKILL RECORDED; AUTHORITIES DECLINE TO INVESTIGATE`
-          : 'DARK YOU REACHES EXACTLY ZERO HP; ACCOUNTANTS DESCRIBE RESULT AS DISTURBINGLY TIDY'
+          : 'DARK DOPPELGÄNGER REACHES EXACTLY ZERO HP; ACCOUNTANTS DESCRIBE RESULT AS DISTURBINGLY TIDY'
       );
 
       if (summary.combosLanded > 0) {
@@ -1405,30 +1405,30 @@
       }
     } else if (summary.totalDamage === 0) {
       messages.push(
-        'DARK YOU ENTERS DAY AT FULL HEALTH; CONFIDENCE DESCRIBED AS PREMATURE',
+        'DARK DOPPELGÄNGER ENTERS DAY AT FULL HEALTH; CONFIDENCE DESCRIBED AS PREMATURE',
         'USER HAS OPENED MOLIFE. HOSTILITIES HAVE NOT YET COMMENCED.',
         'TRACK-O-TRON STANDING BY. IT CANNOT, LEGALLY, DO THE TASKS FOR YOU.',
         `HOSTILE INTERNAL ENTITY CURRENTLY REPORTS ${summary.maxHp} / ${summary.maxHp} HP`
       );
-      if (hour >= 18) messages.push('EVENING UPDATE: DARK YOU REMAINS EMBARRASSINGLY UNINJURED');
+      if (hour >= 18) messages.push('EVENING UPDATE: DARK DOPPELGÄNGER REMAINS EMBARRASSINGLY UNINJURED');
     } else if (damageRatio < 0.25) {
       messages.push(
         `LOCAL ACTIONS INFLICT ${summary.totalDamage} DAMAGE; USER IMMEDIATELY EXPECTS RECOGNITION`,
-        `DARK YOU STILL HAS ${remaining} HP; AUTHORITIES DESCRIBE PROGRESS AS ADORABLE`
+        `DARK DOPPELGÄNGER STILL HAS ${remaining} HP; AUTHORITIES DESCRIBE PROGRESS AS ADORABLE`
       );
     } else if (damageRatio < 0.5) {
       messages.push(
-        `DARK YOU DOWN TO ${remaining} HP; CONFIDENCE REMAINS UNAUTHORIZED`,
+        `DARK DOPPELGÄNGER DOWN TO ${remaining} HP; CONFIDENCE REMAINS UNAUTHORIZED`,
         'DAMAGE DETECTED. EXPERTS CAUTION AGAINST CALLING IT A HABIT.'
       );
     } else if (damageRatio < 0.75) {
       messages.push(
         'DEVELOPING: DEFEATING YOURSELF HAS BECOME AN EMBARRASSINGLY REALISTIC POSSIBILITY',
-        `DARK YOU AT ${remaining} HP; LOCAL EXCUSES BEGIN LOSING CREDIBILITY`
+        `DARK DOPPELGÄNGER AT ${remaining} HP; LOCAL EXCUSES BEGIN LOSING CREDIBILITY`
       );
     } else {
       messages.push(
-        `DARK YOU DOWN TO ${remaining} HP; EXCUSES DEPARTMENT REQUESTS EMERGENCY FUNDING`,
+        `DARK DOPPELGÄNGER DOWN TO ${remaining} HP; EXCUSES DEPARTMENT REQUESTS EMERGENCY FUNDING`,
         'NEWSROOM PREPARES RELUCTANT “VICTORY” GRAPHIC'
       );
     }
@@ -1436,18 +1436,18 @@
     const ramp = getHpRampInfo();
     if (state.current.maxHp < state.settings.fullEnemyHp) {
       messages.push(
-        `STARTER PROTOCOL ACTIVE: TODAY'S DARK YOU SPAWNED WITH ${state.current.maxHp} HP. FULL STRENGTH IS ${ramp.fullEnemyHp} HP.`
+        `STARTER PROTOCOL ACTIVE: TODAY'S DARK DOPPELGÄNGER SPAWNED WITH ${state.current.maxHp} HP. FULL STRENGTH IS ${ramp.fullEnemyHp} HP.`
       );
     }
 
     if (!summary.isVictory && hour >= 22) {
-      messages.push('LATE BULLETIN: DARK YOU HAS NOT GONE TO BED JUST BECAUSE YOU WANT TO');
+      messages.push('LATE BULLETIN: DARK DOPPELGÄNGER HAS NOT GONE TO BED JUST BECAUSE YOU WANT TO');
     }
 
     if (yesterday) {
       messages.push(
         yesterday.won
-          ? 'ARCHIVES CONFIRM YESTERDAY’S DARK YOU WAS DEFEATED. TODAY’S HAS BEEN INFORMED.'
+          ? 'ARCHIVES CONFIRM YESTERDAY’S DARK DOPPELGÄNGER WAS DEFEATED. TODAY’S HAS BEEN INFORMED.'
           : 'ARCHIVES CONFIRM YESTERDAY’S FIGHT REMAINS OFFICIALLY UNRESOLVED'
       );
     }
@@ -1469,7 +1469,7 @@
     if (dominant && dominant.baseDamage > 0) {
       const efficiency = getCategoryEfficiency(dominant.id, dominant.baseDamage);
       if (efficiency.multiplier <= 0.6) {
-        messages.push(`TRACK-O-TRON REPORTS ${dominant.name.toUpperCase()} SATURATION; DARK YOU HAS DEVELOPED RESISTANCE`);
+        messages.push(`TRACK-O-TRON REPORTS ${dominant.name.toUpperCase()} SATURATION; DARK DOPPELGÄNGER HAS DEVELOPED RESISTANCE`);
       } else {
         messages.push(`${dominant.name.toUpperCase()} CURRENTLY LEADS LOCAL DAMAGE MARKETS`);
       }
@@ -1979,7 +1979,7 @@
     if (options.comboEvent) {
       specialMessage = `${options.comboEvent.comboName.toUpperCase()} COMBO LANDS; LOCAL DARKNESS TAKES ADDITIONAL ${options.comboEvent.damage} DAMAGE`;
     } else if (options.justDefeated) {
-      specialMessage = '…WE HAVE RECEIVED UPDATED INFORMATION. DARK YOU IS DOWN. VICTORY +20 XP.';
+      specialMessage = '…WE HAVE RECEIVED UPDATED INFORMATION. DARK DOPPELGÄNGER IS DOWN. VICTORY +20 XP.';
     } else if (options.hitDamage && options.hitName) {
       specialMessage = `${options.hitName.toUpperCase()} INFLICTS ${options.hitDamage} DAMAGE ON HOSTILE INTERNAL ENTITY`;
     }
@@ -2047,7 +2047,7 @@
       ? 'down'
       : healthRatio <= 0.25
         ? 'critical'
-        : healthRatio <= 0.55
+        : healthRatio <= 0.60
           ? 'wounded'
           : 'active';
     els.fightCard.dataset.health = healthState;
@@ -2066,12 +2066,12 @@
     } else {
       els.statusBadge.textContent = healthRatio <= 0.25
         ? 'HOSTILE CRITICAL'
-        : healthRatio <= 0.55
+        : healthRatio <= 0.60
           ? 'HOSTILE WOUNDED'
           : 'HOSTILE ACTIVE';
       els.heroMessage.textContent = summary.totalDamage === 0
         ? 'Target standing. Make your moves and end the fight.'
-        : `${summary.currentHp} HP left. Do enough to put Dark You down; the rest of the day is yours.`;
+        : `${summary.currentHp} HP left. Do enough to put Dark Doppelgänger down; the rest of the day is yours.`;
       els.victoryBanner.hidden = true;
     }
   }
@@ -2362,7 +2362,7 @@
       strong.textContent = formatDate(day.date, { weekday: 'short', day: 'numeric', month: 'short' });
       const detail = document.createElement('span');
       detail.textContent = day.won
-        ? (day.dayCard?.type || 'Dark You defeated')
+        ? (day.dayCard?.type || 'Dark Doppelgänger defeated')
         : 'Fight unresolved';
       date.append(strong, detail);
 
@@ -2981,7 +2981,7 @@
     if (els.newActionVisible) els.newActionVisible.checked = true;
     renderActionsEditor();
     renderCombosEditor();
-    els.settingsMessage.textContent = 'Action added. Dark You has been notified.';
+    els.settingsMessage.textContent = 'Action added. Dark Doppelgänger has been notified.';
     commitSettingsDraft();
   }
 
