@@ -15,6 +15,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy production
+    # Provider-neutral deployment: credentials remain in repository secrets.
     runs-on: ubuntu-latest
 
     steps:
