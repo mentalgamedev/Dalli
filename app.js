@@ -425,34 +425,53 @@
   function renderCategories(summary) {
     els.categoriesGrid.replaceChildren();
 
-    state.settings.categories.forEach((category, index) => {
+    const visibleCategories = state.settings.categories.filter(category => {
+      if (category.id !== UNCATEGORIZED_ID) return true;
+      const hasActions = state.settings.actions.some(action => action.categoryId === UNCATEGORIZED_ID);
+      const hasXp = (summary.categoryXp[UNCATEGORIZED_ID] || 0) > 0;
+      return hasActions || hasXp;
+    });
+
+    visibleCategories.forEach((category, index) => {
       const fragment = els.categoryTemplate.content.cloneNode(true);
       const card = fragment.querySelector('.category-card');
       const icon = fragment.querySelector('.category-icon');
       const title = fragment.querySelector('.category-title');
       const subtitle = fragment.querySelector('.category-subtitle');
       const score = fragment.querySelector('.category-score');
+      const meter = fragment.querySelector('.category-meter');
       const fill = fragment.querySelector('.category-meter-fill');
       const actionsList = fragment.querySelector('.actions-list');
 
       const currentXp = summary.categoryXp[category.id] || 0;
-      const requiredXp = summary.requirements[category.id] || 0;
-      const completed = currentXp >= requiredXp;
+      const isFallback = category.id === UNCATEGORIZED_ID;
+      const requiredXp = isFallback ? 0 : (summary.requirements[category.id] || 0);
+      const completed = !isFallback && currentXp >= requiredXp;
       const color = categoryColor(category.id, index);
 
       card.style.setProperty('--category-color', color);
+      if (isFallback) card.classList.add('is-fallback-category');
       icon.textContent = category.icon;
       title.textContent = category.name;
-      subtitle.textContent = `${category.weight}× weight · ${requiredXp} XP minimum`;
-      score.textContent = `${currentXp} / ${requiredXp}${completed ? ' ✓' : ''}`;
-      if (completed) score.style.color = color;
-      fill.style.width = `${Math.min(100, (currentXp / Math.max(requiredXp, 1)) * 100)}%`;
+
+      if (isFallback) {
+        subtitle.textContent = 'Fallback · does not affect balance';
+        score.textContent = `${currentXp} XP`;
+        meter.hidden = true;
+      } else {
+        subtitle.textContent = `${category.weight}× weight · ${requiredXp} XP minimum`;
+        score.textContent = `${currentXp} / ${requiredXp}${completed ? ' ✓' : ''}`;
+        if (completed) score.style.color = color;
+        fill.style.width = `${Math.min(100, (currentXp / Math.max(requiredXp, 1)) * 100)}%`;
+      }
 
       const actions = state.settings.actions.filter(action => action.categoryId === category.id);
       if (!actions.length) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
-        empty.textContent = 'No actions yet. Add one in Settings.';
+        empty.textContent = isFallback
+          ? 'Deleted-category actions will appear here.'
+          : 'No actions yet. Add one in Settings.';
         actionsList.append(empty);
       } else {
         actions.forEach(action => {
