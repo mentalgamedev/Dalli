@@ -1123,28 +1123,102 @@
     return ((numeric % 360) + 360) % 360;
   }
 
+  function markMotionSensorLive(mode) {
+    if (motionSensorLive) return;
+
+    motionSensorLive = true;
+    document.body.classList.add('motion-fx-enabled', 'ambient-fx-enabled');
+    window.clearTimeout(motionProbeTimer);
+    motionProbeTimer = null;
+    updateMotionFxUi(
+      mode === 'orientation'
+        ? 'Active · orientation sensor connected.'
+        : 'Active · motion fallback connected.'
+    );
+  }
+
   function handleDeviceOrientation(event) {
     if (!motionFxEnabled || reducedMotionQuery.matches) return;
 
     const gamma = Number(event.gamma);
     const beta = Number(event.beta);
     const alpha = Number(event.alpha);
+    const hasTilt = Number.isFinite(gamma) || Number.isFinite(beta);
+
+    if (!hasTilt && !Number.isFinite(alpha)) return;
+
+    orientationSamples += 1;
+    lastOrientationSampleAt = performance.now();
 
     if (Number.isFinite(gamma)) targetRoll = clampNumber(gamma / 42, -1, 1, 0);
     if (Number.isFinite(beta)) targetPitch = clampNumber(beta / 55, -1, 1, 0);
     if (Number.isFinite(alpha)) targetYaw = normalizeAngle(alpha);
+
+    markMotionSensorLive('orientation');
   }
 
-  function attachOrientationListener() {
-    if (orientationListenerAttached) return;
-    window.addEventListener('deviceorientation', handleDeviceOrientation, true);
-    orientationListenerAttached = true;
+  function handleDeviceMotion(event) {
+    if (!motionFxEnabled || reducedMotionQuery.matches) return;
+
+    const gravity = event.accelerationIncludingGravity;
+    if (!gravity) return;
+
+    const x = Number(gravity.x);
+    const y = Number(gravity.y);
+    const z = Number(gravity.z);
+    if (![x, y, z].some(Number.isFinite)) return;
+
+    motionSamples += 1;
+    lastMotionSampleAt = performance.now();
+
+    // DeviceMotion is a fallback for browsers that expose gravity but not orientation.
+    // Prefer orientation whenever it is arriving recently because it provides yaw too.
+    const orientationIsFresh = (performance.now() - lastOrientationSampleAt) < 1500;
+    if (!orientationIsFresh) {
+      const gx = Number.isFinite(x) ? x : 0;
+      const gy = Number.isFinite(y) ? y : 0;
+      const gz = Number.isFinite(z) ? z : 0;
+      const rollRad = Math.atan2(gx, Math.sqrt((gy * gy) + (gz * gz)));
+      const pitchRad = Math.atan2(-gy, Math.sqrt((gx * gx) + (gz * gz)));
+
+      targetRoll = clampNumber(rollRad / (Math.PI / 3), -1, 1, 0);
+      targetPitch = clampNumber(pitchRad / (Math.PI / 3), -1, 1, 0);
+      targetYaw = normalizeAngle(180 + ((targetRoll * 75) - (targetPitch * 35)));
+    }
+
+    markMotionSensorLive(orientationIsFresh ? 'orientation' : 'motion');
   }
 
-  function detachOrientationListener() {
-    if (!orientationListenerAttached) return;
-    window.removeEventListener('deviceorientation', handleDeviceOrientation, true);
-    orientationListenerAttached = false;
+  function attachMotionListeners() {
+    if (!orientationListenerAttached) {
+      window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+      orientationListenerAttached = true;
+    }
+
+    if (!motionListenerAttached) {
+      window.addEventListener('devicemotion', handleDeviceMotion, true);
+      motionListenerAttached = true;
+    }
+  }
+
+  function detachMotionListeners() {
+    if (orientationListenerAttached) {
+      window.removeEventListener('deviceorientation', handleDeviceOrientation, true);
+      orientationListenerAttached = false;
+    }
+
+    if (motionListenerAttached) {
+      window.removeEventListener('devicemotion', handleDeviceMotion, true);
+      motionListenerAttached = false;
+    }
+
+    window.clearTimeout(motionProbeTimer);
+    motionProbeTimer = null;
+  }
+
+  function motionApiSupported() {
+    return typeof window.DeviceOrientationEvent !== 'undefined'
+      || typeof window.DeviceMotionEvent !== 'undefined';
   }
 
   function updateMotionFxUi(message = '') {
@@ -1157,16 +1231,23 @@
       return;
     }
 
-    const supported = typeof window.DeviceOrientationEvent !== 'undefined';
+    const supported = motionApiSupported();
     els.motionFxButton.disabled = !supported;
+
+    if (!supported) {
+      els.motionFxButton.textContent = 'Motion unavailable';
+      els.motionFxStatus.textContent = 'This browser does not expose device motion sensors.';
+      return;
+    }
+
     els.motionFxButton.textContent = motionFxEnabled ? 'Disable Motion FX' : 'Enable Motion FX';
 
     if (message) {
       els.motionFxStatus.textContent = message;
-    } else if (!supported) {
-      els.motionFxStatus.textContent = 'Device orientation is not available in this browser.';
-    } else if (motionFxEnabled) {
+    } else if (motionFxEnabled && motionSensorLive) {
       els.motionFxStatus.textContent = 'Active · tilt changes shimmer and Newswire speed.';
+    } else if (motionFxEnabled) {
+      els.motionFxStatus.textContent = 'Waiting for motion sensor data…';
     } else {
       els.motionFxStatus.textContent = 'Optional · orientation data stays on this device.';
     }
@@ -1174,11 +1255,21 @@
 
   function disableMotionFx() {
     motionFxEnabled = false;
-    detachOrientationListener();
+    motionSensorLive = false;
+    orientationSamples = 0;
+    motionSamples = 0;
+    lastOrientationSampleAt = 0;
+    lastMotionSampleAt = 0;
+    detachMotionListeners();
     targetRoll = 0;
     targetPitch = 0;
     targetYaw = 0;
     document.body.classList.remove('motion-fx-enabled');
+
+    if (!finePointerQuery.matches) {
+      document.body.classList.remove('ambient-fx-enabled');
+    }
+
     try {
       localStorage.setItem(MOTION_PREF_KEY, '0');
     } catch (error) {
@@ -1187,46 +1278,86 @@
     updateMotionFxUi();
   }
 
+  async function requestMotionPermissionIfNeeded() {
+    const requests = [];
+
+    if (typeof window.DeviceOrientationEvent?.requestPermission === 'function') {
+      requests.push(() => window.DeviceOrientationEvent.requestPermission());
+    }
+
+    if (typeof window.DeviceMotionEvent?.requestPermission === 'function') {
+      requests.push(() => window.DeviceMotionEvent.requestPermission());
+    }
+
+    for (const request of requests) {
+      try {
+        const result = await request();
+        if (result !== 'granted') return false;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  function beginMotionProbe() {
+    window.clearTimeout(motionProbeTimer);
+    updateMotionFxUi('Waiting for motion sensor data…');
+
+    motionProbeTimer = window.setTimeout(() => {
+      if (!motionFxEnabled || motionSensorLive) return;
+
+      const secureHint = window.isSecureContext
+        ? ''
+        : ' MoLife must be opened over HTTPS.';
+      updateMotionFxUi(
+        'No tilt data received. Check Chrome site settings → Motion sensors, then disable and re-enable Motion FX.' + secureHint
+      );
+    }, 3000);
+  }
+
   async function enableMotionFx({ fromSavedPreference = false } = {}) {
     if (reducedMotionQuery.matches) {
       updateMotionFxUi();
       return;
     }
 
-    if (typeof window.DeviceOrientationEvent === 'undefined') {
-      updateMotionFxUi('Device orientation is not available in this browser.');
+    if (!motionApiSupported()) {
+      updateMotionFxUi('Device motion is not available in this browser.');
       return;
     }
 
-    const permissionApi = typeof window.DeviceOrientationEvent.requestPermission === 'function';
+    const permissionApi = typeof window.DeviceOrientationEvent?.requestPermission === 'function'
+      || typeof window.DeviceMotionEvent?.requestPermission === 'function';
+
+    if (permissionApi && fromSavedPreference) {
+      updateMotionFxUi('Tap Enable Motion FX to re-authorize tilt effects on this device.');
+      return;
+    }
 
     if (permissionApi) {
-      if (fromSavedPreference) {
-        updateMotionFxUi('Tap Enable Motion FX to re-authorize tilt effects on this device.');
-        return;
-      }
-
-      try {
-        const permission = await window.DeviceOrientationEvent.requestPermission();
-        if (permission !== 'granted') {
-          updateMotionFxUi('Motion permission was not granted.');
-          return;
-        }
-      } catch (error) {
-        updateMotionFxUi('Motion permission could not be requested.');
+      const granted = await requestMotionPermissionIfNeeded();
+      if (!granted) {
+        updateMotionFxUi('Motion permission was not granted.');
         return;
       }
     }
 
     motionFxEnabled = true;
-    attachOrientationListener();
-    document.body.classList.add('motion-fx-enabled', 'ambient-fx-enabled');
+    motionSensorLive = false;
+    orientationSamples = 0;
+    motionSamples = 0;
+    lastOrientationSampleAt = 0;
+    lastMotionSampleAt = 0;
+    attachMotionListeners();
+    beginMotionProbe();
+
     try {
       localStorage.setItem(MOTION_PREF_KEY, '1');
     } catch (error) {
       // Preference storage is optional.
     }
-    updateMotionFxUi();
   }
 
   async function toggleMotionFx() {
@@ -1234,6 +1365,19 @@
       disableMotionFx();
     } else {
       await enableMotionFx();
+    }
+  }
+
+  async function nudgePortraitOrientation() {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true;
+
+    if (!standalone || !screen.orientation?.lock) return;
+
+    try {
+      await screen.orientation.lock('portrait-primary');
+    } catch (error) {
+      // The manifest is the primary portrait hint; browser locking is opportunistic.
     }
   }
 
@@ -2137,5 +2281,6 @@
   if (starterRampClear) saveState();
   render({ showDayCard: starterRampClear, justCleared: starterRampClear });
   initializeMotionFx();
+  nudgePortraitOrientation();
   startVisualLoop();
 })();
