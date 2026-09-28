@@ -216,7 +216,10 @@
     setSignedInUi();
     setSyncStatus('Loading cloud…', 'busy');
 
-    const remote = await apiRequest('state.php');
+    const remote = await apiRequest('state.php', {
+      method: 'POST',
+      body: JSON.stringify({ operation: 'read' })
+    });
     const storageKey = userStorageKey(user.id);
     const cachedUserState = window.DalliApp.readStoredState(storageKey);
 
@@ -256,6 +259,7 @@
       method: 'POST',
       headers: { 'X-CSRF-Token': csrfToken },
       body: JSON.stringify({
+        operation: 'save',
         state: snapshot,
         expectedRevision: revision
       })
@@ -337,7 +341,10 @@
     if (!user || !cloudReady || conflict || saving || queuedState) return;
 
     try {
-      const remote = await apiRequest('state.php');
+      const remote = await apiRequest('state.php', {
+      method: 'POST',
+      body: JSON.stringify({ operation: 'read' })
+    });
       if (remote.state && remote.revision > revision) {
         revision = remote.revision;
         window.DalliApp.replaceState(remote.state, userStorageKey(user.id));
@@ -352,7 +359,10 @@
     if (!window.DalliApp) return;
 
     try {
-      const session = await apiRequest('session.php');
+      const session = await apiRequest('session.php', {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
       if (session.authenticated) {
         await activateSession(session);
       } else {
