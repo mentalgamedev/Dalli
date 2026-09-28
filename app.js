@@ -343,8 +343,8 @@
 
   function saveState() {
     localStorage.setItem(activeStorageKey, JSON.stringify(state));
-    if (!suppressCloudSave && window.MoLifeCloud && typeof window.MoLifeCloud.queueSave === 'function') {
-      window.MoLifeCloud.queueSave(deepClone(state));
+    if (!suppressCloudSave && window.DalliCloud && typeof window.DalliCloud.queueSave === 'function') {
+      window.DalliCloud.queueSave(deepClone(state));
     }
   }
 
@@ -1678,7 +1678,7 @@
     render();
   }
 
-  window.MoLifeApp = Object.freeze({
+  window.DalliApp = Object.freeze({
     stateVersion: STATE_VERSION,
     getState: () => deepClone(state),
     getDefaultState: () => freshState(),
