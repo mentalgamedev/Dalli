@@ -1482,9 +1482,14 @@
       if (!actions.length) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
+        const hasHiddenActions = state.settings.actions.some(
+          action => action.categoryId === category.id && action.trackVisible === false
+        );
         empty.textContent = category.id === UNCATEGORIZED_ID
           ? 'Deleted-category actions will hide here.'
-          : 'No actions yet. Add one in Settings.';
+          : hasHiddenActions
+            ? 'No visible actions. Unhide one in Settings.'
+            : 'No actions yet. Add one in Settings.';
         actionsList.append(empty);
       } else {
         actions.forEach(action => {
