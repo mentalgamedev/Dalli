@@ -1,6 +1,6 @@
-# Dalli
+# MoLife
 
-Dalli is a small daily XP game from the deeply questionable civic ecosystem of **Crestfallen**. It turns everyday tasks into a daily challenge without requiring every part of life to receive attention every single day.
+MoLife is a small daily XP game from the deeply questionable civic ecosystem of **Crestfallen**, allegedly powered by **mo.les.tech**. It turns everyday tasks into a daily challenge without requiring every part of life to receive attention every single day.
 
 ## Core loop
 
@@ -15,7 +15,7 @@ There are no mandatory categories. A work-only day is valid; it simply becomes l
 
 ## Progression
 
-Dalli tracks three different kinds of progress:
+MoLife tracks three different kinds of progress:
 
 - **Level** — permanent lifetime progress from all effective XP, even on days that are not cleared. Every new level costs more XP than the last.
 - **Street Cred / Rank** — consistency over the rolling last 30 days. A cleared day counts; grinding extra XP on one day does not.
@@ -35,7 +35,7 @@ Current ranks:
 
 Clearing a day creates a persistent newspaper-style report based on how the day went.
 
-Dalli can classify days as things such as:
+MoLife can classify days as things such as:
 
 - Corporate Drone
 - Domestic Menace
@@ -46,6 +46,15 @@ Dalli can classify days as things such as:
 - Needs Intervention
 
 Reports are deterministic local content; they do not require an AI service.
+
+
+## Crestfallen Newswire
+
+The header contains a reactive fake news feed that comments on actual game state: current XP, remaining XP, yesterday's result, rank, streak, level and category saturation. Before the daily goal is reached it mostly mocks the lack or insufficiency of progress; after clearance it becomes reluctantly congratulatory.
+
+## Track-o-Tron
+
+The main action area is branded **Track-o-Tron**. Category action decks keep a consistent height and scroll independently when a category contains more actions than fit comfortably on screen, preserving the dashboard layout on desktop and mobile.
 
 ## Categories and actions
 
@@ -71,7 +80,7 @@ Detailed events are retained for recent history while compact daily summaries ca
 
 ## Accounts and sync
 
-Dalli has a deliberately small private account system:
+MoLife has a deliberately small private account system:
 
 - the **first account becomes the owner**
 - the owner creates one-use invite links from the Account screen
@@ -88,14 +97,14 @@ Invite secrets live in the URL fragment (`#invite=...`), so the secret is not se
 
 Guest/local mode uses browser `localStorage`.
 
-Signed-in users store their validated Dalli state in MySQL/MariaDB-compatible storage. Server-owned authentication metadata is kept in a protected envelope in `user_state.state_json` and is never accepted from, or returned to, the browser as app state.
+Signed-in users store their validated MoLife state in MySQL/MariaDB-compatible storage. Server-owned authentication metadata is kept in a protected envelope in `user_state.state_json` and is never accepted from, or returned to, the browser as app state.
 
 The database schema remains intentionally small:
 
 - `users`
 - `user_state`
 
-Dalli v3 intentionally starts a fresh gameplay state when it encounters an older incompatible game-state version. Accounts and authentication remain intact.
+MoLife v3 intentionally starts a fresh gameplay state when it encounters an older incompatible game-state version. Accounts and authentication remain intact.
 
 ## Security
 
