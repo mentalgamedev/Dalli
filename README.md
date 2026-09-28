@@ -63,7 +63,9 @@ The header contains a reactive fake news feed that comments on actual game state
 
 ## Motion FX
 
-MoLife has optional device-orientation effects on supported mobile browsers. When enabled, roll influences Newswire speed while roll/pitch/yaw drive a smoothed purple/turquoise background shimmer. Orientation values are used live in the browser and are not stored in game state or sent to the server. Browsers that require sensor permission only request it from the explicit **Enable Motion FX** button. Desktop pointer movement provides a subtle shimmer equivalent, and reduced-motion preferences disable the effect.
+MoLife has optional device-orientation effects on supported mobile browsers. When enabled, roll influences Newswire speed while roll/pitch/yaw drive a smoothed purple/turquoise background shimmer. MoLife verifies that real sensor samples are arriving instead of assuming the API works, and falls back to gravity data from `devicemotion` when orientation events are unavailable. If no samples arrive, Settings reports that explicitly. Orientation values are used live in the browser and are not stored in game state or sent to the server. Browsers that require sensor permission only request it from the explicit **Enable Motion FX** button. Desktop pointer movement provides a subtle shimmer equivalent, and reduced-motion preferences disable the effect.
+
+Installed PWAs request **portrait-primary** orientation in the web app manifest; MoLife also opportunistically asks the Screen Orientation API for portrait when running standalone. Normal browser tabs remain under browser/OS control.
 
 ## Track-o-Tron
 
@@ -77,6 +79,7 @@ The main action area is branded **Track-o-Tron**. Category action decks keep a c
 - actions have editable base XP values
 - actions can be repeatable or once-per-day
 - every action has a **Show in Track-o-Tron** toggle; hiding it keeps the action and its configuration without showing it on the main board
+- default action wording is intentionally qualitative rather than timed: **Quick movement / stretch**, **Walk / fresh air**, **Proper workout**, **Proper healthy meal**, **Focus session**, **Deep focus session**, **Practice / skill**, **Annoying admin task**, **Tiny chore**, **Proper chore / cleaning**, **Laundry**, **Big chore / deep clean**
 - deleting a category moves its actions to **Uncategorized**
 - Uncategorized is a permanent fallback with a fixed 50% payout
 
