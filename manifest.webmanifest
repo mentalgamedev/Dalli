@@ -1,7 +1,7 @@
 {
-  "name": "Dalli",
-  "short_name": "Dalli",
-  "description": "A suspiciously effective Crestfallen daily XP game.",
+  "name": "MoLife",
+  "short_name": "MoLife",
+  "description": "Suspiciously effective life optimization from mo.les.tech.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0b0d12",
