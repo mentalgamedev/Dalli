@@ -1,0 +1,30 @@
+name: Dalli checks
+
+on:
+  push:
+    branches: [main, online-v2]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check app.js
+          node --check cloud.js
+          node --check service-worker.js
+
+      - name: Check PHP syntax
+        run: |
+          find . -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
+
+      - name: Ensure no live config was committed
+        run: |
+          test ! -e dalli-config.php
+          test ! -e .env
