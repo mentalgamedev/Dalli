@@ -82,3 +82,10 @@ Highlights:
 - restrictive browser security headers
 
 See [DEPLOY.md](DEPLOY.md) for deployment and first-account setup.
+
+
+## Reusable deployment playbook
+
+The lessons from deploying Dalli to lima-city are documented for reuse in future apps:
+
+- [GitHub → lima-city deployment playbook](docs/LIMA_CITY_GITHUB_DEPLOYMENT_PLAYBOOK.md)
