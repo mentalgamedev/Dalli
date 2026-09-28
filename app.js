@@ -1052,19 +1052,23 @@
     }
   }
 
+
   function archiveCurrentDay() {
     if (!state.current.date) return;
 
     const summary = getSummary();
     const record = {
       date: state.current.date,
-      xp: summary.totalXp,
-      baseXp: summary.totalBaseXp,
-      goal: summary.goal,
+      damage: summary.totalDamage,
+      baseDamage: summary.totalBaseDamage,
+      maxHp: summary.maxHp,
       won: summary.isVictory,
-      categoryXp: summary.categoryXp,
-      categoryBaseXp: summary.categoryBaseXp,
-      clearedAt: state.current.defeatedAt,
+      categoryDamage: summary.categoryDamage,
+      categoryBaseDamage: summary.categoryBaseDamage,
+      defeatedAt: state.current.defeatedAt,
+      victoryXp: state.current.victoryXpAwarded,
+      combosLanded: summary.combosLanded,
+      overkill: summary.overkill,
       dayCard: state.current.dayCard,
       transactions: deepClone(state.current.transactions)
     };
@@ -1085,7 +1089,15 @@
     const today = localDateKey();
 
     if (!state.current.date) {
-      state.current.date = today;
+      state.current = {
+        date: today,
+        maxHp: getEnemyHp(),
+        transactions: [],
+        comboProgress: {},
+        defeatedAt: null,
+        victoryXpAwarded: 0,
+        dayCard: null
+      };
       saveState();
       return;
     }
@@ -1095,8 +1107,11 @@
     archiveCurrentDay();
     state.current = {
       date: today,
+      maxHp: getEnemyHp(),
       transactions: [],
-      clearedAt: null,
+      comboProgress: {},
+      defeatedAt: null,
+      victoryXpAwarded: 0,
       dayCard: null
     };
     wasVictory = false;
@@ -1121,7 +1136,7 @@
       .filter(category => category.id !== UNCATEGORIZED_ID)
       .map(category => ({
         ...category,
-        base: summary.categoryBaseXp[category.id] || 0
+        base: summary.categoryBaseDamage[category.id] || 0
       }))
       .filter(category => category.base > 0)
       .sort((a, b) => b.base - a.base);
@@ -1129,89 +1144,88 @@
     const total = active.reduce((sum, category) => sum + category.base, 0) || 1;
     const dominant = active[0] || { id: UNCATEGORIZED_ID, name: 'Uncategorized', base: 0 };
     const share = dominant.base / total;
-    const ratio = summary.totalXp / Math.max(1, summary.goal);
 
-    if (ratio >= 1.5) {
-      return { key: 'overkill', type: 'NEEDS INTERVENTION', dominant };
+    if (summary.overkill >= Math.max(10, summary.maxHp * 0.5)) {
+      return { key: 'overkill', type: 'EXCESSIVE FORCE', dominant };
+    }
+    if (summary.combosLanded >= 2) {
+      return { key: 'combo', type: 'COMBO OFFENDER', dominant };
     }
     if (share >= 0.9 && active.length > 0) {
-      return { key: 'one-track', type: 'ONE-TRACK MIND', dominant };
+      return { key: 'one-track', type: 'ONE-TRACK ASSAILANT', dominant };
     }
-    if (ratio <= 1.05) {
+    if (summary.overkill <= Math.max(2, Math.round(summary.maxHp * 0.05))) {
       return { key: 'barely', type: 'TECHNICALLY VICTORIOUS', dominant };
     }
     if (active.length >= 3 && share < 0.46) {
-      return { key: 'balanced', type: 'SUSPICIOUSLY FUNCTIONAL ADULT', dominant };
+      return { key: 'balanced', type: 'MULTI-VECTOR THREAT', dominant };
     }
-    if (dominant.id === 'work') {
-      return { key: 'work', type: 'CORPORATE DRONE', dominant };
-    }
-    if (dominant.id === 'chores') {
-      return { key: 'chores', type: 'DOMESTIC MENACE', dominant };
-    }
-    if (dominant.id === 'wellbeing') {
-      return { key: 'wellbeing', type: 'WELLNESS CRIMINAL', dominant };
-    }
-
-    return { key: 'custom', type: `${dominant.name.toUpperCase().slice(0, 48)} ENTHUSIAST`, dominant };
+    if (dominant.id === 'work') return { key: 'work', type: 'CORPORATE COMBATANT', dominant };
+    if (dominant.id === 'chores') return { key: 'chores', type: 'DOMESTIC MENACE', dominant };
+    if (dominant.id === 'wellbeing') return { key: 'wellbeing', type: 'WELLNESS ENFORCER', dominant };
+    return { key: 'custom', type: `${dominant.name.toUpperCase().slice(0, 48)} SPECIALIST`, dominant };
   }
 
   function headlineContent(personality, summary) {
     const category = personality.dominant.name;
     const pools = {
       overkill: [
-        ['LOCAL CITIZEN EXCEEDS RECOMMENDED PRODUCTIVITY; NEIGHBORS CONCERNED', 'Municipal experts advise sitting down before this becomes a personality.'],
-        ['DAILY TARGET OBLITERATED; AUTHORITIES ASK WHO THIS IS FOR', 'Witnesses report the subject continued earning XP after being legally allowed to stop.'],
-        ['PRODUCTIVITY LEVELS NOW VISIBLE FROM SPACE', 'Crestfallen emergency services have declined to comment.']
+        ['DARK SELF DEFEATED; USER CONTINUES HITTING IT FOR ADMINISTRATIVE REASONS', `${summary.overkill} points of overkill were recorded. Authorities insist this was probably unnecessary.`],
+        ['INTERNAL HOSTILITY ENDS IN DISPROPORTIONATE RESPONSE', 'Crestfallen observers describe the damage total as “legally a bit much.”'],
+        ['DARK YOU FILES COMPLAINT AFTER FIGHT ALREADY OVER', 'mo.les.tech confirms there is currently no appeals process for hostile internal entities.']
+      ],
+      combo: [
+        ['COMBO ACTIVITY LINKED TO COLLAPSE OF LOCAL DARKNESS', `${summary.combosLanded} combo attacks landed before the paperwork could intervene.`],
+        ['ORDERED BEHAVIOR PRODUCES ALARMING RESULTS', 'Investigators say several unrelated responsible decisions may have been coordinated.'],
+        ['DARK YOU CLAIMS ACTION SEQUENCE WAS “CHEAP”', 'Officials reviewed the footage and awarded the damage anyway.']
       ],
       'one-track': [
-        [`RESIDENT DISCOVERS ${category.toUpperCase()}, REFUSES TO LOOK AWAY`, 'Experts confirm that other categories continued to exist throughout the incident.'],
-        [`${category.toUpperCase()} MONOPOLIZES ENTIRE DAY IN HOSTILE TAKEOVER`, 'Diversification was reportedly discussed and immediately rejected.'],
-        ['ONE-TRACK MIND ACHIEVES TECHNICAL SUCCESS', `Nearly every road today somehow led back to ${category}.`]
+        [`${category.toUpperCase()} USED REPEATEDLY IN SUSTAINED ASSAULT`, 'Experts confirm other life categories remained available throughout the incident.'],
+        ['ONE-TRACK STRATEGY SOMEHOW WORKS', `Nearly every road today led through ${category}, with progressively less efficient results.`],
+        [`${category.toUpperCase()} MONOPOLIZES DAILY OFFENSIVE`, 'Diversification was reportedly discussed and immediately ignored.']
       ],
       barely: [
-        ['DAILY TARGET CLEARED BY MARGIN TOO SMALL TO PROSECUTE', 'Officials confirm that a win remains a win, irritatingly.'],
-        ['CITIZEN SLIDES ACROSS FINISH LINE; CLAIMS THIS WAS THE PLAN', 'No witnesses were willing to support that version of events.'],
-        ['MINIMUM VIABLE PRODUCTIVITY DECLARED A TRIUMPH', 'The paperwork says cleared. The paperwork is legally binding.']
+        ['DARK SELF DEFEATED BY MARGIN TOO SMALL TO PROSECUTE', 'Officials confirm that zero remaining HP is still zero remaining HP.'],
+        ['CITIZEN WINS FIGHT; FORENSIC TEAM REQUESTS MAGNIFYING GLASS', 'The final margin was narrow enough to qualify as paperwork.'],
+        ['MINIMUM VIABLE VIOLENCE DECLARED A VICTORY', 'The enemy is down. The method will not be entered into textbooks.']
       ],
       balanced: [
-        ['LOCAL ADULT FUNCTIONS NORMALLY; INVESTIGATION OPENED', 'A suspicious amount of different life areas received attention today.'],
-        ['CITIZEN DEMONSTRATES BALANCE, ALARMING FRIENDS AND FAMILY', 'Authorities are checking whether this behavior is sustainable or merely showing off.'],
-        ['MULTIPLE RESPONSIBILITIES HANDLED IN SINGLE DAY', 'Crestfallen officials call the event statistically unsettling.']
+        ['DARK SELF ATTACKED FROM SUSPICIOUS NUMBER OF LIFE AREAS', 'Investigators found damage from several categories and no obvious single motive.'],
+        ['MULTIPLE RESPONSIBILITIES COOPERATE IN INTERNAL TAKEDOWN', 'Crestfallen officials call cross-category coordination statistically unsettling.'],
+        ['BALANCED ASSAULT LEAVES DARK YOU WITH NOWHERE TO HIDE', 'No single category received enough attention to claim full credit.']
       ],
       work: [
-        ['LOCAL OFFICE WORKER COMPLETES TASKS WITHOUT DIRECT SUPERVISION', 'Management immediately scheduled a meeting to determine how this happened.'],
-        ['EMPLOYEE PRODUCES MEASURABLE OUTPUT; COMPANY TAKES CREDIT', 'The worker was unavailable for comment because apparently there was more work.'],
-        ['WORK OCCURRED. VOLUNTARILY.', 'mo.les.tech representatives describe the incident as a promising compliance signal.']
+        ['WORK-RELATED DAMAGE FORCES DARK SELF INTO LIQUIDATION', 'Management has already scheduled a meeting to claim responsibility.'],
+        ['PRODUCTIVITY USED AS BLUNT INSTRUMENT', 'mo.les.tech representatives describe the incident as a promising compliance signal.'],
+        ['LOCAL OFFICE WORKER WEAPONIZES FOCUS', 'The hostile internal entity was unavailable for comment because apparently there was more work.']
       ],
       chores: [
-        ['RESIDENT CLEANS HOME; AUTHORITIES SEEK MOTIVE', 'Several surfaces were reportedly left visibly less disgusting.'],
-        ['DOMESTIC ORDER RESTORED IN LIMITED AREA', 'Experts warn that entropy remains at large.'],
-        ['LAUNDRY AND RELATED ACTIVITIES SHAKE LOCAL ECONOMY', 'One chair may finally be used as a chair again.']
+        ['DOMESTIC TASKS USED IN SUCCESSFUL INTERNAL ASSAULT', 'Several surfaces and one dark self were reportedly left in worse condition than before.'],
+        ['LAUNDRY-ADJACENT ACTIVITY SHAKES LOCAL DARKNESS', 'One chair may finally be used as a chair again.'],
+        ['HOUSEHOLD ORDER RESTORED; INTERNAL ENTITY NOT SO LUCKY', 'Entropy remains at large despite one confirmed casualty.']
       ],
       wellbeing: [
-        ['RESIDENT PRACTICES SELF-CARE, IMMEDIATELY BECOMES INSUFFERABLE', 'Sources confirm hydration and movement were both involved.'],
-        ['LOCAL BODY RECEIVES ROUTINE MAINTENANCE', 'Owner reportedly surprised to learn warranty conditions still apply.'],
-        ['WELLBEING ACTIVITY DETECTED IN CRESTFALLEN', 'Officials are monitoring the situation for signs of optimism.']
+        ['SELF-CARE SOMEHOW COUNTS AS ATTACK DAMAGE', 'Legal scholars are reviewing whether this creates a conflict of interest.'],
+        ['LOCAL BODY RECEIVES MAINTENANCE; DARK SELF RECEIVES CONSEQUENCES', 'Hydration and movement were both mentioned in the incident report.'],
+        ['WELLBEING ACTIVITY PROVES HOSTILE TO INTERNAL DARKNESS', 'Officials are monitoring the situation for signs of optimism.']
       ],
       custom: [
-        [`${category.toUpperCase()} ACTIVITY SURGES ACROSS ONE HOUSEHOLD`, 'The city has formed a committee and will report back in six to eight months.'],
-        [`LOCAL SPECIALIST DEVOTES SUSPICIOUS ENERGY TO ${category.toUpperCase()}`, 'No permit was found, but the XP appears valid.'],
-        [`${category.toUpperCase()} SECTOR POSTS STRONG GAINS`, 'Analysts have upgraded the day from “meh” to “technically productive.”']
+        [`${category.toUpperCase()} DAMAGE SURGES ACROSS ONE HOUSEHOLD`, 'The city has formed a committee and will report back in six to eight months.'],
+        [`LOCAL SPECIALIST WEAPONIZES ${category.toUpperCase()}`, 'No permit was found, but the damage appears valid.'],
+        [`${category.toUpperCase()} SECTOR CLAIMS CREDIT FOR DARK SELF DEFEAT`, 'Analysts have upgraded the day from “ongoing” to “victorious.”']
       ]
     };
 
     return deterministicPick(
       pools[personality.key] || pools.custom,
-      `${state.current.date}|${personality.key}|${summary.totalXp}`
+      `${state.current.date}|${personality.key}|${summary.totalDamage}|${summary.combosLanded}`
     );
   }
 
   function createDayCard(summary) {
     const personality = getDayPersonality(summary);
     const [headline, copy] = headlineContent(personality, summary);
-    const cred = getStreetCred();
-    const rank = getRank(cred);
+    const rank = getRank(getStreetCred());
     const streak = getCurrentStreak();
 
     return {
@@ -1219,31 +1233,46 @@
       type: personality.type,
       headline,
       copy,
-      xp: summary.totalXp,
+      victoryXp: state.current.victoryXpAwarded,
+      enemyHp: summary.maxHp,
+      damage: summary.totalDamage,
+      overkill: summary.overkill,
+      combos: summary.combosLanded,
       rank: rank.name,
       streak
     };
   }
 
-  function finalizeClearIfNeeded() {
+  function finalizeVictoryIfNeeded() {
     const summary = getSummary();
 
     if (!summary.isVictory) {
-      if (state.current.defeatedAt) {
-        state.current.defeatedAt = null;
-        state.current.dayCard = null;
+      if (state.current.victoryXpAwarded > 0) {
+        state.progression.victoryXp = Math.max(
+          0,
+          state.progression.victoryXp - state.current.victoryXpAwarded
+        );
       }
+      state.current.defeatedAt = null;
+      state.current.victoryXpAwarded = 0;
+      state.current.dayCard = null;
       return false;
     }
 
-    if (state.current.defeatedAt) return false;
+    const justDefeated = !state.current.defeatedAt;
+    if (justDefeated) state.current.defeatedAt = Date.now();
 
-    state.current.defeatedAt = Date.now();
+    if (state.current.victoryXpAwarded !== VICTORY_XP) {
+      const delta = VICTORY_XP - state.current.victoryXpAwarded;
+      state.progression.victoryXp = Math.max(0, state.progression.victoryXp + delta);
+      state.current.victoryXpAwarded = VICTORY_XP;
+    }
+
     state.current.dayCard = createDayCard(summary);
-    return true;
+    return justDefeated;
   }
 
-  function addXp(actionId) {
+  function addDamage(actionId) {
     ensureToday();
 
     const action = state.settings.actions.find(item => item.id === actionId);
@@ -1252,33 +1281,50 @@
 
     const category = state.settings.categories.find(item => item.id === action.categoryId)
       || uncategorizedCategory();
-    const reward = calculateReward(action);
+    const reward = calculateDamage(action);
 
-    state.current.transactions.push({
+    const actionTx = {
+      type: 'action',
       id: makeId('tx'),
       actionId: action.id,
       actionName: action.name,
       categoryId: category.id,
       categoryName: category.name,
-      baseXp: action.baseXp,
-      effectiveXp: reward.effectiveXp,
+      baseDamage: action.baseDamage,
+      damage: reward.damage,
       efficiency: Number(reward.efficiency.toFixed(4)),
       timestamp: Date.now()
-    });
+    };
+    state.current.transactions.push(actionTx);
 
-    state.progression.lifetimeXp += reward.effectiveXp;
-    const justCleared = finalizeClearIfNeeded();
+    const comboEvent = processCombosForAction(actionTx);
+    const justDefeated = finalizeVictoryIfNeeded();
     saveState();
-    render({ showDayCard: justCleared, justCleared });
+    render({
+      showDayCard: justDefeated,
+      justDefeated,
+      hitDamage: actionTx.damage,
+      hitName: actionTx.actionName,
+      comboEvent
+    });
   }
 
   function undoTransaction(transactionId) {
-    const index = state.current.transactions.findIndex(tx => tx.id === transactionId);
-    if (index < 0) return;
+    const target = state.current.transactions.find(tx => tx.id === transactionId && tx.type === 'action');
+    if (!target) return;
 
-    const [removed] = state.current.transactions.splice(index, 1);
-    state.progression.lifetimeXp = Math.max(0, state.progression.lifetimeXp - removed.effectiveXp);
-    finalizeClearIfNeeded();
+    state.current.transactions = state.current.transactions.filter(tx => (
+      tx.id !== transactionId
+      && !(tx.type === 'combo' && tx.sourceTransactionIds.includes(transactionId))
+    ));
+
+    Object.entries(state.current.comboProgress).forEach(([comboId, progress]) => {
+      if (progress.sourceTransactionIds.includes(transactionId)) {
+        state.current.comboProgress[comboId] = { index: 0, sourceTransactionIds: [] };
+      }
+    });
+
+    finalizeVictoryIfNeeded();
     saveState();
     render();
   }
