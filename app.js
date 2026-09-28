@@ -2476,7 +2476,7 @@
 
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = `weapon-card${weapon.special ? ' is-golden' : ''}`;
+        button.className = `weapon-card condition-${item.conditionId || 'golden'}${weapon.special ? ' is-golden' : ''}`;
         button.disabled = summary.isVictory;
         button.dataset.weaponId = item.id;
         button.title = weapon.flavor;
