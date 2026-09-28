@@ -1,7 +1,9 @@
 (() => {
   'use strict';
 
-  const STATE_VERSION = 3;
+  const STATE_VERSION = 4;
+  const TEMPLATE_VERSION = 1;
+  const WEAPON_DROP_CHANCE = 0.40;
   const STORAGE_KEY = 'dailyXpGame.v2';
   const HISTORY_LIMIT = 365;
   const DETAILED_HISTORY_DAYS = 90;
@@ -16,6 +18,24 @@
   const COMBO_MAX_MULTIPLIER = 3;
   const COMBO_DEFAULT_MULTIPLIER = 1.25;
   const COMBO_MAX_STEPS = 8;
+
+
+  const WEAPON_DEFINITIONS = Object.freeze([
+    { id: 'snub-nosed', name: 'Snub Nosed', baseDamage: 10, weight: 34, flavor: 'Small gun. Enormous confidence deficit.' },
+    { id: 'sawed-off', name: 'Sawed Off', baseDamage: 20, weight: 24, flavor: 'Subtlety was removed with the barrel.' },
+    { id: 'tommy-gun', name: 'Tommy Gun', baseDamage: 25, weight: 17, flavor: 'For problems requiring punctuation.' },
+    { id: 'grenade-launcher', name: 'Grenade Launcher', baseDamage: 30, weight: 11, flavor: 'Municipal permits pending.' },
+    { id: 'bazooka', name: 'Bazooka', baseDamage: 35, weight: 7, flavor: 'Point away from remaining architecture.' },
+    { id: 'flamethrower', name: 'Flamethrower', baseDamage: 40, weight: 6, flavor: 'Crestfallen fire code says absolutely not.' },
+    { id: 'golden-gun', name: 'Golden Gun', baseDamage: 999, weight: 1, special: true, flavor: 'One shot. One paperwork problem.' }
+  ]);
+
+  const WEAPON_CONDITIONS = Object.freeze([
+    { id: 'rusty', name: 'Rusty', multiplier: 0.5, weight: 50 },
+    { id: 'clean', name: 'Clean', multiplier: 1, weight: 30 },
+    { id: 'pimped', name: 'Pimped', multiplier: 1.5, weight: 15 },
+    { id: 'over-engineered', name: 'Over-engineered', multiplier: 2, weight: 5 }
+  ]);
 
   const DEFAULT_ACTION_NAME_MIGRATIONS = Object.freeze({
     'wellbeing-workout-30': ['Workout — 30 min', 'Proper workout'],
@@ -89,6 +109,9 @@
       archivedStreak: 0,
       streakThrough: ''
     },
+    armory: {
+      weapons: []
+    },
     current: {
       date: '',
       maxHp: 0,
@@ -96,6 +119,12 @@
       comboProgress: {},
       defeatedAt: null,
       victoryXpAwarded: 0,
+      loot: {
+        rolled: false,
+        available: false,
+        claimed: false,
+        pendingWeapon: null
+      },
       dayCard: null
     },
     history: []
@@ -111,6 +140,13 @@
     overkillValue: document.querySelector('#overkillValue'),
     fightFeedback: document.querySelector('#fightFeedback'),
     combosPanel: document.querySelector('#combosPanel'),
+    arsenalPanel: document.querySelector('#arsenalPanel'),
+    arsenalList: document.querySelector('#arsenalList'),
+    arsenalCount: document.querySelector('#arsenalCount'),
+    arsenalStatus: document.querySelector('#arsenalStatus'),
+    lootDrop: document.querySelector('#lootDrop'),
+    lootCrateButton: document.querySelector('#lootCrateButton'),
+    lootDropMessage: document.querySelector('#lootDropMessage'),
     statusBadge: document.querySelector('#statusBadge'),
     heroMessage: document.querySelector('#heroMessage'),
     fightCard: document.querySelector('#fightCard'),
@@ -173,6 +209,10 @@
     newComboName: document.querySelector('#newComboName'),
     newComboMultiplier: document.querySelector('#newComboMultiplier'),
     addComboButton: document.querySelector('#addComboButton'),
+    exportTemplateButton: document.querySelector('#exportTemplateButton'),
+    importTemplateButton: document.querySelector('#importTemplateButton'),
+    importTemplateInput: document.querySelector('#importTemplateInput'),
+    templateStatus: document.querySelector('#templateStatus'),
     resetGameButton: document.querySelector('#resetGameButton'),
     motionFxButton: document.querySelector('#motionFxButton'),
     motionFxStatus: document.querySelector('#motionFxStatus'),
@@ -342,6 +382,118 @@
     return cleaned;
   }
 
+
+
+  function emptyLootState() {
+    return {
+      rolled: false,
+      available: false,
+      claimed: false,
+      pendingWeapon: null
+    };
+  }
+
+  function weaponDefinition(weaponId) {
+    return WEAPON_DEFINITIONS.find(weapon => weapon.id === weaponId) || null;
+  }
+
+  function weaponCondition(conditionId) {
+    return WEAPON_CONDITIONS.find(condition => condition.id === conditionId) || null;
+  }
+
+  function weaponDisplayName(item) {
+    const weapon = weaponDefinition(item?.weaponId);
+    if (!weapon) return 'Unknown Contraband';
+    if (weapon.special) return weapon.name;
+    const condition = weaponCondition(item?.conditionId);
+    return condition ? `${condition.name} ${weapon.name}` : weapon.name;
+  }
+
+  function randomUnit() {
+    if (globalThis.crypto?.getRandomValues) {
+      const value = new Uint32Array(1);
+      globalThis.crypto.getRandomValues(value);
+      return value[0] / 0x100000000;
+    }
+    return Math.random();
+  }
+
+  function weightedRandom(items) {
+    const total = items.reduce((sum, item) => sum + Math.max(0, Number(item.weight) || 0), 0);
+    if (total <= 0) return items[0] || null;
+    let cursor = randomUnit() * total;
+    for (const item of items) {
+      cursor -= Math.max(0, Number(item.weight) || 0);
+      if (cursor < 0) return item;
+    }
+    return items[items.length - 1] || null;
+  }
+
+  function rollWeaponItem() {
+    const weapon = weightedRandom(WEAPON_DEFINITIONS);
+    if (!weapon) return null;
+
+    const condition = weapon.special ? null : weightedRandom(WEAPON_CONDITIONS);
+    const multiplier = weapon.special ? 1 : (condition?.multiplier || 1);
+    const damage = weapon.special
+      ? weapon.baseDamage
+      : Math.max(1, Math.round(weapon.baseDamage * multiplier));
+
+    return {
+      id: makeId('weapon'),
+      weaponId: weapon.id,
+      conditionId: condition?.id || null,
+      multiplier,
+      damage,
+      acquiredDate: state.current.date || localDateKey(),
+      acquiredAt: Date.now()
+    };
+  }
+
+  function normalizeWeaponItem(value) {
+    if (!value || typeof value !== 'object') return null;
+    const weapon = weaponDefinition(String(value.weaponId || ''));
+    if (!weapon) return null;
+
+    let conditionId = null;
+    let multiplier = 1;
+    if (!weapon.special) {
+      const condition = weaponCondition(String(value.conditionId || ''));
+      if (!condition) return null;
+      conditionId = condition.id;
+      multiplier = condition.multiplier;
+    }
+
+    const expectedDamage = weapon.special
+      ? weapon.baseDamage
+      : Math.max(1, Math.round(weapon.baseDamage * multiplier));
+
+    return {
+      id: String(value.id || makeId('weapon')).slice(0, 128),
+      weaponId: weapon.id,
+      conditionId,
+      multiplier,
+      damage: clampInt(value.damage, 1, 999, expectedDamage) === expectedDamage
+        ? expectedDamage
+        : expectedDamage,
+      acquiredDate: /^\d{4}-\d{2}-\d{2}$/.test(String(value.acquiredDate || ''))
+        ? String(value.acquiredDate)
+        : localDateKey(),
+      acquiredAt: normalizeTimestamp(value.acquiredAt) || Date.now()
+    };
+  }
+
+  function normalizeLootState(value) {
+    const pendingWeapon = normalizeWeaponItem(value?.pendingWeapon);
+    const claimed = Boolean(value?.claimed && pendingWeapon);
+    const available = Boolean(value?.available && pendingWeapon && !claimed);
+    return {
+      rolled: Boolean(value?.rolled || pendingWeapon),
+      available,
+      claimed,
+      pendingWeapon
+    };
+  }
 
   function legacyEnemyHp(candidate) {
     const fullEnemyHp = clampInt(candidate?.settings?.goal, 20, 1000, 100);
