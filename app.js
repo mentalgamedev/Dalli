@@ -171,6 +171,11 @@
   let motionSamples = 0;
   let lastOrientationSampleAt = 0;
   let lastMotionSampleAt = 0;
+  let neutralGamma = null;
+  let neutralBeta = null;
+  let neutralAlpha = null;
+  let neutralMotionRoll = null;
+  let neutralMotionPitch = null;
   let targetRoll = 0;
   let targetPitch = 0;
   let targetYaw = 0;
@@ -1122,6 +1127,13 @@
     if (!Number.isFinite(numeric)) return 0;
     return ((numeric % 360) + 360) % 360;
   }
+  function signedAngleDelta(value, origin) {
+    let delta = normalizeAngle(value) - normalizeAngle(origin);
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+    return delta;
+  }
+
 
   function markMotionSensorLive(mode) {
     if (motionSensorLive) return;
@@ -1132,8 +1144,8 @@
     motionProbeTimer = null;
     updateMotionFxUi(
       mode === 'orientation'
-        ? 'Active · orientation sensor connected.'
-        : 'Active · motion fallback connected.'
+        ? 'Active · tilt sideways to fast-forward the Newswire.'
+        : 'Active · motion fallback connected; tilt sideways to fast-forward.'
     );
   }
 
@@ -1150,9 +1162,20 @@
     orientationSamples += 1;
     lastOrientationSampleAt = performance.now();
 
-    if (gamma !== null) targetRoll = clampNumber(gamma / 42, -1, 1, 0);
-    if (beta !== null) targetPitch = clampNumber(beta / 55, -1, 1, 0);
-    if (alpha !== null) targetYaw = normalizeAngle(alpha);
+    if (gamma !== null && neutralGamma === null) neutralGamma = gamma;
+    if (beta !== null && neutralBeta === null) neutralBeta = beta;
+    if (alpha !== null && neutralAlpha === null) neutralAlpha = alpha;
+
+    if (gamma !== null && neutralGamma !== null) {
+      targetRoll = clampNumber((gamma - neutralGamma) / 22, -1, 1, 0);
+    }
+    if (beta !== null && neutralBeta !== null) {
+      targetPitch = clampNumber((beta - neutralBeta) / 28, -1, 1, 0);
+    }
+    if (alpha !== null && neutralAlpha !== null) {
+      const yawDelta = signedAngleDelta(alpha, neutralAlpha);
+      targetYaw = normalizeAngle(yawDelta * 2.6);
+    }
 
     markMotionSensorLive('orientation');
   }
@@ -1181,9 +1204,12 @@
       const rollRad = Math.atan2(gx, Math.sqrt((gy * gy) + (gz * gz)));
       const pitchRad = Math.atan2(-gy, Math.sqrt((gx * gx) + (gz * gz)));
 
-      targetRoll = clampNumber(rollRad / (Math.PI / 3), -1, 1, 0);
-      targetPitch = clampNumber(pitchRad / (Math.PI / 3), -1, 1, 0);
-      targetYaw = normalizeAngle(180 + ((targetRoll * 75) - (targetPitch * 35)));
+      if (neutralMotionRoll === null) neutralMotionRoll = rollRad;
+      if (neutralMotionPitch === null) neutralMotionPitch = pitchRad;
+
+      targetRoll = clampNumber((rollRad - neutralMotionRoll) / (Math.PI / 9), -1, 1, 0);
+      targetPitch = clampNumber((pitchRad - neutralMotionPitch) / (Math.PI / 8), -1, 1, 0);
+      targetYaw = normalizeAngle((targetRoll * 120) - (targetPitch * 65));
     }
 
     markMotionSensorLive(orientationIsFresh ? 'orientation' : 'motion');
@@ -1260,6 +1286,11 @@
     motionSamples = 0;
     lastOrientationSampleAt = 0;
     lastMotionSampleAt = 0;
+    neutralGamma = null;
+    neutralBeta = null;
+    neutralAlpha = null;
+    neutralMotionRoll = null;
+    neutralMotionPitch = null;
     detachMotionListeners();
     targetRoll = 0;
     targetPitch = 0;
@@ -1348,6 +1379,17 @@
     motionSamples = 0;
     lastOrientationSampleAt = 0;
     lastMotionSampleAt = 0;
+    neutralGamma = null;
+    neutralBeta = null;
+    neutralAlpha = null;
+    neutralMotionRoll = null;
+    neutralMotionPitch = null;
+    targetRoll = 0;
+    targetPitch = 0;
+    targetYaw = 0;
+    smoothRoll = 0;
+    smoothPitch = 0;
+    smoothYaw = 0;
     attachMotionListeners();
     beginMotionProbe();
 
@@ -1403,13 +1445,18 @@
     if (yawDelta < -180) yawDelta += 360;
     smoothYaw = normalizeAngle(smoothYaw + (yawDelta * 0.045));
 
+    const motionEnergy = Math.min(
+      1,
+      (Math.abs(smoothRoll) * 0.72) + (Math.abs(smoothPitch) * 0.48)
+    );
     const root = document.documentElement;
-    root.style.setProperty('--motion-x', `${50 + (smoothRoll * 22)}%`);
-    root.style.setProperty('--motion-y', `${18 + (smoothPitch * 20)}%`);
-    root.style.setProperty('--motion-x-2', `${78 - (smoothRoll * 18)}%`);
-    root.style.setProperty('--motion-y-2', `${8 - (smoothPitch * 14)}%`);
+    root.style.setProperty('--motion-x', `${50 + (smoothRoll * 42)}%`);
+    root.style.setProperty('--motion-y', `${24 + (smoothPitch * 38)}%`);
+    root.style.setProperty('--motion-x-2', `${76 - (smoothRoll * 36)}%`);
+    root.style.setProperty('--motion-y-2', `${16 - (smoothPitch * 31)}%`);
     root.style.setProperty('--motion-hue', `${Math.round(smoothYaw)}deg`);
     root.style.setProperty('--motion-tilt', smoothRoll.toFixed(3));
+    root.style.setProperty('--motion-energy', motionEnergy.toFixed(3));
   }
 
   function animateVisuals(timestamp) {
@@ -1436,9 +1483,9 @@
     }
 
     const tiltFactor = motionFxEnabled
-      ? clampNumber(1 + (smoothRoll * 0.95), 0.35, 1.95, 1)
+      ? 1 + (Math.pow(Math.abs(smoothRoll), 0.78) * 4.4)
       : 1;
-    const speed = 24 * tiltFactor;
+    const speed = 36 * tiltFactor;
 
     newswireOffset -= speed * deltaSeconds;
     els.newswireMessage.style.transform = `translate3d(${Math.round(newswireOffset)}px,0,0)`;
