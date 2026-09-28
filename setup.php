@@ -87,12 +87,27 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $success = true;
             $message = 'Account created. Disable setup_token in dalli-config.php now.';
         } catch (PDOException $e) {
-            if ((string) $e->getCode() === '23000') {
+            $driverCode = (int) ($e->errorInfo[1] ?? 0);
+
+            if ($driverCode === 1062) {
                 $message = 'That username already exists.';
+            } elseif (in_array($driverCode, [2002, 2003, 2005, 2006], true)) {
+                $message = 'Could not reach the database server. Check the database host.';
+            } elseif ($driverCode === 1045) {
+                $message = 'Database login was rejected. Check the database username/password and webspace access.';
+            } elseif ($driverCode === 1044) {
+                $message = 'The database user does not have access to this database.';
+            } elseif ($driverCode === 1049) {
+                $message = 'The configured database does not exist. Check the database name.';
+            } elseif ($driverCode === 1146) {
+                $message = 'The Dalli users table was not found in the configured database.';
+            } elseif ($driverCode === 1142) {
+                $message = 'The database user does not have permission to create Dalli accounts.';
             } else {
-                error_log('Dalli setup failed: ' . $e->getMessage());
-                $message = 'Could not create account.';
+                $message = 'Could not create account. Database error code: ' . ($driverCode ?: 'unknown') . '.';
             }
+
+            error_log('Dalli setup failed: ' . $e->getMessage());
         } catch (Throwable $e) {
             error_log('Dalli setup failed: ' . $e->getMessage());
             $message = 'Could not create account.';
