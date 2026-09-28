@@ -56,6 +56,26 @@ button { color: inherit; }
 .topbar { margin-bottom: 28px; }
 h1, h2, h3, h4, p { margin-top: 0; }
 h1 { margin-bottom: 3px; font-size: clamp(1.65rem, 4vw, 2.35rem); letter-spacing: -.04em; }
+
+.brand-title {
+  width: fit-content;
+  margin-bottom: 1px;
+  font-weight: 900;
+  background: linear-gradient(100deg, #f4f1ff 0%, #a99fff 45%, #67dfc8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 28px rgba(122,108,255,.16);
+}
+
+.app-version {
+  margin-bottom: 4px;
+  color: #7e8799;
+  font-size: .63rem;
+  font-weight: 750;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
 h2 { margin-bottom: 0; font-size: 1.18rem; letter-spacing: -.025em; }
 h3 { margin-bottom: 0; }
 .eyebrow { font-size: .68rem; letter-spacing: .16em; font-weight: 800; color: #8f98aa; margin-bottom: 5px; }
