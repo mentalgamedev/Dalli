@@ -162,3 +162,58 @@ The permanent Dalli DB user can therefore remain read/write only with no schema-
 ## If the backend is unavailable
 
 Dalli still keeps a local browser copy. Guest/local mode continues to work, and signed-in changes can remain local until the backend becomes reachable again.
+
+
+## Automatic GitHub deployment
+
+Dalli can deploy automatically to lima-city whenever `main` changes.
+
+The workflow is stored in:
+
+```
+.github/workflows/deploy.yml
+```
+
+It deploys only the public application to:
+
+```
+apps/dalli/
+```
+
+The private configuration at `apps/dalli-config.php` sits outside that directory and is never touched.
+
+### One-time GitHub secrets
+
+In the GitHub repository, open:
+
+```
+Settings → Secrets and variables → Actions → New repository secret
+```
+
+Create these three secrets:
+
+- `LIMA_FTP_HOST` — the FTP host from lima-city's FTP access page (normally `<ftp-user>.lima-ftp.de`)
+- `LIMA_FTP_USER` — the lima-city FTP username
+- `LIMA_FTP_PASSWORD` — the FTP password
+
+Do not store the MySQL password here; deployment needs only the FTP credentials.
+
+After the secrets exist, run:
+
+```
+Actions → Deploy Dalli → Run workflow
+```
+
+Once that first deployment succeeds, every future push to `main` deploys automatically.
+
+The workflow:
+
+- runs syntax checks before uploading
+- uses explicit TLS (FTPS)
+- mirrors GitHub's public app files into `apps/dalli/`
+- removes live files that were deleted from GitHub
+- includes hidden public files such as `.htaccess` and `.user.ini`
+- excludes GitHub metadata, documentation, schema files, config examples and secrets
+- refuses to deploy anywhere except the hard-coded `apps/dalli` target
+
+If the three GitHub secrets are missing, the workflow exits successfully without deploying anything.
