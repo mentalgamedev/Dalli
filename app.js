@@ -3783,6 +3783,101 @@
     return true;
   }
 
+
+  function settingsTemplatePayload(settings) {
+    return {
+      kind: 'molife-settings-template',
+      version: TEMPLATE_VERSION,
+      exportedAt: new Date().toISOString(),
+      settings: deepClone(settings)
+    };
+  }
+
+  function normalizeImportedTemplate(payload) {
+    if (!payload || typeof payload !== 'object'
+      || payload.kind !== 'molife-settings-template'
+      || payload.version !== TEMPLATE_VERSION
+      || !payload.settings || typeof payload.settings !== 'object') {
+      throw new Error('This is not a compatible MoLife settings template.');
+    }
+
+    const raw = payload.settings;
+    if (!Array.isArray(raw.categories) || !Array.isArray(raw.actions) || !Array.isArray(raw.combos)) {
+      throw new Error('Template is missing categories, actions or combos.');
+    }
+
+    const candidate = freshState();
+    candidate.settings = deepClone(raw);
+    return normalizeState(candidate).settings;
+  }
+
+  function exportSettingsTemplate() {
+    let settings = state.settings;
+
+    if (settingsDraft) {
+      const result = buildSettingsFromDraft();
+      if (!result.ok) {
+        els.settingsMessage.textContent = result.message;
+        return;
+      }
+      settings = result.settings;
+    }
+
+    const payload = settingsTemplatePayload(settings);
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = href;
+    link.download = `molife-template-${localDateKey()}.json`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(href), 1000);
+
+    if (els.templateStatus) {
+      els.templateStatus.textContent = 'Template exported. Progress, history and arsenal were intentionally excluded.';
+    }
+  }
+
+  async function importSettingsTemplateFile(file) {
+    if (!file) return;
+
+    try {
+      const payload = JSON.parse(await file.text());
+      const importedSettings = normalizeImportedTemplate(payload);
+
+      const confirmed = window.confirm(
+        'Switch to this MoLife settings template?\n\nThis replaces difficulty, categories, Focus/colors, actions, ordering and combos. Your fight history, Level, Street Cred, streak, today’s recorded damage and arsenal stay untouched.'
+      );
+      if (!confirmed) return;
+
+      settingsDraft = deepClone(importedSettings);
+      state.settings = deepClone(importedSettings);
+      state.current.comboProgress = {};
+      saveState();
+
+      els.goalInput.value = settingsDraft.fullEnemyHp;
+      updateGoalRampPreview();
+      renderCategoriesEditor();
+      renderActionsEditor();
+      renderCombosEditor();
+      populateCategorySelect();
+      render();
+
+      els.settingsMessage.textContent = 'Template imported and activated.';
+      if (els.templateStatus) {
+        els.templateStatus.textContent = `${settingsDraft.categories.length - 1} categories · ${settingsDraft.actions.length} actions · ${settingsDraft.combos.length} combos`;
+      }
+    } catch (error) {
+      console.warn('Could not import MoLife template:', error);
+      const message = error instanceof Error ? error.message : 'Could not read that template.';
+      els.settingsMessage.textContent = message;
+      if (els.templateStatus) els.templateStatus.textContent = message;
+    } finally {
+      els.importTemplateInput.value = '';
+    }
+  }
+
   function scheduleSettingsSave(delay = 260) {
     window.clearTimeout(settingsSaveTimer);
     settingsSaveTimer = window.setTimeout(() => {
@@ -3807,7 +3902,7 @@
 
   function resetGameData() {
     const confirmed = window.confirm(
-      'Reset ALL MoLife game data?\n\nThis wipes categories, actions, combos, history, Level, Street Cred and streaks. Your login/account remains.\n\nThe Crestfallen Department of Records will pretend none of this ever happened.'
+      'Reset ALL MoLife game data?\n\nThis wipes categories, actions, combos, weapons, history, Level, Street Cred and streaks. Your login/account remains.\n\nThe Crestfallen Department of Records will pretend none of this ever happened.'
     );
     if (!confirmed) return;
 
@@ -3819,6 +3914,7 @@
       comboProgress: {},
       defeatedAt: null,
       victoryXpAwarded: 0,
+      loot: emptyLootState(),
       dayCard: null
     };
     settingsDraft = null;
@@ -3884,6 +3980,12 @@
   els.addCategoryButton.addEventListener('click', addCategoryFromForm);
   els.addActionButton.addEventListener('click', addActionFromForm);
   els.addComboButton?.addEventListener('click', addComboFromForm);
+  els.lootCrateButton?.addEventListener('click', claimVictoryLoot);
+  els.exportTemplateButton?.addEventListener('click', exportSettingsTemplate);
+  els.importTemplateButton?.addEventListener('click', () => els.importTemplateInput?.click());
+  els.importTemplateInput?.addEventListener('change', () => {
+    importSettingsTemplateFile(els.importTemplateInput.files?.[0]);
+  });
   els.resetGameButton.addEventListener('click', resetGameData);
   els.motionFxButton?.addEventListener('click', toggleMotionFx);
   els.viewDayCardButton.addEventListener('click', () => openDayCard(state.current.dayCard));
