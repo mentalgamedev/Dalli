@@ -134,6 +134,7 @@
     settingsButton: document.querySelector('#settingsButton'),
     settingsDialog: document.querySelector('#settingsDialog'),
     settingsForm: document.querySelector('#settingsForm'),
+    closeSettingsButton: document.querySelector('#closeSettingsButton'),
     goalInput: document.querySelector('#goalInput'),
     goalRampPreview: document.querySelector('#goalRampPreview'),
     categoriesEditor: document.querySelector('#categoriesEditor'),
@@ -167,6 +168,8 @@
   let newswireSpecialUntil = 0;
   let visualFrame = null;
   let dayCardTimer = null;
+  let settingsSaveTimer = null;
+  let settingsTriggeredClear = false;
   const categoryScrollPositions = new Map();
 
   const MOTION_PREF_KEY = 'molife.motionFx.v1';
@@ -1975,7 +1978,8 @@
     settingsDraft = deepClone(state.settings);
     settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
     els.goalInput.value = settingsDraft.goal;
-    els.settingsMessage.textContent = '';
+    els.settingsMessage.textContent = 'Changes save automatically.';
+    settingsTriggeredClear = false;
     if (els.newCategoryColor) {
       const customCount = settingsDraft.categories.filter(
         category => category.id !== UNCATEGORIZED_ID && !DEFAULT_CATEGORY_COLORS[category.id]
