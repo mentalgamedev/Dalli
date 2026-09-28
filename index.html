@@ -8,7 +8,7 @@
   <title>MoLife</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=3.7.0">
+  <link rel="stylesheet" href="styles.css?v=3.8.0">
 </head>
 <body>
   <div class="motion-shimmer" aria-hidden="true"></div>
@@ -28,7 +28,7 @@
       <div class="brand-block">
         <h1 class="brand-title" aria-label="MoLife"><span class="brand-mo">Mo</span><span class="brand-life">Life</span><span class="brand-tm">™</span></h1>
         <div class="brand-subline">Gains for citizens with nothing to lose</div>
-        <div class="app-version" aria-label="MoLife version 3.7.0">v3.7.0 · Autonomous Bureaucracy build</div>
+        <div class="app-version" aria-label="MoLife version 3.8.0">v3.8.0 · Orderly Conduct build</div>
         <div id="todayLabel" class="muted"></div>
       </div>
       <button id="settingsButton" class="icon-button" type="button" aria-label="Open settings" title="Settings">⚙</button>
@@ -240,11 +240,20 @@
       </section>
 
       <section class="settings-section">
-        <div class="settings-section-head">
+        <div class="settings-section-head action-settings-head">
           <div>
             <h3>Actions</h3>
-            <p>Action XP is the base value. The category's current efficiency decides the actual payout. Hide actions from Track-o-Tron without deleting them.</p>
+            <p>Drag the handle to reorder actions. The same order is used inside each Track-o-Tron category.</p>
           </div>
+          <label class="action-sort-control">
+            <span>Sort</span>
+            <select id="actionSortSelect" aria-label="Sort actions">
+              <option value="">Choose…</option>
+              <option value="category">Category</option>
+              <option value="xp">XP · high to low</option>
+              <option value="name">Name · A to Z</option>
+            </select>
+          </label>
         </div>
         <div id="actionsEditor" class="actions-editor"></div>
 
@@ -318,7 +327,7 @@
     </article>
   </template>
 
-  <script src="app.js?v=3.7.0" defer></script>
-  <script src="cloud.js?v=3.7.0" defer></script>
+  <script src="app.js?v=3.8.0" defer></script>
+  <script src="cloud.js?v=3.8.0" defer></script>
 </body>
 </html>
