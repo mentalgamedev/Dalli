@@ -1735,6 +1735,9 @@ body {
   --motion-shift-y: 0vh;
   --motion-rotate: 0deg;
   --motion-scale: 1.04;
+  --motion-saturation: 1.25;
+  --motion-brightness: 1.02;
+  --motion-opacity: .52;
 }
 
 .motion-shimmer {
@@ -1753,13 +1756,13 @@ body {
     radial-gradient(circle at calc(100% - var(--motion-x)) calc(100% - var(--motion-y)),
       rgba(234,105,190,.16),
       transparent 25vmax),
-    radial-gradient(circle at calc(18% + (var(--motion-energy) * 1%)) 82%,
+    radial-gradient(circle at 18% 82%,
       rgba(241,202,90,.09),
       transparent 24vmax);
   filter:
     hue-rotate(var(--motion-hue))
-    saturate(calc(1.25 + (var(--motion-energy) * .95)))
-    brightness(calc(1.02 + (var(--motion-energy) * .12)));
+    saturate(var(--motion-saturation))
+    brightness(var(--motion-brightness));
   transform:
     translate3d(var(--motion-shift-x), var(--motion-shift-y), 0)
     rotate(var(--motion-rotate))
@@ -1770,7 +1773,7 @@ body {
 }
 
 .ambient-fx-enabled .motion-shimmer {
-  opacity: calc(.52 + (var(--motion-energy) * .30));
+  opacity: var(--motion-opacity);
 }
 
 /* Simpler wordmark: playful, but no fake graffiti construction. */
