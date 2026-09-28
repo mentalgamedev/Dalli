@@ -113,8 +113,9 @@
     combosPanel: document.querySelector('#combosPanel'),
     statusBadge: document.querySelector('#statusBadge'),
     heroMessage: document.querySelector('#heroMessage'),
-    xpOrb: document.querySelector('#xpOrb'),
-    orbPercent: document.querySelector('#orbPercent'),
+    fightCard: document.querySelector('#fightCard'),
+    healthPercent: document.querySelector('#healthPercent'),
+    healthTrail: document.querySelector('#healthTrail'),
     totalProgress: document.querySelector('#totalProgress'),
     rankName: document.querySelector('#rankName'),
     streetCred: document.querySelector('#streetCred'),
@@ -2015,9 +2016,11 @@
       ? `-${hitDamage} HP · COMBO +${comboEvent.damage} DMG`
       : `-${hitDamage} HP`;
     els.fightFeedback.classList.remove('fight-feedback-pop', 'is-combo');
+    els.fightCard?.classList.remove('fight-hit');
     void els.fightFeedback.offsetWidth;
     if (comboEvent) els.fightFeedback.classList.add('is-combo');
     els.fightFeedback.classList.add('fight-feedback-pop');
+    els.fightCard?.classList.add('fight-hit');
   }
 
   function renderHero(summary) {
@@ -2034,23 +2037,41 @@
 
     const healthRatio = Math.max(0, Math.min(1, summary.currentHp / Math.max(1, summary.maxHp)));
     const healthPercent = Math.round(healthRatio * 100);
-    els.totalProgress.style.width = `${healthPercent}%`;
-    els.xpOrb.style.setProperty('--progress', `${healthRatio * 360}deg`);
-    els.orbPercent.textContent = summary.isVictory ? '0%' : `${healthPercent}%`;
+    const healthWidth = `${healthPercent}%`;
+
+    els.totalProgress.style.width = healthWidth;
+    els.healthTrail.style.width = healthWidth;
+    els.healthPercent.textContent = `${healthPercent}%`;
+
+    const healthState = summary.isVictory
+      ? 'down'
+      : healthRatio <= 0.25
+        ? 'critical'
+        : healthRatio <= 0.55
+          ? 'wounded'
+          : 'active';
+    els.fightCard.dataset.health = healthState;
+
+    if (!els.fightCard.classList.contains('is-hud-live')) {
+      requestAnimationFrame(() => els.fightCard.classList.add('is-hud-live'));
+    }
 
     if (summary.isVictory) {
-      els.statusBadge.textContent = 'DEFEATED';
+      els.statusBadge.textContent = 'HOSTILE DOWN';
       els.heroMessage.textContent = summary.overkill > 0
-        ? `Dark You is down. ${summary.overkill} overkill recorded. Further actions still count as damage, not additional XP.`
-        : 'Dark You is down. Victory XP secured. Further actions still count as damage, not additional XP.';
+        ? `Fight over. ${summary.overkill} overkill logged for the record. No extra Victory XP.`
+        : 'Fight over. Take the win. Anything else today is optional.';
       els.victoryBanner.hidden = false;
       els.victorySummary.textContent = `VICTORY +${VICTORY_XP} XP · ${summary.totalDamage} DMG${summary.overkill ? ` · ${summary.overkill} overkill` : ''}`;
     } else {
-      const ramp = getHpRampInfo();
-      els.statusBadge.textContent = 'FIGHT IN PROGRESS';
-      els.heroMessage.textContent = ramp.active
-        ? `${summary.currentHp} HP remaining. Today's enemy spawned at ${summary.maxHp} HP; full strength eventually reaches ${ramp.fullEnemyHp} HP.`
-        : `${summary.currentHp} HP remaining. Repeating one category makes Dark You increasingly resistant to it.`;
+      els.statusBadge.textContent = healthRatio <= 0.25
+        ? 'HOSTILE CRITICAL'
+        : healthRatio <= 0.55
+          ? 'HOSTILE WOUNDED'
+          : 'HOSTILE ACTIVE';
+      els.heroMessage.textContent = summary.totalDamage === 0
+        ? 'Target standing. Make your moves and end the fight.'
+        : `${summary.currentHp} HP left. Do enough to put Dark You down; the rest of the day is yours.`;
       els.victoryBanner.hidden = true;
     }
   }
@@ -2069,9 +2090,9 @@
 
     if (rank.next) {
       const needed = Math.max(0, rank.next.min - cred);
-      els.rankHint.textContent = `${needed} more victor${needed === 1 ? 'y' : 'ies'} in the rolling month to reach ${rank.next.name}.`;
+      els.rankHint.textContent = `${needed} more daily victor${needed === 1 ? 'y' : 'ies'} on the 30-day rap sheet to reach ${rank.next.name}.`;
     } else {
-      els.rankHint.textContent = 'Top of the food chain. Please behave irresponsibly with this power.';
+      els.rankHint.textContent = 'Rap sheet maxed. Further daily wins are strictly for personal reasons.';
     }
 
     els.levelNumber.textContent = level.level;
