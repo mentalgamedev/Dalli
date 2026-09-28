@@ -144,6 +144,7 @@
     newCategoryColor: document.querySelector('#newCategoryColor'),
     addCategoryButton: document.querySelector('#addCategoryButton'),
     actionsEditor: document.querySelector('#actionsEditor'),
+    actionSortSelect: document.querySelector('#actionSortSelect'),
     newActionName: document.querySelector('#newActionName'),
     newActionCategory: document.querySelector('#newActionCategory'),
     newActionXp: document.querySelector('#newActionXp'),
@@ -170,6 +171,7 @@
   let dayCardTimer = null;
   let settingsSaveTimer = null;
   let settingsTriggeredClear = false;
+  let actionDrag = null;
   const categoryScrollPositions = new Map();
 
   const MOTION_PREF_KEY = 'molife.motionFx.v1';
@@ -1022,6 +1024,19 @@
     return normalizeHexColor(category.color, fallbackCategoryColor(category.id, index));
   }
 
+  function applyCategoryPaletteVars(element, category, index = 0) {
+    if (!element) return;
+    const palette = categoryPalette(categoryColor(category, index));
+    element.style.setProperty('--category-color', palette.accent);
+    element.style.setProperty('--category-source', palette.source);
+    element.style.setProperty('--category-panel', palette.panel);
+    element.style.setProperty('--category-panel-alt', palette.panelAlt);
+    element.style.setProperty('--category-surface', palette.surface);
+    element.style.setProperty('--category-border', palette.border);
+    element.style.setProperty('--category-glow', palette.glow);
+  }
+
+
   function getDominantCategory(summary) {
     return state.settings.categories
       .filter(category => category.id !== UNCATEGORIZED_ID)
@@ -1757,16 +1772,7 @@
       const usedBase = summary.categoryBaseXp[category.id] || 0;
       const earnedXp = summary.categoryXp[category.id] || 0;
       const efficiency = getCategoryEfficiency(category.id, usedBase);
-      const color = categoryColor(category, index);
-      const palette = categoryPalette(color);
-
-      card.style.setProperty('--category-color', palette.accent);
-      card.style.setProperty('--category-source', palette.source);
-      card.style.setProperty('--category-panel', palette.panel);
-      card.style.setProperty('--category-panel-alt', palette.panelAlt);
-      card.style.setProperty('--category-surface', palette.surface);
-      card.style.setProperty('--category-border', palette.border);
-      card.style.setProperty('--category-glow', palette.glow);
+      applyCategoryPaletteVars(card, category, index);
       card.dataset.categoryId = category.id;
       if (category.id === UNCATEGORIZED_ID) card.classList.add('is-fallback-category');
 
