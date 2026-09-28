@@ -52,9 +52,14 @@ Reports are deterministic local content; they do not require an AI service.
 
 The header contains a reactive fake news feed that comments on actual game state: current XP, remaining XP, yesterday's result, rank, streak, level and category saturation. Before the daily goal is reached it mostly mocks the lack or insufficiency of progress; after clearance it becomes reluctantly congratulatory.
 
+
+## Motion FX
+
+MoLife has optional device-orientation effects on supported mobile browsers. When enabled, roll influences Newswire speed while roll/pitch/yaw drive a smoothed purple/turquoise background shimmer. Orientation values are used live in the browser and are not stored in game state or sent to the server. Browsers that require sensor permission only request it from the explicit **Enable Motion FX** button. Desktop pointer movement provides a subtle shimmer equivalent, and reduced-motion preferences disable the effect.
+
 ## Track-o-Tron
 
-The main action area is branded **Track-o-Tron**. Category action decks keep a consistent height and scroll independently when a category contains more actions than fit comfortably on screen, preserving the dashboard layout on desktop and mobile.
+The main action area is branded **Track-o-Tron**. Category action decks keep a consistent height. They only become independent scroll surfaces when their actions actually overflow; otherwise swiping through the action area continues to scroll the page normally. Scrollable decks allow normal scroll chaining at their edges.
 
 ## Categories and actions
 
