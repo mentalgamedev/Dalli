@@ -1105,9 +1105,12 @@ body {
 
 /* Day report / newspaper */
 .day-card-dialog {
-  width: min(650px, calc(100% - 24px));
-  max-height: calc(100% - 28px);
-  padding: 0;
+  width: min(650px, calc(100vw - 20px));
+  max-height: calc(100dvh - 16px);
+  padding: 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-sizing: border-box;
   border: 0;
   border-radius: 9px;
   background: transparent;
@@ -1120,7 +1123,10 @@ body {
 }
 .day-card {
   position: relative;
+  width: calc(100% - 4px);
+  margin: 2px auto;
   overflow: hidden;
+  box-sizing: border-box;
   padding: clamp(22px, 5vw, 38px);
   border: 3px solid #b5a98e;
   border-radius: 8px;
@@ -2318,6 +2324,7 @@ body {
 
 .action-editor-row.is-dragging {
   z-index: 8;
+  pointer-events: none;
   opacity: .94;
   border-color: color-mix(in srgb, var(--category-color) 48%, rgba(255,255,255,.12));
   box-shadow:
@@ -2764,5 +2771,123 @@ body {
   .fight-feedback-pop {
     animation: none;
     opacity: 1;
+  }
+}
+
+
+/* v4.0 polish — report reveal and compact short-viewport layout */
+.day-card-dialog[open] {
+  animation: reportArrival .72s cubic-bezier(.18,.78,.18,1);
+}
+
+.day-card-dialog[open]::backdrop {
+  animation: reportBackdropArrival .72s ease-out;
+}
+
+.day-card-dialog[open] .day-card::after {
+  animation: approvedStamp .42s cubic-bezier(.2,.9,.25,1.15) .28s both;
+  transform-origin: center;
+}
+
+@keyframes reportArrival {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(.972);
+    filter:
+      drop-shadow(0 0 28px rgba(57,215,183,.72))
+      drop-shadow(0 0 58px rgba(225,190,102,.30));
+  }
+  42% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.006);
+    filter:
+      drop-shadow(0 0 20px rgba(57,215,183,.46))
+      drop-shadow(0 0 38px rgba(225,190,102,.20));
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes reportBackdropArrival {
+  0% {
+    background: rgba(7,18,20,.58);
+    backdrop-filter: blur(2px) brightness(1.12);
+  }
+  100% {
+    background: rgba(4,5,8,.78);
+    backdrop-filter: blur(5px) brightness(1);
+  }
+}
+
+@keyframes approvedStamp {
+  0% {
+    opacity: 0;
+    transform: rotate(-8deg) scale(1.38);
+  }
+  58% {
+    opacity: 1;
+    transform: rotate(-14deg) scale(.94);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(-13deg) scale(1);
+  }
+}
+
+@media (min-width: 621px) and (max-height: 760px) {
+  .day-card-dialog {
+    width: min(680px, calc(100vw - 16px));
+    max-height: calc(100dvh - 10px);
+  }
+
+  .day-card {
+    padding: 18px 30px 20px;
+  }
+
+  .newspaper-masthead {
+    padding-bottom: 8px;
+  }
+
+  .newspaper-masthead strong {
+    font-size: clamp(2rem, 6vw, 2.85rem);
+  }
+
+  .day-card-meta {
+    margin-top: 7px;
+  }
+
+  .day-battle-stats {
+    margin: 8px 0 2px;
+  }
+
+  .day-type-stamp {
+    margin: 13px auto 10px;
+    padding: 5px 9px;
+  }
+
+  .day-card-headline {
+    font-size: clamp(1.65rem, 5vw, 2.5rem);
+    line-height: .96;
+  }
+
+  .day-card-copy {
+    margin-top: 11px;
+    line-height: 1.36;
+  }
+
+  .day-card-footer {
+    margin-top: 15px;
+    padding-top: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .day-card-dialog[open],
+  .day-card-dialog[open]::backdrop,
+  .day-card-dialog[open] .day-card::after {
+    animation: none !important;
   }
 }
