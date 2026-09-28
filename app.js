@@ -1738,6 +1738,11 @@
       if (rank.name !== 'Nobody') {
         messages.push(`STREET CRED OFFICE RELUCTANTLY CONFIRMS ${rank.name.toUpperCase()} STATUS`);
       }
+      if (state.current.loot?.available) {
+        messages.push('UNMARKED CRATE DISCOVERED AFTER HOSTILITIES; CONTENTS RATTLE WHEN SHAKEN');
+      } else if (state.current.loot?.claimed && state.current.loot.pendingWeapon) {
+        messages.push(`CONTRABAND OFFICE CONFIRMS ACQUISITION OF ${weaponDisplayName(state.current.loot.pendingWeapon).toUpperCase()}`);
+      }
     } else if (summary.totalDamage === 0) {
       messages.push(
         'DARK DOPPELGÄNGER ENTERS DAY AT FULL HEALTH; CONFIDENCE DESCRIBED AS PREMATURE',
@@ -2305,7 +2310,7 @@
 
     renderHero(summary);
     renderProgression();
-    renderArsenal(summary);
+    renderArsenal(summary, options.lootClaimed?.id || '');
     renderCategories(summary);
     renderCombos();
     renderLog();
@@ -2444,7 +2449,7 @@
   }
 
 
-  function renderArsenal(summary) {
+  function renderArsenal(summary, newlyClaimedId = '') {
     if (!els.arsenalPanel || !els.arsenalList) return;
 
     const inventory = state.armory.weapons;
@@ -2489,7 +2494,7 @@
 
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = `weapon-card condition-${item.conditionId || 'golden'}${weapon.special ? ' is-golden' : ''}`;
+        button.className = `weapon-card condition-${item.conditionId || 'golden'}${weapon.special ? ' is-golden' : ''}${item.id === newlyClaimedId ? ' is-new' : ''}`;
         button.disabled = summary.isVictory;
         button.dataset.weaponId = item.id;
         button.title = weapon.flavor;
