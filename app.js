@@ -2655,13 +2655,13 @@
     handle.addEventListener('pointercancel', cancel);
   }
 
+
   function sortActions(mode) {
     if (!settingsDraft || !mode) return;
 
     const categoryOrder = new Map(
       settingsDraft.categories.map((category, index) => [category.id, index])
     );
-
     const indexed = settingsDraft.actions.map((action, index) => ({ action, index }));
 
     if (mode === 'category') {
@@ -2670,9 +2670,9 @@
         - (categoryOrder.get(b.action.categoryId) ?? 999)
         || a.index - b.index
       ));
-    } else if (mode === 'xp') {
+    } else if (mode === 'damage') {
       indexed.sort((a, b) => (
-        b.action.baseXp - a.action.baseXp
+        b.action.baseDamage - a.action.baseDamage
         || a.action.name.localeCompare(b.action.name, undefined, { sensitivity: 'base' })
         || a.index - b.index
       ));
@@ -2687,16 +2687,14 @@
 
     settingsDraft.actions = indexed.map(item => item.action);
     renderActionsEditor();
+    renderCombosEditor();
     commitSettingsDraft({ announce: false });
     if (els.actionSortSelect) els.actionSortSelect.value = '';
 
-    const labels = {
-      category: 'category',
-      xp: 'XP',
-      name: 'name'
-    };
+    const labels = { category: 'category', damage: 'damage', name: 'name' };
     els.settingsMessage.textContent = `Actions sorted by ${labels[mode]}.`;
   }
+
 
   function renderActionsEditor() {
     els.actionsEditor.replaceChildren();
@@ -2729,39 +2727,40 @@
       nameInput.value = action.name;
       nameInput.addEventListener('input', () => {
         action.name = nameInput.value.slice(0, 100);
+        renderCombosEditor();
       });
       nameLabel.append(nameInput);
 
       const categoryLabel = document.createElement('label');
       categoryLabel.innerHTML = '<span>Category</span>';
       const categorySelect = document.createElement('select');
-      settingsDraft.categories.forEach(category => {
+      settingsDraft.categories.forEach(categoryItem => {
         const option = document.createElement('option');
-        option.value = category.id;
-        option.textContent = category.name;
+        option.value = categoryItem.id;
+        option.textContent = categoryItem.name;
         categorySelect.append(option);
       });
       categorySelect.value = action.categoryId;
       categorySelect.addEventListener('change', () => {
         action.categoryId = categorySelect.value;
-        const nextIndex = settingsDraft.categories.findIndex(category => category.id === action.categoryId);
+        const nextIndex = settingsDraft.categories.findIndex(categoryItem => categoryItem.id === action.categoryId);
         const nextCategory = settingsDraft.categories[nextIndex] || uncategorizedCategory();
         applyCategoryPaletteVars(row, nextCategory, Math.max(0, nextIndex));
       });
       categoryLabel.append(categorySelect);
 
-      const xpLabel = document.createElement('label');
-      xpLabel.innerHTML = '<span>Base XP</span>';
-      const xpInput = document.createElement('input');
-      xpInput.type = 'number';
-      xpInput.min = '1';
-      xpInput.max = '200';
-      xpInput.step = '1';
-      xpInput.value = action.baseXp;
-      xpInput.addEventListener('input', () => {
-        action.baseXp = clampInt(xpInput.value, 1, 200, action.baseXp);
+      const damageLabel = document.createElement('label');
+      damageLabel.innerHTML = '<span>Base Damage</span>';
+      const damageInput = document.createElement('input');
+      damageInput.type = 'number';
+      damageInput.min = '1';
+      damageInput.max = '200';
+      damageInput.step = '1';
+      damageInput.value = action.baseDamage;
+      damageInput.addEventListener('input', () => {
+        action.baseDamage = clampInt(damageInput.value, 1, 200, action.baseDamage);
       });
-      xpLabel.append(xpInput);
+      damageLabel.append(damageInput);
 
       const typeLabel = document.createElement('label');
       typeLabel.innerHTML = '<span>Type</span>';
@@ -2803,12 +2802,18 @@
       remove.setAttribute('aria-label', `Delete ${action.name}`);
       remove.addEventListener('click', () => {
         settingsDraft.actions = settingsDraft.actions.filter(item => item.id !== action.id);
+        settingsDraft.combos.forEach(combo => {
+          combo.actionIds = combo.actionIds.filter(actionId => actionId !== action.id);
+          if (combo.actionIds.length < 2) combo.enabled = false;
+        });
         renderActionsEditor();
-        els.settingsMessage.textContent = 'Action removed.';
+        renderCombosEditor();
+        populateCategorySelect();
+        els.settingsMessage.textContent = 'Action removed. Affected combo steps were updated.';
         commitSettingsDraft();
       });
 
-      grid.append(nameLabel, categoryLabel, xpLabel, typeLabel, visibilityLabel, remove);
+      grid.append(nameLabel, categoryLabel, damageLabel, typeLabel, visibilityLabel, remove);
       row.append(dragHandle, grid);
       els.actionsEditor.append(row);
     });
