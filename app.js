@@ -2571,19 +2571,28 @@
     }
   }
 
+
   function finishActionDrag({ cancelled = false } = {}) {
     if (!actionDrag) return;
 
-    const { row, handle, pointerId } = actionDrag;
+    const {
+      row,
+      pointerId,
+      move,
+      end,
+      cancel,
+      escape,
+      blur
+    } = actionDrag;
+
+    document.removeEventListener('pointermove', move, true);
+    document.removeEventListener('pointerup', end, true);
+    document.removeEventListener('pointercancel', cancel, true);
+    document.removeEventListener('keydown', escape, true);
+    window.removeEventListener('blur', blur);
+
     row.classList.remove('is-dragging');
     document.body.classList.remove('is-reordering-actions');
-
-    try {
-      if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId);
-    } catch (error) {
-      // Capture may already have been released by the browser.
-    }
-
     actionDrag = null;
 
     if (cancelled) {
@@ -2597,63 +2606,89 @@
   }
 
   function beginActionDrag(event, row, handle) {
-    if (!settingsDraft || event.button > 0) return;
+    if (!settingsDraft || actionDrag) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
 
     event.preventDefault();
-    actionDrag = {
-      row,
-      handle,
-      pointerId: event.pointerId
-    };
 
-    row.classList.add('is-dragging');
-    document.body.classList.add('is-reordering-actions');
-    handle.setPointerCapture?.(event.pointerId);
+    const pointerId = event.pointerId;
 
     const move = moveEvent => {
-      if (!actionDrag || moveEvent.pointerId !== actionDrag.pointerId) return;
+      if (!actionDrag || moveEvent.pointerId !== pointerId) return;
       moveEvent.preventDefault();
 
-      const target = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY)
-        ?.closest('.action-editor-row[data-action-id]');
+      const siblings = [...els.actionsEditor.querySelectorAll('.action-editor-row[data-action-id]')]
+        .filter(candidate => candidate !== row);
 
-      if (target && target !== row && target.parentElement === els.actionsEditor) {
-        const rect = target.getBoundingClientRect();
-        if (moveEvent.clientY < rect.top + (rect.height / 2)) {
-          target.before(row);
-        } else {
-          target.after(row);
-        }
+      const before = siblings.find(candidate => {
+        const rect = candidate.getBoundingClientRect();
+        return moveEvent.clientY < rect.top + (rect.height / 2);
+      });
+
+      if (before) {
+        before.before(row);
+      } else {
+        els.actionsEditor.append(row);
       }
 
       const dialogRect = els.settingsDialog.getBoundingClientRect();
-      if (moveEvent.clientY < dialogRect.top + 72) {
-        els.settingsDialog.scrollBy({ top: -14, behavior: 'auto' });
-      } else if (moveEvent.clientY > dialogRect.bottom - 72) {
-        els.settingsDialog.scrollBy({ top: 14, behavior: 'auto' });
+      const edge = Math.min(96, Math.max(56, dialogRect.height * 0.12));
+      let scrollDelta = 0;
+
+      if (moveEvent.clientY < dialogRect.top + edge) {
+        const pressure = 1 - Math.max(0, moveEvent.clientY - dialogRect.top) / edge;
+        scrollDelta = -Math.ceil(6 + (18 * pressure));
+      } else if (moveEvent.clientY > dialogRect.bottom - edge) {
+        const pressure = 1 - Math.max(0, dialogRect.bottom - moveEvent.clientY) / edge;
+        scrollDelta = Math.ceil(6 + (18 * pressure));
+      }
+
+      if (scrollDelta) {
+        els.settingsDialog.scrollBy({ top: scrollDelta, behavior: 'auto' });
       }
     };
 
     const end = endEvent => {
-      if (!actionDrag || endEvent.pointerId !== actionDrag.pointerId) return;
-      handle.removeEventListener('pointermove', move);
-      handle.removeEventListener('pointerup', end);
-      handle.removeEventListener('pointercancel', cancel);
+      if (!actionDrag || endEvent.pointerId !== pointerId) return;
       finishActionDrag();
     };
 
     const cancel = cancelEvent => {
-      if (!actionDrag || cancelEvent.pointerId !== actionDrag.pointerId) return;
-      handle.removeEventListener('pointermove', move);
-      handle.removeEventListener('pointerup', end);
-      handle.removeEventListener('pointercancel', cancel);
+      if (!actionDrag || cancelEvent.pointerId !== pointerId) return;
       finishActionDrag({ cancelled: true });
     };
 
-    handle.addEventListener('pointermove', move);
-    handle.addEventListener('pointerup', end);
-    handle.addEventListener('pointercancel', cancel);
+    const escape = keyEvent => {
+      if (keyEvent.key !== 'Escape' || !actionDrag) return;
+      keyEvent.preventDefault();
+      finishActionDrag({ cancelled: true });
+    };
+
+    const blur = () => {
+      if (actionDrag) finishActionDrag({ cancelled: true });
+    };
+
+    actionDrag = {
+      row,
+      handle,
+      pointerId,
+      move,
+      end,
+      cancel,
+      escape,
+      blur
+    };
+
+    row.classList.add('is-dragging');
+    document.body.classList.add('is-reordering-actions');
+
+    document.addEventListener('pointermove', move, { capture: true, passive: false });
+    document.addEventListener('pointerup', end, true);
+    document.addEventListener('pointercancel', cancel, true);
+    document.addEventListener('keydown', escape, true);
+    window.addEventListener('blur', blur);
   }
+
 
 
   function sortActions(mode) {
