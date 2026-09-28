@@ -624,8 +624,21 @@
     };
   }
 
+
+  function migrateV3State(candidate) {
+    const migrated = deepClone(candidate);
+    migrated.version = STATE_VERSION;
+    migrated.armory = { weapons: [] };
+    migrated.current = {
+      ...(migrated.current || {}),
+      loot: emptyLootState()
+    };
+    return migrated;
+  }
+
   function normalizeState(candidate) {
     if (candidate?.version === 2) candidate = migrateV2State(candidate);
+    if (candidate?.version === 3) candidate = migrateV3State(candidate);
     if (!candidate || candidate.version !== STATE_VERSION) return freshState();
 
     const next = freshState();
@@ -698,6 +711,18 @@
         };
       });
 
+
+    const weaponIds = new Set();
+    next.armory.weapons = (Array.isArray(candidate.armory?.weapons) ? candidate.armory.weapons : [])
+      .slice(0, 500)
+      .map(normalizeWeaponItem)
+      .filter(Boolean)
+      .filter(item => {
+        if (weaponIds.has(item.id)) return false;
+        weaponIds.add(item.id);
+        return true;
+      });
+
     next.progression.victoryXp = clampInt(candidate.progression?.victoryXp, 0, 1000000000, 0);
     next.progression.bestStreak = clampInt(candidate.progression?.bestStreak, 0, 1000000, 0);
     next.progression.archivedStreak = clampInt(candidate.progression?.archivedStreak, 0, 1000000, 0);
@@ -719,6 +744,7 @@
     next.current.victoryXpAwarded = next.current.defeatedAt
       ? clampInt(candidate.current?.victoryXpAwarded, 0, VICTORY_XP, VICTORY_XP)
       : 0;
+    next.current.loot = normalizeLootState(candidate.current?.loot);
     next.current.dayCard = normalizeDayCard(candidate.current?.dayCard);
 
     const comboIdSet = new Set(next.settings.combos.map(combo => combo.id));
@@ -749,7 +775,11 @@
   function normalizeTransactions(value) {
     if (!Array.isArray(value)) return [];
     return value.slice(0, 3000).map(tx => {
-      const type = tx?.type === 'combo' ? 'combo' : 'action';
+      const type = tx?.type === 'combo'
+        ? 'combo'
+        : tx?.type === 'weapon'
+          ? 'weapon'
+          : 'action';
       if (type === 'combo') {
         return {
           type,
@@ -759,6 +789,27 @@
           multiplier: clampNumber(tx?.multiplier, COMBO_MIN_MULTIPLIER, COMBO_MAX_MULTIPLIER, COMBO_DEFAULT_MULTIPLIER),
           damage: clampInt(tx?.damage, 1, 100000, 1),
           sourceTransactionIds: (Array.isArray(tx?.sourceTransactionIds) ? tx.sourceTransactionIds : []).map(id => String(id).slice(0, 128)).slice(0, COMBO_MAX_STEPS),
+          timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
+        };
+      }
+
+      if (type === 'weapon') {
+        const weapon = weaponDefinition(String(tx?.weaponId || ''));
+        if (!weapon) return null;
+        const condition = weapon.special ? null : weaponCondition(String(tx?.conditionId || ''));
+        if (!weapon.special && !condition) return null;
+        return {
+          type,
+          id: String(tx?.id || makeId('weapon-tx')).slice(0, 128),
+          weaponItemId: String(tx?.weaponItemId || '').slice(0, 128),
+          weaponId: weapon.id,
+          weaponName: weapon.name,
+          conditionId: condition?.id || null,
+          conditionName: condition?.name || null,
+          multiplier: weapon.special ? 1 : condition.multiplier,
+          damage: clampInt(tx?.damage, 1, 999, weapon.special
+            ? weapon.baseDamage
+            : Math.max(1, Math.round(weapon.baseDamage * condition.multiplier))),
           timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
         };
       }
@@ -774,7 +825,7 @@
         efficiency: clampNumber(tx?.efficiency, 0.01, 1, 1),
         timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
       };
-    });
+    }).filter(Boolean);
   }
 
   function normalizeDayCard(value) {
@@ -840,7 +891,7 @@
       const raw = localStorage.getItem(storageKey);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      if (!parsed || ![2, STATE_VERSION].includes(parsed.version)) return null;
+      if (!parsed || ![2, 3, STATE_VERSION].includes(parsed.version)) return null;
       return normalizeState(parsed);
     } catch (error) {
       console.warn('Could not read cached MoLife data:', error);
