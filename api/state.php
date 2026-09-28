@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__ . '/bootstrap.php';
+require __DIR__ . '/auth-store.php';
 
 dalli_require_method('POST');
 dalli_require_same_origin();
@@ -10,11 +11,8 @@ $pdo = dalli_pdo();
 
 function dalli_state_snapshot(PDO $pdo, int $userId): array
 {
-    $stmt = $pdo->prepare('SELECT state_json, revision, updated_at FROM user_state WHERE user_id = ? LIMIT 1');
-    $stmt->execute([$userId]);
-    $row = $stmt->fetch();
-
-    if (!is_array($row)) {
+    $row = dalli_user_state_row($pdo, $userId, false);
+    if ($row === null) {
         return [
             'state' => null,
             'revision' => 0,
@@ -23,14 +21,14 @@ function dalli_state_snapshot(PDO $pdo, int $userId): array
     }
 
     try {
-        $state = json_decode((string) $row['state_json'], true, 64, JSON_THROW_ON_ERROR);
-    } catch (JsonException $e) {
-        error_log('Dalli stored state could not be decoded for user ' . $userId);
+        $envelope = dalli_envelope_from_row($row);
+    } catch (Throwable $e) {
+        error_log('Dalli stored state could not be decoded for user ' . $userId . ': ' . $e->getMessage());
         dalli_fail('Stored state is invalid.', 500);
     }
 
     return [
-        'state' => $state,
+        'state' => $envelope['state'],
         'revision' => (int) $row['revision'],
         'updatedAt' => (string) $row['updated_at'],
     ];
@@ -58,48 +56,55 @@ if (!is_int($expectedRevision) || $expectedRevision < 0 || $expectedRevision > 2
 }
 
 $state = dalli_validate_state($body['state'] ?? null);
-$stateJson = json_encode($state, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 
 try {
-    if ($expectedRevision === 0) {
+    $pdo->beginTransaction();
+
+    $row = dalli_user_state_row($pdo, $userId, true);
+    $currentRevision = $row === null ? 0 : (int) $row['revision'];
+    $envelope = dalli_envelope_from_row($row);
+
+    if ($currentRevision !== $expectedRevision) {
+        $conflictState = $envelope['state'];
+        $updatedAt = $row === null ? null : (string) $row['updated_at'];
+        $pdo->rollBack();
+
+        dalli_json_response([
+            'ok' => false,
+            'error' => 'Cloud state changed on another device.',
+            'conflict' => true,
+            'state' => $conflictState,
+            'revision' => $currentRevision,
+            'updatedAt' => $updatedAt,
+        ], 409);
+    }
+
+    $envelope['state'] = $state;
+    $nextRevision = $currentRevision + 1;
+    $json = dalli_encode_envelope($envelope);
+
+    if ($row === null) {
         $stmt = $pdo->prepare(
-            'INSERT INTO user_state (user_id, state_json, revision) VALUES (?, ?, 1)'
+            'INSERT INTO user_state (user_id, state_json, revision) VALUES (?, ?, ?)'
         );
-        try {
-            $stmt->execute([$userId, $stateJson]);
-            dalli_json_response([
-                'ok' => true,
-                'revision' => 1,
-            ]);
-        } catch (PDOException $e) {
-            if ((string) $e->getCode() !== '23000') {
-                throw $e;
-            }
-        }
+        $stmt->execute([$userId, $json, $nextRevision]);
     } else {
         $stmt = $pdo->prepare(
-            'UPDATE user_state
-             SET state_json = ?, revision = revision + 1
-             WHERE user_id = ? AND revision = ?'
+            'UPDATE user_state SET state_json = ?, revision = ? WHERE user_id = ?'
         );
-        $stmt->execute([$stateJson, $userId, $expectedRevision]);
-        if ($stmt->rowCount() === 1) {
-            dalli_json_response([
-                'ok' => true,
-                'revision' => $expectedRevision + 1,
-            ]);
-        }
+        $stmt->execute([$json, $nextRevision, $userId]);
     }
+
+    $pdo->commit();
+
+    dalli_json_response([
+        'ok' => true,
+        'revision' => $nextRevision,
+    ]);
 } catch (Throwable $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log('Dalli state save failed: ' . $e->getMessage());
     dalli_fail('Could not save state.', 500);
 }
-
-dalli_json_response(array_merge(
-    [
-        'ok' => false,
-        'error' => 'Cloud state changed on another device.',
-        'conflict' => true,
-    ],
-    dalli_state_snapshot($pdo, $userId)
-), 409);
