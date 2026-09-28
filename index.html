@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#11131a">
-  <meta name="description" content="Dalli — suspiciously effective daily gamification from Crestfallen.">
-  <title>Dalli</title>
+  <meta name="description" content="MoLife — suspiciously effective life optimization from mo.les.tech.">
+  <title>MoLife</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=3.0.0">
+  <link rel="stylesheet" href="styles.css?v=3.1.0">
 </head>
 <body>
   <div class="city-noise" aria-hidden="true"></div>
@@ -16,10 +16,15 @@
   <div class="app-shell">
     <header class="topbar">
       <div class="brand-block">
-        <div class="eyebrow">CRESTFALLEN PRODUCTIVITY DIVISION</div>
-        <h1 class="brand-title">Dalli</h1>
-        <div class="brand-subline">Get a move on. The city is watching.</div>
-        <div class="app-version" aria-label="Dalli version 3.0.0">v3.0.0 · Crestfallen build</div>
+        <div class="newswire" aria-label="Crestfallen Newswire">
+          <span class="newswire-live"><i aria-hidden="true"></i> LIVE</span>
+          <span class="newswire-label">CRESTFALLEN NEWSWIRE</span>
+          <span class="newswire-chevron" aria-hidden="true">›</span>
+          <span id="newswireMessage" class="newswire-message" aria-live="polite">LOCAL PRODUCTIVITY STATUS CURRENTLY UNDER REVIEW</span>
+        </div>
+        <h1 class="brand-title" data-text="MoLife">MoLife<span class="brand-tm">™</span></h1>
+        <div class="brand-subline">Life optimization for citizens with nowhere left to hide.</div>
+        <div class="app-version" aria-label="MoLife version 3.1.0">v3.1.0 · Crestfallen build</div>
         <div id="todayLabel" class="muted"></div>
       </div>
       <button id="settingsButton" class="icon-button" type="button" aria-label="Open settings" title="Settings">⚙</button>
@@ -41,7 +46,7 @@
             </div>
           </div>
         </div>
-        <div class="hero-progress" aria-label="Dalli progress">
+        <div class="hero-progress" aria-label="MoLife progress">
           <div id="totalProgress" class="hero-progress-fill"></div>
         </div>
       </section>
@@ -92,8 +97,8 @@
 
       <section class="section-head">
         <div>
-          <div class="eyebrow">XP MARKET</div>
-          <h2>Categories</h2>
+          <div class="eyebrow">IMPROVE YOURSELF</div>
+          <h2>Track-o-Tron</h2>
         </div>
         <div class="balance-note">Focus decides how long a category stays lucrative</div>
       </section>
@@ -122,6 +127,12 @@
         </div>
       </section>
     </main>
+
+    <footer class="corp-footer">
+      <span>powered by <strong>mo.les.tech™</strong></span>
+      <span class="corp-footer-dot" aria-hidden="true">•</span>
+      <span>Building a smarter Crestfallen.</span>
+    </footer>
   </div>
 
   <dialog id="dayCardDialog" class="day-card-dialog">
@@ -275,11 +286,11 @@
         <div class="category-meter"><div class="category-meter-fill"></div></div>
         <div class="efficiency-next"></div>
       </div>
-      <div class="actions-list"></div>
+      <div class="action-deck"><div class="actions-list"></div></div>
     </article>
   </template>
 
-  <script src="app.js?v=3.0.0" defer></script>
-  <script src="cloud.js?v=3.0.0" defer></script>
+  <script src="app.js?v=3.1.0" defer></script>
+  <script src="cloud.js?v=3.1.0" defer></script>
 </body>
 </html>
