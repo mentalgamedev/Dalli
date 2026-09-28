@@ -121,52 +121,100 @@
     }
   }
 
+  function normalizeCategoryId(value) {
+    const id = String(value || '');
+    return id === 'health' ? 'wellbeing' : id;
+  }
+
+  function uncategorizedCategory() {
+    return { id: UNCATEGORIZED_ID, name: 'Uncategorized', icon: '•', weight: 0 };
+  }
+
+  function ensureUncategorizedCategory(categories) {
+    const result = categories.filter(category => category.id !== UNCATEGORIZED_ID);
+    result.push(uncategorizedCategory());
+    return result;
+  }
+
   function normalizeState(candidate) {
     const next = deepClone(DEFAULT_STATE);
     next.settings.goal = clampInt(candidate.settings?.goal, 20, 1000, 100);
 
-    if (Array.isArray(candidate.settings?.categories) && candidate.settings.categories.length) {
-      next.settings.categories = candidate.settings.categories.map((category, index) => ({
-        id: String(category.id || `category-${index + 1}`),
-        name: String(category.name || `Category ${index + 1}`),
-        icon: String(category.icon || '•'),
-        weight: clampNumber(category.weight, 0.25, 10, 1)
-      }));
-    }
+    const categorySource = Array.isArray(candidate.settings?.categories)
+      ? candidate.settings.categories
+      : DEFAULT_STATE.settings.categories;
 
-    if (Array.isArray(candidate.settings?.actions)) {
-      const categoryIds = new Set(next.settings.categories.map(c => c.id));
-      next.settings.actions = candidate.settings.actions
-        .filter(action => categoryIds.has(String(action.categoryId)))
-        .map((action, index) => ({
-          id: String(action.id || `action-${index + 1}`),
-          categoryId: String(action.categoryId),
-          name: String(action.name || 'Unnamed action'),
-          xp: clampInt(action.xp, 1, 200, 10),
-          type: action.type === 'once' ? 'once' : 'repeatable'
-        }));
-    }
+    const seenCategoryIds = new Set();
+    const normalizedCategories = [];
+
+    categorySource.forEach((category, index) => {
+      const rawId = normalizeCategoryId(category?.id || `category-${index + 1}`);
+      if (!rawId || seenCategoryIds.has(rawId) || rawId === UNCATEGORIZED_ID) return;
+
+      seenCategoryIds.add(rawId);
+      const legacyHealth = String(category?.id || '') === 'health';
+      normalizedCategories.push({
+        id: rawId,
+        name: legacyHealth && String(category?.name || '') === 'Health'
+          ? 'Wellbeing'
+          : String(category?.name || `Category ${index + 1}`),
+        icon: String(category?.icon || '•'),
+        weight: clampNumber(category?.weight, 0.25, 10, 1)
+      });
+    });
+
+    next.settings.categories = ensureUncategorizedCategory(normalizedCategories);
+
+    const categoryIds = new Set(next.settings.categories.map(category => category.id));
+    const actionSource = Array.isArray(candidate.settings?.actions)
+      ? candidate.settings.actions
+      : DEFAULT_STATE.settings.actions;
+
+    next.settings.actions = actionSource.map((action, index) => {
+      const requestedCategoryId = normalizeCategoryId(action?.categoryId);
+      return {
+        id: String(action?.id || `action-${index + 1}`),
+        categoryId: categoryIds.has(requestedCategoryId) ? requestedCategoryId : UNCATEGORIZED_ID,
+        name: String(action?.name || 'Unnamed action'),
+        xp: clampInt(action?.xp, 1, 200, 10),
+        type: action?.type === 'once' ? 'once' : 'repeatable'
+      };
+    });
 
     next.current.date = String(candidate.current?.date || '');
     next.current.transactions = Array.isArray(candidate.current?.transactions)
-      ? candidate.current.transactions.map(tx => ({
-          id: String(tx.id || makeId('tx')),
-          actionId: String(tx.actionId || ''),
-          actionName: String(tx.actionName || 'Action'),
-          categoryId: String(tx.categoryId || ''),
-          xp: clampInt(tx.xp, 0, 200, 0),
-          timestamp: Number.isFinite(Number(tx.timestamp)) ? Number(tx.timestamp) : Date.now()
-        })).filter(tx => tx.xp > 0)
+      ? candidate.current.transactions.map(tx => {
+          const requestedCategoryId = normalizeCategoryId(tx?.categoryId);
+          return {
+            id: String(tx?.id || makeId('tx')),
+            actionId: String(tx?.actionId || ''),
+            actionName: String(tx?.actionName || 'Action'),
+            categoryId: categoryIds.has(requestedCategoryId) ? requestedCategoryId : UNCATEGORIZED_ID,
+            xp: clampInt(tx?.xp, 0, 200, 0),
+            timestamp: Number.isFinite(Number(tx?.timestamp)) ? Number(tx.timestamp) : Date.now()
+          };
+        }).filter(tx => tx.xp > 0)
       : [];
 
     next.history = Array.isArray(candidate.history)
-      ? candidate.history.slice(0, HISTORY_LIMIT).map(day => ({
-          date: String(day.date || ''),
-          xp: clampInt(day.xp, 0, 100000, 0),
-          goal: clampInt(day.goal, 20, 1000, 100),
-          won: Boolean(day.won),
-          categoryXp: typeof day.categoryXp === 'object' && day.categoryXp ? day.categoryXp : {}
-        })).filter(day => /^\d{4}-\d{2}-\d{2}$/.test(day.date))
+      ? candidate.history.slice(0, HISTORY_LIMIT).map(day => {
+          const categoryXp = {};
+          if (day?.categoryXp && typeof day.categoryXp === 'object') {
+            Object.entries(day.categoryXp).forEach(([categoryId, xp]) => {
+              const normalizedId = normalizeCategoryId(categoryId);
+              const amount = clampInt(xp, 0, 100000, 0);
+              categoryXp[normalizedId] = (categoryXp[normalizedId] || 0) + amount;
+            });
+          }
+
+          return {
+            date: String(day?.date || ''),
+            xp: clampInt(day?.xp, 0, 100000, 0),
+            goal: clampInt(day?.goal, 20, 1000, 100),
+            won: Boolean(day?.won),
+            categoryXp
+          };
+        }).filter(day => /^\d{4}-\d{2}-\d{2}$/.test(day.date))
       : [];
 
     return next;
