@@ -2806,10 +2806,13 @@
           combo.actionIds = combo.actionIds.filter(actionId => actionId !== action.id);
           if (combo.actionIds.length < 2) combo.enabled = false;
         });
+        const duplicateCombosDisabled = disableDuplicateEnabledCombos(settingsDraft.combos);
         renderActionsEditor();
         renderCombosEditor();
         populateCategorySelect();
-        els.settingsMessage.textContent = 'Action removed. Affected combo steps were updated.';
+        els.settingsMessage.textContent = duplicateCombosDisabled
+          ? 'Action removed. Affected combos were updated; a duplicate sequence was disabled.'
+          : 'Action removed. Affected combo steps were updated.';
         commitSettingsDraft();
       });
 
@@ -2928,6 +2931,22 @@
     return actionIds.join('\u001f');
   }
 
+  function disableDuplicateEnabledCombos(combos) {
+    const seen = new Set();
+    let disabled = 0;
+    combos.forEach(combo => {
+      if (!combo.enabled || combo.actionIds.length < 2) return;
+      const fingerprint = comboFingerprint(combo.actionIds);
+      if (seen.has(fingerprint)) {
+        combo.enabled = false;
+        disabled += 1;
+      } else {
+        seen.add(fingerprint);
+      }
+    });
+    return disabled;
+  }
+
   function comboChanged(a, b) {
     if (!a || !b) return true;
     return a.name !== b.name
@@ -3008,6 +3027,7 @@
       enabledText.textContent = enabledInput.checked ? 'On' : 'Off';
       enabledInput.addEventListener('change', () => {
         combo.enabled = enabledInput.checked && combo.actionIds.length >= 2;
+        enabledInput.checked = combo.enabled;
         enabledText.textContent = combo.enabled ? 'On' : 'Off';
       });
       enabledToggle.append(enabledInput, enabledText);
@@ -3156,23 +3176,24 @@
       : [settingsDraft.actions[0].id, settingsDraft.actions[0].id];
 
     const fingerprint = comboFingerprint(actionIds);
-    if (settingsDraft.combos.some(combo => combo.enabled && comboFingerprint(combo.actionIds) === fingerprint)) {
-      els.settingsMessage.textContent = 'That starter sequence already belongs to an enabled combo. Change that combo first.';
-      return;
-    }
+    const starterSequenceIsDuplicate = settingsDraft.combos.some(
+      combo => combo.enabled && comboFingerprint(combo.actionIds) === fingerprint
+    );
 
     settingsDraft.combos.push({
       id: makeId('combo'),
       name: name.slice(0, 80),
       multiplier,
-      enabled: true,
+      enabled: !starterSequenceIsDuplicate,
       actionIds
     });
 
     els.newComboName.value = '';
     els.newComboMultiplier.value = COMBO_DEFAULT_MULTIPLIER.toFixed(2);
     renderCombosEditor();
-    els.settingsMessage.textContent = 'Combo created. Configure its ordered sequence below.';
+    els.settingsMessage.textContent = starterSequenceIsDuplicate
+      ? 'Combo created disabled because its starter sequence duplicates an enabled combo. Edit its sequence, then enable it.'
+      : 'Combo created. Configure its ordered sequence below.';
     commitSettingsDraft();
   }
 
@@ -3332,7 +3353,7 @@
 
   function resetGameData() {
     const confirmed = window.confirm(
-      'Reset ALL MoLife game data?\n\nThis wipes categories, actions, history, Level, Street Cred and streaks. Your login/account remains.\n\nThe Crestfallen Department of Records will pretend none of this ever happened.'
+      'Reset ALL MoLife game data?\n\nThis wipes categories, actions, combos, history, Level, Street Cred and streaks. Your login/account remains.\n\nThe Crestfallen Department of Records will pretend none of this ever happened.'
     );
     if (!confirmed) return;
 
