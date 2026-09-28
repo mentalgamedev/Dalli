@@ -1180,7 +1180,13 @@
 
 
   function rollVictoryLootIfNeeded() {
-    if (state.current.loot?.rolled) return;
+    if (state.current.loot?.rolled) {
+      if (state.current.loot.pendingWeapon && !state.current.loot.claimed) {
+        state.current.loot.available = true;
+      }
+      return;
+    }
+
     state.current.loot = emptyLootState();
     state.current.loot.rolled = true;
 
@@ -1193,13 +1199,19 @@
   }
 
   function revokeCurrentVictoryLoot() {
-    const loot = state.current.loot;
-    if (loot?.claimed && loot.pendingWeapon?.id) {
+    const loot = state.current.loot || emptyLootState();
+    if (loot.claimed && loot.pendingWeapon?.id) {
       state.armory.weapons = state.armory.weapons.filter(
         item => item.id !== loot.pendingWeapon.id
       );
     }
-    state.current.loot = emptyLootState();
+
+    state.current.loot = {
+      rolled: Boolean(loot.rolled),
+      available: false,
+      claimed: false,
+      pendingWeapon: loot.pendingWeapon ? deepClone(loot.pendingWeapon) : null
+    };
   }
 
   function claimVictoryLoot() {
