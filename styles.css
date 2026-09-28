@@ -1717,3 +1717,273 @@ body {
     scroll-behavior: auto;
   }
 }
+
+
+/* -------------------------------------------------------------------------- */
+/* MoLife motion + mobile polish v3.2                                         */
+/* -------------------------------------------------------------------------- */
+
+:root {
+  --motion-x: 50%;
+  --motion-y: 18%;
+  --motion-x-2: 78%;
+  --motion-y-2: 8%;
+  --motion-hue: 0deg;
+  --motion-tilt: 0;
+}
+
+.motion-shimmer {
+  position: fixed;
+  inset: -12vmax;
+  z-index: -2;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(circle at var(--motion-x) var(--motion-y),
+      rgba(126,108,255,.22),
+      transparent 31vmax),
+    radial-gradient(circle at var(--motion-x-2) var(--motion-y-2),
+      rgba(55,221,190,.16),
+      transparent 28vmax),
+    radial-gradient(circle at calc(100% - var(--motion-x)) calc(78% - (var(--motion-tilt) * 8%)),
+      rgba(234,105,190,.075),
+      transparent 26vmax);
+  filter: hue-rotate(var(--motion-hue)) saturate(1.08);
+  transition: opacity .35s ease;
+  will-change: background-position, filter, opacity;
+}
+
+.ambient-fx-enabled .motion-shimmer {
+  opacity: 1;
+}
+
+/* Simpler wordmark: playful, but no fake graffiti construction. */
+.brand-title {
+  position: relative;
+  isolation: auto;
+  display: inline-flex;
+  align-items: flex-start;
+  width: fit-content;
+  margin: 3px 0 11px 0;
+  overflow: visible;
+  background: linear-gradient(100deg, #f4f1ff 0%, #aaa2ff 44%, #6be2cc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-family: "Trebuchet MS", "Arial Rounded MT Bold", ui-rounded, system-ui, sans-serif;
+  font-size: clamp(2.25rem, 5.5vw, 3.2rem);
+  font-style: normal;
+  font-weight: 900;
+  line-height: .92;
+  letter-spacing: -.075em;
+  text-shadow: 0 3px 22px rgba(122,108,255,.18);
+  transform: none;
+}
+
+.brand-title::before,
+.brand-title::after {
+  content: none;
+}
+
+.brand-mo,
+.brand-life {
+  color: inherit;
+  -webkit-text-stroke: 0;
+}
+
+.brand-tm {
+  margin: -.02em 0 0 .20em;
+  color: #8b94a5;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: .22em;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0;
+  -webkit-text-stroke: 0;
+  transform: none;
+}
+
+.brand-subline {
+  margin-top: 0;
+}
+
+/* The Newswire now behaves like an actual ticker instead of truncating. */
+.newswire {
+  padding-right: 0;
+}
+
+.newswire-viewport {
+  position: relative;
+  min-width: 0;
+  flex: 1 1 auto;
+  height: 1.05rem;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 9px, #000 calc(100% - 10px), transparent);
+}
+
+.newswire-message {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  display: inline-block;
+  width: max-content;
+  max-width: none;
+  min-width: max-content;
+  overflow: visible;
+  padding-right: 56px;
+  color: #f0f2f7;
+  font-size: .67rem;
+  font-weight: 760;
+  letter-spacing: .025em;
+  line-height: 1;
+  text-overflow: clip;
+  white-space: nowrap;
+  transform: translate3d(0,-50%,0);
+  will-change: transform;
+}
+
+.newswire-message.newswire-swap {
+  animation: none;
+}
+
+/* Only become an inner scroll surface when there is actually overflow. */
+.action-deck {
+  height: 230px;
+  min-height: 230px;
+}
+
+.actions-list {
+  overflow-y: visible;
+  overscroll-behavior-y: auto;
+  touch-action: pan-y;
+}
+
+.action-deck.is-scrollable .actions-list {
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+}
+
+/* Motion FX setting */
+.motion-fx-row {
+  margin-top: 13px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid rgba(255,255,255,.055);
+  border-radius: 14px;
+  background: rgba(255,255,255,.03);
+}
+
+.motion-fx-row strong,
+.motion-fx-row small {
+  display: block;
+}
+
+.motion-fx-row small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: .72rem;
+}
+
+.motion-fx-row .secondary-button {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
+/* Signed-in mobile header: sync, profile, settings on one compact right-aligned row. */
+@media (max-width: 620px) {
+  .topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px 8px;
+  }
+
+  .brand-block {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: 100%;
+  }
+
+  .account-zone {
+    grid-column: 1;
+    grid-row: 2;
+    width: auto;
+    min-width: 0;
+    margin-left: auto;
+    justify-self: end;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 7px;
+  }
+
+  .account-zone .sync-status {
+    margin-right: 0;
+    flex: 0 1 auto;
+  }
+
+  .account-zone .account-button {
+    min-width: 0;
+    max-width: min(42vw, 180px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #settingsButton {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+  }
+
+  .newswire {
+    padding-right: 0;
+  }
+
+  .newswire-viewport {
+    height: 1rem;
+  }
+
+  .newswire-message {
+    font-size: .63rem;
+  }
+
+  .brand-title {
+    margin-bottom: 12px;
+    font-size: clamp(2.3rem, 13vw, 3.15rem);
+  }
+
+  .action-deck {
+    height: 220px;
+    min-height: 220px;
+  }
+
+  .motion-fx-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .motion-fx-row .secondary-button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-shimmer {
+    display: none;
+  }
+
+  .newswire-message {
+    position: static;
+    display: block;
+    width: auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    padding-right: 0;
+    text-overflow: ellipsis;
+    transform: none !important;
+  }
+}
