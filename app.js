@@ -940,13 +940,22 @@
   }
 
   function populateCategorySelect() {
+    const previous = els.newActionCategory.value;
     els.newActionCategory.replaceChildren();
+
     settingsDraft.categories.forEach(category => {
       const option = document.createElement('option');
       option.value = category.id;
       option.textContent = category.name;
       els.newActionCategory.append(option);
     });
+
+    if (settingsDraft.categories.some(category => category.id === previous)) {
+      els.newActionCategory.value = previous;
+    } else {
+      const preferred = settingsDraft.categories.find(category => category.id !== UNCATEGORIZED_ID);
+      els.newActionCategory.value = preferred?.id || UNCATEGORIZED_ID;
+    }
   }
 
   function addActionFromForm() {
@@ -977,18 +986,29 @@
   function saveSettingsFromDialog(event) {
     if (event.submitter && event.submitter.value === 'cancel') {
       settingsDraft = null;
+      editingCategoryId = null;
       editingActionId = null;
       return;
     }
 
     settingsDraft.goal = clampInt(els.goalInput.value, 20, 1000, 100);
-    const inputs = els.weightsEditor.querySelectorAll('input[data-category-id]');
-    inputs.forEach(input => {
-      const category = settingsDraft.categories.find(c => c.id === input.dataset.categoryId);
-      if (category) category.weight = clampNumber(input.value, 0.25, 10, 1);
+    settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
+
+    const validCategoryIds = new Set(settingsDraft.categories.map(category => category.id));
+    settingsDraft.actions.forEach(action => {
+      if (!validCategoryIds.has(action.categoryId)) {
+        action.categoryId = UNCATEGORIZED_ID;
+      }
     });
+
+    state.current.transactions = state.current.transactions.map(tx => ({
+      ...tx,
+      categoryId: validCategoryIds.has(tx.categoryId) ? tx.categoryId : UNCATEGORIZED_ID
+    }));
+
     state.settings = settingsDraft;
     settingsDraft = null;
+    editingCategoryId = null;
     editingActionId = null;
     saveState();
     render();
@@ -1005,7 +1025,8 @@
   });
 
   els.settingsButton.addEventListener('click', openSettings);
-  els.goalInput.addEventListener('input', previewWeightRequirements);
+  els.goalInput.addEventListener('input', previewCategoryRequirements);
+  els.addCategoryButton.addEventListener('click', addCategoryFromForm);
   els.addActionButton.addEventListener('click', addActionFromForm);
   els.settingsForm.addEventListener('submit', saveSettingsFromDialog);
 
