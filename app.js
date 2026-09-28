@@ -1017,14 +1017,14 @@
   }
 
   function getLevelProgress() {
-    const lifetimeXp = state.progression.victoryXp;
+    const victoryXp = state.progression.victoryXp;
     const completedLevels = Math.max(
       0,
-      Math.floor((-50 + Math.sqrt(2500 + (40 * lifetimeXp))) / 20)
+      Math.floor((-50 + Math.sqrt(2500 + (40 * victoryXp))) / 20)
     );
     const level = completedLevels + 1;
     const threshold = (10 * completedLevels * completedLevels) + (50 * completedLevels);
-    const into = lifetimeXp - threshold;
+    const into = victoryXp - threshold;
     const requirement = levelRequirement(level);
 
     return {
@@ -2886,10 +2886,11 @@
     commitSettingsDraft();
   }
 
+
   function addActionFromForm() {
     const name = els.newActionName.value.trim();
     const categoryId = els.newActionCategory.value;
-    const baseXp = clampInt(els.newActionXp.value, 1, 200, 10);
+    const baseDamage = clampInt(els.newActionDamage.value, 1, 200, 10);
     const type = els.newActionType.value === 'once' ? 'once' : 'repeatable';
     const trackVisible = els.newActionVisible ? els.newActionVisible.checked : true;
 
@@ -2908,17 +2909,270 @@
       id: makeId('action'),
       categoryId,
       name,
-      baseXp,
+      baseDamage,
       type,
       trackVisible
     });
 
     els.newActionName.value = '';
-    els.newActionXp.value = '10';
+    els.newActionDamage.value = '10';
     els.newActionType.value = 'repeatable';
     if (els.newActionVisible) els.newActionVisible.checked = true;
     renderActionsEditor();
-    els.settingsMessage.textContent = 'Action added. The paperwork filed itself.';
+    renderCombosEditor();
+    els.settingsMessage.textContent = 'Action added. Dark You has been notified.';
+    commitSettingsDraft();
+  }
+
+  function comboFingerprint(actionIds) {
+    return actionIds.join('\u001f');
+  }
+
+  function comboChanged(a, b) {
+    if (!a || !b) return true;
+    return a.name !== b.name
+      || Number(a.multiplier) !== Number(b.multiplier)
+      || Boolean(a.enabled) !== Boolean(b.enabled)
+      || comboFingerprint(a.actionIds || []) !== comboFingerprint(b.actionIds || []);
+  }
+
+  function actionOption(action, selectedId) {
+    const option = document.createElement('option');
+    option.value = action.id;
+    option.textContent = action.name;
+    option.selected = action.id === selectedId;
+    return option;
+  }
+
+  function renderCombosEditor() {
+    if (!els.combosEditor) return;
+    els.combosEditor.replaceChildren();
+
+    if (!settingsDraft.combos.length) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state combo-editor-empty';
+      empty.textContent = 'No combos yet. Coordinated self-improvement remains legally unproven.';
+      els.combosEditor.append(empty);
+      return;
+    }
+
+    settingsDraft.combos.forEach(combo => {
+      const card = document.createElement('div');
+      card.className = 'combo-editor-card combo-direct-editor';
+      card.dataset.comboId = combo.id;
+
+      const head = document.createElement('div');
+      head.className = 'combo-editor-head';
+
+      const nameLabel = document.createElement('label');
+      nameLabel.className = 'combo-name-field';
+      nameLabel.innerHTML = '<span>Name</span>';
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.maxLength = 80;
+      nameInput.value = combo.name;
+      nameInput.addEventListener('input', () => {
+        combo.name = nameInput.value.slice(0, 80);
+      });
+      nameLabel.append(nameInput);
+
+      const multiplierLabel = document.createElement('label');
+      multiplierLabel.innerHTML = '<span>Multiplier</span>';
+      const multiplierInput = document.createElement('input');
+      multiplierInput.type = 'number';
+      multiplierInput.min = String(COMBO_MIN_MULTIPLIER);
+      multiplierInput.max = String(COMBO_MAX_MULTIPLIER);
+      multiplierInput.step = '0.05';
+      multiplierInput.inputMode = 'decimal';
+      multiplierInput.value = Number(combo.multiplier).toFixed(2);
+      multiplierInput.addEventListener('input', () => {
+        combo.multiplier = clampNumber(
+          multiplierInput.value,
+          COMBO_MIN_MULTIPLIER,
+          COMBO_MAX_MULTIPLIER,
+          combo.multiplier
+        );
+      });
+      multiplierLabel.append(multiplierInput);
+
+      const enabledLabel = document.createElement('label');
+      enabledLabel.className = 'combo-enabled-field';
+      const enabledTitle = document.createElement('span');
+      enabledTitle.textContent = 'Enabled';
+      const enabledToggle = document.createElement('span');
+      enabledToggle.className = 'checkbox-row';
+      const enabledInput = document.createElement('input');
+      enabledInput.type = 'checkbox';
+      enabledInput.checked = combo.enabled !== false;
+      const enabledText = document.createElement('span');
+      enabledText.textContent = enabledInput.checked ? 'On' : 'Off';
+      enabledInput.addEventListener('change', () => {
+        combo.enabled = enabledInput.checked && combo.actionIds.length >= 2;
+        enabledText.textContent = combo.enabled ? 'On' : 'Off';
+      });
+      enabledToggle.append(enabledInput, enabledText);
+      enabledLabel.append(enabledTitle, enabledToggle);
+
+      const removeCombo = document.createElement('button');
+      removeCombo.type = 'button';
+      removeCombo.className = 'delete-action combo-delete';
+      removeCombo.textContent = '×';
+      removeCombo.setAttribute('aria-label', `Delete combo ${combo.name}`);
+      removeCombo.addEventListener('click', () => {
+        settingsDraft.combos = settingsDraft.combos.filter(item => item.id !== combo.id);
+        renderCombosEditor();
+        els.settingsMessage.textContent = 'Combo removed.';
+        commitSettingsDraft();
+      });
+
+      head.append(nameLabel, multiplierLabel, enabledLabel, removeCombo);
+      card.append(head);
+
+      const sequence = document.createElement('div');
+      sequence.className = 'combo-sequence-editor';
+
+      combo.actionIds.forEach((actionId, stepIndex) => {
+        const step = document.createElement('div');
+        step.className = 'combo-step-editor';
+
+        const number = document.createElement('span');
+        number.className = 'combo-step-number';
+        number.textContent = String(stepIndex + 1);
+
+        const select = document.createElement('select');
+        select.setAttribute('aria-label', `Step ${stepIndex + 1} action`);
+        settingsDraft.actions.forEach(action => select.append(actionOption(action, actionId)));
+        select.value = actionId;
+        select.addEventListener('change', () => {
+          combo.actionIds[stepIndex] = select.value;
+          renderCombosEditor();
+          els.settingsMessage.textContent = 'Combo sequence updated. Today’s progress for it was reset.';
+          commitSettingsDraft();
+        });
+
+        const up = document.createElement('button');
+        up.type = 'button';
+        up.className = 'combo-step-button';
+        up.textContent = '↑';
+        up.title = 'Move step up';
+        up.disabled = stepIndex === 0;
+        up.addEventListener('click', () => {
+          [combo.actionIds[stepIndex - 1], combo.actionIds[stepIndex]] = [
+            combo.actionIds[stepIndex],
+            combo.actionIds[stepIndex - 1]
+          ];
+          renderCombosEditor();
+          commitSettingsDraft();
+        });
+
+        const down = document.createElement('button');
+        down.type = 'button';
+        down.className = 'combo-step-button';
+        down.textContent = '↓';
+        down.title = 'Move step down';
+        down.disabled = stepIndex === combo.actionIds.length - 1;
+        down.addEventListener('click', () => {
+          [combo.actionIds[stepIndex + 1], combo.actionIds[stepIndex]] = [
+            combo.actionIds[stepIndex],
+            combo.actionIds[stepIndex + 1]
+          ];
+          renderCombosEditor();
+          commitSettingsDraft();
+        });
+
+        const removeStep = document.createElement('button');
+        removeStep.type = 'button';
+        removeStep.className = 'combo-step-button is-delete';
+        removeStep.textContent = '×';
+        removeStep.title = 'Remove step';
+        removeStep.addEventListener('click', () => {
+          combo.actionIds.splice(stepIndex, 1);
+          if (combo.actionIds.length < 2) combo.enabled = false;
+          renderCombosEditor();
+          els.settingsMessage.textContent = combo.actionIds.length < 2
+            ? 'Combo disabled: it needs at least 2 actions.'
+            : 'Combo step removed. Today’s progress for it was reset.';
+          commitSettingsDraft();
+        });
+
+        step.append(number, select, up, down, removeStep);
+        sequence.append(step);
+      });
+
+      card.append(sequence);
+
+      const footer = document.createElement('div');
+      footer.className = 'combo-editor-footer';
+
+      const addStep = document.createElement('button');
+      addStep.type = 'button';
+      addStep.className = 'secondary-button combo-add-step';
+      addStep.textContent = '+ Add step';
+      addStep.disabled = settingsDraft.actions.length === 0 || combo.actionIds.length >= COMBO_MAX_STEPS;
+      addStep.addEventListener('click', () => {
+        if (!settingsDraft.actions.length || combo.actionIds.length >= COMBO_MAX_STEPS) return;
+        combo.actionIds.push(settingsDraft.actions[0].id);
+        renderCombosEditor();
+        els.settingsMessage.textContent = 'Combo step added. Today’s progress for it was reset.';
+        commitSettingsDraft();
+      });
+
+      const status = document.createElement('span');
+      status.className = 'combo-editor-status';
+      if (combo.actionIds.length < 2) {
+        status.classList.add('is-warning');
+        status.textContent = 'Needs at least 2 actions · disabled';
+      } else {
+        status.textContent = `${combo.actionIds.length}/${COMBO_MAX_STEPS} steps · ordered, non-strict`;
+      }
+
+      footer.append(addStep, status);
+      card.append(footer);
+      els.combosEditor.append(card);
+    });
+  }
+
+  function addComboFromForm() {
+    if (!settingsDraft.actions.length) {
+      els.settingsMessage.textContent = 'Add at least one action before creating a combo.';
+      return;
+    }
+
+    const name = els.newComboName.value.trim();
+    if (!name) {
+      els.settingsMessage.textContent = 'Give the combo a name first.';
+      els.newComboName.focus();
+      return;
+    }
+
+    const multiplier = clampNumber(
+      els.newComboMultiplier.value,
+      COMBO_MIN_MULTIPLIER,
+      COMBO_MAX_MULTIPLIER,
+      COMBO_DEFAULT_MULTIPLIER
+    );
+    const actionIds = settingsDraft.actions.length >= 2
+      ? [settingsDraft.actions[0].id, settingsDraft.actions[1].id]
+      : [settingsDraft.actions[0].id, settingsDraft.actions[0].id];
+
+    const fingerprint = comboFingerprint(actionIds);
+    if (settingsDraft.combos.some(combo => combo.enabled && comboFingerprint(combo.actionIds) === fingerprint)) {
+      els.settingsMessage.textContent = 'That starter sequence already belongs to an enabled combo. Change that combo first.';
+      return;
+    }
+
+    settingsDraft.combos.push({
+      id: makeId('combo'),
+      name: name.slice(0, 80),
+      multiplier,
+      enabled: true,
+      actionIds
+    });
+
+    els.newComboName.value = '';
+    els.newComboMultiplier.value = COMBO_DEFAULT_MULTIPLIER.toFixed(2);
+    renderCombosEditor();
+    els.settingsMessage.textContent = 'Combo created. Configure its ordered sequence below.';
     commitSettingsDraft();
   }
 
@@ -2960,7 +3214,7 @@
       ...action,
       name: String(action.name || '').trim(),
       categoryId: categoryIds.has(action.categoryId) ? action.categoryId : UNCATEGORIZED_ID,
-      baseXp: clampInt(action.baseXp, 1, 200, 10),
+      baseDamage: clampInt(action.baseDamage, 1, 200, 10),
       type: action.type === 'once' ? 'once' : 'repeatable',
       trackVisible: action.trackVisible !== false
     }));
@@ -2969,12 +3223,48 @@
       return { ok: false, message: 'Every action needs a name.' };
     }
 
+    const actionIds = new Set(actions.map(action => action.id));
+    const enabledSequences = new Set();
+    const combos = settingsDraft.combos.map((combo, index) => {
+      const sequence = (Array.isArray(combo.actionIds) ? combo.actionIds : [])
+        .slice(0, COMBO_MAX_STEPS)
+        .map(String)
+        .filter(actionId => actionIds.has(actionId));
+      const enabled = combo.enabled !== false && sequence.length >= 2;
+      return {
+        id: String(combo.id || `combo-${index + 1}`).slice(0, 128),
+        name: String(combo.name || '').trim().slice(0, 80),
+        multiplier: Number(clampNumber(
+          combo.multiplier,
+          COMBO_MIN_MULTIPLIER,
+          COMBO_MAX_MULTIPLIER,
+          COMBO_DEFAULT_MULTIPLIER
+        ).toFixed(2)),
+        enabled,
+        actionIds: sequence
+      };
+    });
+
+    if (combos.some(combo => !combo.name)) {
+      return { ok: false, message: 'Every combo needs a name.' };
+    }
+
+    for (const combo of combos) {
+      if (!combo.enabled) continue;
+      const fingerprint = comboFingerprint(combo.actionIds);
+      if (enabledSequences.has(fingerprint)) {
+        return { ok: false, message: 'Two enabled combos cannot use the exact same action sequence.' };
+      }
+      enabledSequences.add(fingerprint);
+    }
+
     return {
       ok: true,
       settings: {
-        goal: clampInt(els.goalInput.value, 20, 1000, settingsDraft.goal || 100),
+        fullEnemyHp: clampInt(els.goalInput.value, 20, 1000, settingsDraft.fullEnemyHp || 100),
         categories,
-        actions
+        actions,
+        combos
       }
     };
   }
@@ -2989,12 +3279,27 @@
       return false;
     }
 
+    const previousCombos = new Map(state.settings.combos.map(combo => [combo.id, combo]));
     state.settings = result.settings;
-    const justCleared = finalizeClearIfNeeded();
-    if (justCleared) settingsTriggeredClear = true;
+
+    const nextComboIds = new Set(state.settings.combos.map(combo => combo.id));
+    Object.keys(state.current.comboProgress).forEach(comboId => {
+      const nextCombo = state.settings.combos.find(combo => combo.id === comboId);
+      const previousCombo = previousCombos.get(comboId);
+      if (!nextComboIds.has(comboId) || comboChanged(previousCombo, nextCombo)) {
+        delete state.current.comboProgress[comboId];
+      }
+    });
+
+    state.settings.combos.forEach(combo => {
+      const previousCombo = previousCombos.get(combo.id);
+      if (comboChanged(previousCombo, combo)) {
+        state.current.comboProgress[combo.id] = { index: 0, sourceTransactionIds: [] };
+      }
+    });
 
     saveState();
-    render({ justCleared });
+    render();
 
     if (announce) {
       els.settingsMessage.textContent = 'Saved automatically.';
@@ -3020,14 +3325,9 @@
       return;
     }
 
-    const showDayCard = settingsTriggeredClear && Boolean(state.current.dayCard);
     settingsDraft = null;
     settingsTriggeredClear = false;
     els.settingsDialog.close();
-
-    if (showDayCard) {
-      requestAnimationFrame(() => render({ showDayCard: true, justCleared: true }));
-    }
   }
 
   function resetGameData() {
@@ -3037,7 +3337,15 @@
     if (!confirmed) return;
 
     state = freshState();
-    state.current.date = localDateKey();
+    state.current = {
+      date: localDateKey(),
+      maxHp: getEnemyHp(),
+      transactions: [],
+      comboProgress: {},
+      defeatedAt: null,
+      victoryXpAwarded: 0,
+      dayCard: null
+    };
     settingsDraft = null;
     wasVictory = false;
     saveState();
@@ -3068,7 +3376,7 @@
     if (!settingsDraft) return;
     const target = event.target;
     const editsExistingSetting = target === els.goalInput
-      || target.closest?.('.category-direct-editor, .action-direct-editor');
+      || target.closest?.('.category-direct-editor, .action-direct-editor, .combo-direct-editor');
 
     if (editsExistingSetting) {
       scheduleSettingsSave(target.type === 'color' ? 0 : 260);
@@ -3078,7 +3386,7 @@
   els.settingsDialog.addEventListener('change', event => {
     if (!settingsDraft) return;
     const target = event.target;
-    if (target === els.goalInput || target.closest?.('.category-direct-editor, .action-direct-editor')) {
+    if (target === els.goalInput || target.closest?.('.category-direct-editor, .action-direct-editor, .combo-direct-editor')) {
       scheduleSettingsSave(0);
     }
   });
@@ -3100,6 +3408,7 @@
 
   els.addCategoryButton.addEventListener('click', addCategoryFromForm);
   els.addActionButton.addEventListener('click', addActionFromForm);
+  els.addComboButton?.addEventListener('click', addComboFromForm);
   els.resetGameButton.addEventListener('click', resetGameData);
   els.motionFxButton?.addEventListener('click', toggleMotionFx);
   els.viewDayCardButton.addEventListener('click', () => openDayCard(state.current.dayCard));
@@ -3137,9 +3446,9 @@
   }
 
   ensureToday();
-  const starterRampClear = finalizeClearIfNeeded();
-  if (starterRampClear) saveState();
-  render({ showDayCard: starterRampClear, justCleared: starterRampClear });
+  const migratedVictory = finalizeVictoryIfNeeded();
+  if (migratedVictory) saveState();
+  render({ showDayCard: migratedVictory, justDefeated: migratedVictory });
   initializeMotionFx();
   nudgePortraitOrientation();
   startVisualLoop();
