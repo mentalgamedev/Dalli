@@ -1,7 +1,7 @@
 {
   "name": "Dalli",
   "short_name": "Dalli",
-  "description": "A tiny daily game for balancing health, work and chores.",
+  "description": "A suspiciously effective Crestfallen daily XP game.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0b0d12",
