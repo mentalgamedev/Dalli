@@ -2103,6 +2103,7 @@
       colorInput.addEventListener('input', () => {
         category.color = normalizeHexColor(colorInput.value, category.color);
         row.style.setProperty('--editor-category-color', category.color);
+        renderActionsEditor();
       });
       colorLabel.append(colorInput);
 
@@ -2268,6 +2269,7 @@
     settingsDraft.actions = indexed.map(item => item.action);
     renderActionsEditor();
     commitSettingsDraft({ announce: false });
+    if (els.actionSortSelect) els.actionSortSelect.value = '';
 
     const labels = {
       category: 'category',
@@ -2665,6 +2667,11 @@
   els.settingsForm.addEventListener('submit', event => {
     event.preventDefault();
     if (settingsDraft) commitSettingsDraft();
+  });
+
+  els.actionSortSelect?.addEventListener('change', () => {
+    const mode = els.actionSortSelect.value;
+    if (mode) sortActions(mode);
   });
 
   els.addCategoryButton.addEventListener('click', addCategoryFromForm);
