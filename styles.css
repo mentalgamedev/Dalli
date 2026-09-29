@@ -3778,3 +3778,26 @@ body {
     animation: none !important;
   }
 }
+
+
+.template-name-field {
+  min-width: min(260px, 100%);
+  flex: 1 1 240px;
+}
+
+.template-name-field > span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.template-name-field input {
+  width: 100%;
+}
+
+.template-actions > .secondary-button {
+  align-self: end;
+}
