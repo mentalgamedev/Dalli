@@ -26,14 +26,14 @@ function dalli_fail(string $message, int $status): void
     dalli_json_response(['ok' => false, 'error' => $message], $status);
 }
 
-$configPath = dirname(__DIR__, 2) . '/dalli-config.php';
+$configPath = dirname(__DIR__, 2) . '/molife-config.php';
 if (!is_file($configPath)) {
-    dalli_fail('Dalli server configuration is missing.', 503);
+    dalli_fail('MoLife server configuration is missing.', 503);
 }
 
 $DALLI_CONFIG = require $configPath;
 if (!is_array($DALLI_CONFIG)) {
-    dalli_fail('Dalli server configuration is invalid.', 503);
+    dalli_fail('MoLife server configuration is invalid.', 503);
 }
 
 function dalli_config(string $section, string $key): string
