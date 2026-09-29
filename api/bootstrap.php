@@ -1254,11 +1254,13 @@ function dalli_validate_state_v4(mixed $state): array
 }
 
 
-function dalli_validate_state_v5(mixed $state): array
+function dalli_validate_state_v5_v6(mixed $state): array
 {
+    $version = is_array($state) ? ($state['version'] ?? null) : null;
+    $isV6 = $version === 6;
     if (!is_array($state)
         || !dalli_keys_allowed($state, ['version', 'settings', 'progression', 'current', 'history', 'inventory'])
-        || ($state['version'] ?? null) !== 5) {
+        || !in_array($version, [5, 6], true)) {
         dalli_fail('Unsupported Dalli state.', 422);
     }
 
@@ -1319,24 +1321,38 @@ function dalli_validate_state_v5(mixed $state): array
     $actionIds = [];
     foreach ($actions as $action) {
         if (!is_array($action)
-            || !dalli_keys_allowed($action, ['id', 'categoryId', 'name', 'baseDamage', 'type', 'trackVisible', 'requiredForVictory'])) {
+            || !dalli_keys_allowed($action, [
+                'id', 'categoryId', 'name', 'baseDamage', 'type',
+                'trackVisible', 'requiredForVictory', 'requiredCount'
+            ])) {
             dalli_fail('Invalid action.', 422);
         }
 
         $id = $action['id'] ?? null;
         $categoryId = $action['categoryId'] ?? null;
+        $type = $action['type'] ?? null;
         if (!is_string($id) || strlen($id) < 1 || strlen($id) > 128 || isset($actionIds[$id])) {
             dalli_fail('Invalid action id.', 422);
         }
         if (!is_string($categoryId) || !isset($categoryIds[$categoryId])) {
             dalli_fail('Invalid action category.', 422);
         }
+
+        $requiredCount = $action['requiredCount'] ?? null;
+        $validRequiredCount = $isV6
+            ? is_int($requiredCount)
+                && $requiredCount >= 1
+                && $requiredCount <= 1000
+                && ($type !== 'once' || $requiredCount === 1)
+            : !array_key_exists('requiredCount', $action);
+
         if (!dalli_string_ok($action['name'] ?? null, 1, 100)
             || !is_int($action['baseDamage'] ?? null) || $action['baseDamage'] < 1 || $action['baseDamage'] > 200
-            || !in_array($action['type'] ?? null, ['repeatable', 'once'], true)
+            || !in_array($type, ['repeatable', 'once'], true)
             || !is_bool($action['trackVisible'] ?? null)
             || !is_bool($action['requiredForVictory'] ?? null)
-            || (($action['requiredForVictory'] ?? false) && !($action['trackVisible'] ?? false))) {
+            || (($action['requiredForVictory'] ?? false) && !($action['trackVisible'] ?? false))
+            || !$validRequiredCount) {
             dalli_fail('Invalid action data.', 422);
         }
         $actionIds[$id] = true;
@@ -1472,7 +1488,7 @@ function dalli_validate_state_v5(mixed $state): array
             && $item['damage'] === $expectedDamage;
     };
 
-    $validateTransaction = static function (mixed $tx) use ($itemBases, $conditionMultipliers): bool {
+    $validateTransaction = static function (mixed $tx) use ($itemBases, $conditionMultipliers, $isV6): bool {
         if (!is_array($tx) || !is_string($tx['type'] ?? null)) return false;
 
         if ($tx['type'] === 'action') {
@@ -1490,8 +1506,8 @@ function dalli_validate_state_v5(mixed $state): array
                 && preg_match('/^[A-Za-z0-9_-]{1,64}$/', $categoryId) === 1
                 && dalli_string_ok($tx['categoryName'] ?? null, 1, 80)
                 && is_int($tx['baseDamage'] ?? null) && $tx['baseDamage'] >= 1 && $tx['baseDamage'] <= 200
-                && is_int($tx['damage'] ?? null) && $tx['damage'] >= 1 && $tx['damage'] <= 200
-                && dalli_number_between($tx['efficiency'] ?? null, 0.01, 1)
+                && is_int($tx['damage'] ?? null) && $tx['damage'] >= 1 && $tx['damage'] <= ($isV6 ? 800 : 200)
+                && dalli_number_between($tx['efficiency'] ?? null, 0.01, $isV6 ? 4 : 1)
                 && (is_int($tx['timestamp'] ?? null) || is_float($tx['timestamp'] ?? null))
                 && (float) $tx['timestamp'] > 0;
         }
@@ -1606,7 +1622,7 @@ function dalli_validate_state_v5(mixed $state): array
 
     if (!is_array($current)
         || !dalli_keys_allowed($current, [
-            'date', 'maxHp', 'transactions', 'comboProgress', 'requiredActionIds', 'defeatedAt',
+            'date', 'maxHp', 'transactions', 'comboProgress', 'requiredActionIds', 'requiredActions', 'defeatedAt',
             'victoryXpAwarded', 'loot', 'dayCard'
         ])) {
         dalli_fail('Invalid current fight.', 422);
@@ -1629,16 +1645,51 @@ function dalli_validate_state_v5(mixed $state): array
         if (!$validateTransaction($tx)) dalli_fail('Invalid transaction data.', 422);
     }
 
-    $requiredActionIds = $current['requiredActionIds'] ?? null;
-    if (!is_array($requiredActionIds) || count($requiredActionIds) > 500) {
-        dalli_fail('Invalid required action snapshot.', 422);
-    }
-    $seenRequiredActionIds = [];
-    foreach ($requiredActionIds as $actionId) {
-        if (!is_string($actionId) || !isset($actionIds[$actionId]) || isset($seenRequiredActionIds[$actionId])) {
-            dalli_fail('Invalid required action id.', 422);
+    if ($isV6) {
+        if (array_key_exists('requiredActionIds', $current)) {
+            dalli_fail('Legacy required action snapshot is not valid for v6.', 422);
         }
-        $seenRequiredActionIds[$actionId] = true;
+
+        $requiredActions = $current['requiredActions'] ?? null;
+        if (!is_array($requiredActions) || count($requiredActions) > 500) {
+            dalli_fail('Invalid required action snapshot.', 422);
+        }
+
+        $seenRequiredActionIds = [];
+        foreach ($requiredActions as $required) {
+            if (!is_array($required)
+                || !dalli_keys_allowed($required, ['actionId', 'requiredCount'])) {
+                dalli_fail('Invalid required action requirement.', 422);
+            }
+
+            $actionId = $required['actionId'] ?? null;
+            $requiredCount = $required['requiredCount'] ?? null;
+            if (!is_string($actionId)
+                || !isset($actionIds[$actionId])
+                || isset($seenRequiredActionIds[$actionId])
+                || !is_int($requiredCount)
+                || $requiredCount < 1
+                || $requiredCount > 1000) {
+                dalli_fail('Invalid required action requirement.', 422);
+            }
+            $seenRequiredActionIds[$actionId] = true;
+        }
+    } else {
+        if (array_key_exists('requiredActions', $current)) {
+            dalli_fail('v6 required action snapshot is not valid for v5.', 422);
+        }
+
+        $requiredActionIds = $current['requiredActionIds'] ?? null;
+        if (!is_array($requiredActionIds) || count($requiredActionIds) > 500) {
+            dalli_fail('Invalid required action snapshot.', 422);
+        }
+        $seenRequiredActionIds = [];
+        foreach ($requiredActionIds as $actionId) {
+            if (!is_string($actionId) || !isset($actionIds[$actionId]) || isset($seenRequiredActionIds[$actionId])) {
+                dalli_fail('Invalid required action id.', 422);
+            }
+            $seenRequiredActionIds[$actionId] = true;
+        }
     }
 
     $comboProgress = $current['comboProgress'] ?? null;
@@ -1745,7 +1796,7 @@ function dalli_validate_state(mixed $state): array
     if ($version === 2) return dalli_validate_state_v2($state);
     if ($version === 3) return dalli_validate_state_v3($state);
     if ($version === 4) return dalli_validate_state_v4($state);
-    if ($version === 5) return dalli_validate_state_v5($state);
+    if ($version === 5 || $version === 6) return dalli_validate_state_v5_v6($state);
     dalli_fail('Unsupported Dalli state.', 422);
 }
 

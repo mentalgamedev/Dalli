@@ -6,8 +6,8 @@ MoLife is a small daily XP game from the deeply questionable civic ecosystem of 
 
 1. Do actions to deal **Damage**.
 2. Each action has a base Damage value.
-3. A category's **Focus** determines how long it stays at full damage efficiency.
-4. Repeating the same category gradually drops its damage through 100% → 80% → 60% → 40%.
+3. A category's **Focus** directly scales its damage: higher Focus means less damage per action and therefore more real activity required from that category.
+4. Each completed action in a category makes the next action from that category weaker through **100% → 65% → 40% → 25%** resistance tiers.
 5. Reduce today's **Dark Doppelgänger** to 0 HP.
 6. A victory awards exactly **20 Victory XP** once for that calendar day.
 7. Receive an official *Crestfallen Daily* battle report.
@@ -16,13 +16,9 @@ There are no mandatory categories. A work-only day is valid; Dark Doppelgänger 
 
 The interface treats this as a finite daily fight, not an endless self-improvement meter: Dark Doppelgänger gets one prominent fighting-game HP bar, HP never drops below 0, and anything after the victory is optional.
 
-### Starter difficulty ramp
+### Fixed daily enemy strength
 
-The configured enemy HP is the **full / mature** strength. New or reset games begin at roughly 60% of that target and move one step closer every two victories, reaching full strength after 16 victories. Missed days do not make the game harder. With the default full strength of 100 HP, the progression is:
-
-`60 → 60 → 65 → 65 → 70 → 70 → 75 ... → 100`
-
-Today's max HP is snapshotted when the fight begins. Changing difficulty in Settings only affects future fights.
+The configured enemy HP is the exact strength of every new Dark Doppelgänger. MoLife no longer ramps enemy HP upward with victories. Today's max HP is snapshotted when the fight begins, so changing difficulty in Settings affects the next daily fight and never rewrites the current one.
 
 ## Progression
 
@@ -45,9 +41,9 @@ Current ranks:
 
 ## Tenacious & Phat Ed's Pawnshop
 
-Actions can be marked **Required for victory**. At the start of each daily fight, MoLife snapshots the currently required action IDs. Changing the checkbox later affects the next daily fight rather than rewriting today's rules. Deleting an action removes it from today's snapshot so a fight can never become impossible.
+Actions can be marked **Required for victory**. Repeatable actions can also define a **Required repetitions** count of 1–1000; once-per-day actions always require exactly one completion. At the start of each daily fight, MoLife snapshots each required action together with its required count. Changing those settings later affects the next daily fight rather than rewriting today's rules. Deleting an action removes it from today's snapshot so a fight can never become impossible.
 
-While any required action remains unfinished, Dark Doppelgänger is **TENACIOUS**. Normal action and combo damage can still accumulate, but it cannot finish the fight: once lethal damage has been reached, the displayed HP is held at 1 until all required moves have been completed. If the last outstanding requirement is completed after lethal damage is already banked, the enemy immediately goes down.
+While any required repetitions remain unfinished, Dark Doppelgänger is **TENACIOUS**. Normal action and combo damage can still accumulate, but it cannot finish the fight: once lethal damage has been reached, the displayed HP is held at 1 until all required repetitions have been completed. Track-o-Tron shows per-action progress such as **REQUIRED · 1 / 3**, keeps unfinished required actions at the top of their category, and visually marks them with a gold treatment. If the last outstanding requirement is completed after lethal damage is already banked, the enemy immediately goes down.
 
 A lethal item from **Phat Ed's Pawnshop** can bypass Tenacious. Using an item does not switch Tenacious off globally; the item simply ignores the 1 HP survival rule for its own hit. Item use is explicit, consumes the item immediately, ignores category resistance, and records an immutable item transaction.
 
@@ -109,13 +105,11 @@ Reports are deterministic local content; they do not require an AI service.
 The header contains a reactive fake news feed that comments on the current fight: Dark Doppelgänger HP, damage, combos, overkill, yesterday's result, rank, streak, level and category resistance. It also mixes in a small deterministic sample of tagged Crestfallen-world reports so references react to context such as Pawnshop items, loot, Tenacious status, work, combos, overkill and late-night activity without overwhelming the MoLife-specific feed. Before victory it reports on the ongoing hostilities; after defeat it becomes reluctantly congratulatory. On wider layouts the Newswire spans the full app width instead of staying inside the brand column.
 
 
-## Motion FX
+## Static ambient background
 
-MoLife has optional device-orientation effects on supported mobile browsers. Enabling Motion FX treats the device's starting pose as neutral, so it behaves consistently whether the phone is held normally or lying flat. The Newswire runs faster at rest than before, and tilting left or right acts as a symmetric fast-forward control. Small roll/pitch/yaw changes produce a deliberately stronger, more colorful background shimmer. MoLife verifies that real sensor samples are arriving instead of assuming the API works, and falls back to gravity data from `devicemotion` when orientation events are unavailable. If no samples arrive, Settings reports that explicitly. Orientation values are used live in the browser and are not stored in game state or sent to the server. Browsers that require sensor permission only request it from the explicit **Enable Motion FX** button. Desktop pointer movement provides a subtle shimmer equivalent, and reduced-motion preferences disable the effect.
+MoLife deliberately uses a non-reactive dark ambient background with soft purple, light-blue and muted-orange radial glows. There is no device-tilt or pointer-reactive Motion FX system. Installed PWAs still request **portrait-primary** orientation in the web app manifest; MoLife also opportunistically asks the Screen Orientation API for portrait when running standalone.
 
-Installed PWAs request **portrait-primary** orientation in the web app manifest; MoLife also opportunistically asks the Screen Orientation API for portrait when running standalone. Normal browser tabs remain under browser/OS control.
-
-## Track-o-Tron
+## Track-o-Tron## Track-o-Tron
 
 The main action area is branded **Track-o-Tron**. Category action decks keep a consistent height. They only become independent scroll surfaces when their actions actually overflow; otherwise swiping through the action area continues to scroll the page normally. Scrollable decks allow normal scroll chaining at their edges.
 
@@ -126,14 +120,15 @@ The main action area is branded **Track-o-Tron**. Category action decks keep a c
 - categories are fully editable
 - every regular category has a user-selectable **Color**
 - MoLife derives a safe bright accent plus darker/desaturated panel, action, border and glow variants from that one color
-- category **Focus** controls diminishing returns
-- default Focus is **Wellbeing 1 / Work 1.5 / Chores 0.75** so focused work has a larger natural daily budget than chores
+- category **Focus** is an inverse damage scaler: action damage is divided by Focus before category resistance is applied
+- default Focus is **Wellbeing 1 / Work 1.5 / Chores 0.75**, so Work requires more activity per point of configured base Damage while Chores requires less
 - action order is editable by dragging the reorder handle; this order is reflected inside each Track-o-Tron category
 - the Actions section has one-shot sorting by **category**, **Damage (high to low)** or **name (A to Z)**
 - action editor rows inherit the same derived category tint system as the front-page action area
 - actions have editable base Damage values
 - actions can be repeatable or once-per-day
-- every action has a **Show in Track-o-Tron** toggle and a **Required for victory** toggle; required actions are forced visible, and the Required change is snapshotted into the next daily fight
+- every action has a **Show in Track-o-Tron** toggle and a **Required for victory** toggle; required actions are forced visible and promoted to the top of their Track-o-Tron category
+- repeatable Required actions have an editable integer **Required repetitions** value; once-per-day actions are fixed at 1
 - combos are user-defined ordered sequences of 2–8 action IDs with configurable ×1.05–×3.00 multipliers; unrelated actions do not break progress and repeated action IDs are allowed
 - combo bonuses use the matched actions' actual effective damage, are logged as separate damage events, and can repeat after a sequence resets
 - default action wording is intentionally qualitative rather than timed: **Quick movement / stretch**, **Walk / fresh air**, **Proper workout**, **Proper healthy meal**, **Focus session**, **Deep focus session**, **Practice / skill**, **Annoying admin task**, **Tiny chore**, **Proper chore / cleaning**, **Laundry**, **Big chore / deep clean**
@@ -143,9 +138,9 @@ The main action area is branded **Track-o-Tron**. Category action decks keep a c
 
 ## Settings templates
 
-Settings can be exported as a small JSON **template** and imported later to swap between different challenge setups. A template contains the configured enemy HP plus categories, colors, Focus values, actions, ordering, visibility, Required-for-victory flags, damage values, category links, combos and combo action links.
+Settings can be exported as a small JSON **template** and imported later to swap between different challenge setups. A template contains the configured enemy HP plus categories, colors, Focus values, actions, ordering, visibility, Required-for-victory flags and repetition counts, damage values, category links, combos and combo action links.
 
-Templates deliberately do **not** behave like save-game backups. Importing one leaves Level, Victory XP, Street Cred, streak/history, today's already-recorded damage and Phat Ed's Pawnshop inventory untouched. Current combo progress is reset because the imported combo definitions may differ; today's Required snapshot only loses action IDs that no longer exist.
+Templates deliberately do **not** behave like save-game backups. Importing one leaves Level, Victory XP, Street Cred, streak/history, today's already-recorded damage and Phat Ed's Pawnshop inventory untouched. Current combo progress is reset because the imported combo definitions may differ; today's Required snapshot only loses requirements whose action IDs no longer exist.
 
 ## History and statistics foundation
 
@@ -179,7 +174,7 @@ The database schema remains intentionally small:
 - `users`
 - `user_state`
 
-MoLife v4.4 uses gameplay state **v5** while deliberately retaining the existing browser storage keys. v2 and v3 still migrate forward, and v4 migrates one-for-one into the Pawnshop item model: existing weapon tiers become MoLight Pro → Cosmic Laser Gun → Flash Tube → Light Rabbit Launcher → Sunflower Beam → Light Sword → Rite Of Illumination, while Rusty/Clean conditions become Questionable/Standard. Existing IDs, progression, history and current-fight damage are preserved. Newly introduced Required-for-victory flags default to off for migrated saves.
+MoLife v4.5 uses gameplay state **v6** while deliberately retaining the existing browser storage keys. v2 and v3 still migrate forward, v4 migrates through the Pawnshop item model, and v5 required-action ID snapshots migrate to v6 requirement records with a count of 1. Existing IDs, progression, history, current-fight HP and current-fight damage are preserved; the fixed configured HP rule applies from the next daily fight onward.
 
 ## Security
 

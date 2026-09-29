@@ -23,9 +23,11 @@ body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at 15% -10%, rgba(122,108,255,.19), transparent 32rem),
-    radial-gradient(circle at 85% 5%, rgba(57,215,183,.10), transparent 28rem),
+    radial-gradient(ellipse at 12% -8%, rgba(126, 100, 255, .22), transparent 38rem),
+    radial-gradient(ellipse at 91% 10%, rgba(92, 190, 255, .14), transparent 34rem),
+    radial-gradient(ellipse at 63% 108%, rgba(255, 145, 76, .11), transparent 40rem),
     var(--bg);
+  background-attachment: fixed;
 }
 button, input, select { font: inherit; }
 button { color: inherit; }
@@ -815,10 +817,12 @@ input, select {
 
 body {
   background:
-    radial-gradient(circle at 12% -8%, rgba(122,108,255,.22), transparent 32rem),
-    radial-gradient(circle at 88% 2%, rgba(57,215,183,.13), transparent 28rem),
+    radial-gradient(ellipse at 12% -8%, rgba(126, 100, 255, .22), transparent 38rem),
+    radial-gradient(ellipse at 91% 10%, rgba(92, 190, 255, .14), transparent 34rem),
+    radial-gradient(ellipse at 63% 108%, rgba(255, 145, 76, .11), transparent 40rem),
     linear-gradient(180deg, rgba(255,255,255,.012), transparent 20rem),
     var(--bg);
+  background-attachment: fixed;
 }
 
 .city-noise {
@@ -1726,61 +1730,8 @@ body {
 
 
 /* -------------------------------------------------------------------------- */
-/* MoLife motion + mobile polish v3.2                                         */
+/* MoLife mobile polish v3.2                                                  */
 /* -------------------------------------------------------------------------- */
-
-:root {
-  --motion-x: 50%;
-  --motion-y: 24%;
-  --motion-x-2: 76%;
-  --motion-y-2: 16%;
-  --motion-hue: 0deg;
-  --motion-tilt: 0;
-  --motion-energy: 0;
-  --motion-shift-x: 0vw;
-  --motion-shift-y: 0vh;
-  --motion-rotate: 0deg;
-  --motion-scale: 1.04;
-  --motion-saturation: 1.25;
-  --motion-brightness: 1.02;
-  --motion-opacity: .52;
-}
-
-.motion-shimmer {
-  position: fixed;
-  inset: -16vmax;
-  z-index: -2;
-  pointer-events: none;
-  opacity: 0;
-  background:
-    radial-gradient(circle at var(--motion-x) var(--motion-y),
-      rgba(126,108,255,.34),
-      transparent 29vmax),
-    radial-gradient(circle at var(--motion-x-2) var(--motion-y-2),
-      rgba(55,221,190,.27),
-      transparent 27vmax),
-    radial-gradient(circle at calc(100% - var(--motion-x)) calc(100% - var(--motion-y)),
-      rgba(234,105,190,.16),
-      transparent 25vmax),
-    radial-gradient(circle at 18% 82%,
-      rgba(241,202,90,.09),
-      transparent 24vmax);
-  filter:
-    hue-rotate(var(--motion-hue))
-    saturate(var(--motion-saturation))
-    brightness(var(--motion-brightness));
-  transform:
-    translate3d(var(--motion-shift-x), var(--motion-shift-y), 0)
-    rotate(var(--motion-rotate))
-    scale(var(--motion-scale));
-  transform-origin: 50% 50%;
-  transition: opacity .28s ease;
-  will-change: transform, filter, opacity;
-}
-
-.ambient-fx-enabled .motion-shimmer {
-  opacity: var(--motion-opacity);
-}
 
 /* Simpler wordmark: playful, but no fake graffiti construction. */
 .brand-title {
@@ -1888,35 +1839,6 @@ body {
   overscroll-behavior-y: auto;
 }
 
-/* Motion FX setting */
-.motion-fx-row {
-  margin-top: 13px;
-  padding: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  border: 1px solid rgba(255,255,255,.055);
-  border-radius: 14px;
-  background: rgba(255,255,255,.03);
-}
-
-.motion-fx-row strong,
-.motion-fx-row small {
-  display: block;
-}
-
-.motion-fx-row small {
-  margin-top: 3px;
-  color: var(--muted);
-  font-size: .72rem;
-}
-
-.motion-fx-row .secondary-button {
-  flex: 0 0 auto;
-  margin-top: 0;
-}
-
 /* Signed-in mobile header: sync, profile, settings on one compact right-aligned row. */
 @media (max-width: 620px) {
   .topbar {
@@ -1985,21 +1907,9 @@ body {
     min-height: 220px;
   }
 
-  .motion-fx-row {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .motion-fx-row .secondary-button {
-    width: 100%;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .motion-shimmer {
-    display: none;
-  }
-
   .newswire-message {
     position: static;
     display: block;
@@ -2022,7 +1932,7 @@ body {
   width: min(980px, calc(100% - 24px));
 }
 
-.goal-ramp-preview {
+.goal-preview {
   margin-top: 5px !important;
   color: #b9b2ff !important;
 }
@@ -4112,5 +4022,95 @@ body {
   .tenacious-badge {
     transition: none !important;
     animation: none !important;
+  }
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* MoLife v4.5 — Focus & Discipline                                           */
+/* -------------------------------------------------------------------------- */
+
+.action-direct-editor {
+  grid-template-columns:
+    minmax(165px, 1.35fr)
+    minmax(112px, .8fr)
+    82px
+    112px
+    102px
+    118px
+    94px
+    38px;
+}
+
+.add-action-grid {
+  grid-template-columns: 1.45fr 1fr .62fr .9fr .8fr .82fr .78fr;
+}
+
+.action-required-count-field input:disabled,
+.new-action-required-count input:disabled {
+  opacity: .42;
+  cursor: not-allowed;
+}
+
+.action-button.is-required {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(235, 199, 91, .68);
+  background:
+    linear-gradient(105deg, rgba(236, 194, 68, .15), rgba(255, 225, 132, .055) 48%, rgba(255,255,255,.025)),
+    rgba(255,255,255,.035);
+  box-shadow:
+    inset 3px 0 0 rgba(244, 204, 78, .92),
+    0 0 18px rgba(229, 183, 54, .13);
+}
+
+.action-button.is-required::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 0 62%, rgba(255, 231, 150, .08) 72%, transparent 82%);
+}
+
+.action-button.is-required:hover:not(:disabled) {
+  border-color: rgba(248, 215, 111, .82);
+  box-shadow:
+    inset 3px 0 0 rgba(250, 216, 100, .98),
+    0 0 24px rgba(229, 183, 54, .18);
+}
+
+.action-button.is-required-complete {
+  border-color: rgba(177, 190, 109, .34);
+  background:
+    linear-gradient(105deg, rgba(165, 187, 95, .09), rgba(218, 201, 108, .035) 55%, transparent),
+    rgba(255,255,255,.025);
+  box-shadow: inset 3px 0 0 rgba(151, 185, 104, .66);
+}
+
+.required-action-badge {
+  border-color: rgba(239, 202, 91, .62);
+  color: #f3d576;
+  background: linear-gradient(90deg, rgba(116, 82, 13, .34), rgba(75, 59, 19, .18));
+  box-shadow: 0 0 12px rgba(235, 195, 69, .08);
+}
+
+.action-button.is-required-complete .required-action-badge {
+  border-color: rgba(151, 185, 104, .34);
+  color: #a9d19b;
+  background: rgba(49, 86, 45, .17);
+  box-shadow: none;
+}
+
+@media (max-width: 880px) {
+  .action-direct-editor,
+  .add-action-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .action-direct-editor,
+  .add-action-grid {
+    grid-template-columns: 1fr;
   }
 }
