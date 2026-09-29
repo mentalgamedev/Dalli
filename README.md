@@ -68,6 +68,21 @@ Normal weapons also roll a condition. Better conditions are progressively rarer:
 
 Golden Gun does not roll a condition. Weapon rarity and condition rarity are weighted separately, making Rusty Snub Nosed the most common combination while high-end hardware and high-end condition combinations are increasingly scarce. Unopened victory crates are automatically moved into the Arsenal when the day rolls over so a reward is not lost merely because the player forgot to tap it.
 
+
+## Crestfallen connections
+
+MoLife is designed as a small in-universe artifact from **Cosmic Trouble**, not as a conventional advertisement. The app links to the game unobtrusively in the footer and in Settings:
+
+[Cosmic Trouble (Steam)](https://store.steampowered.com/app/3214490/Cosmic_Trouble/)
+
+The Newswire has a dedicated contextual pool of spoiler-safe Crestfallen references. Public-facing material can mention characters and places such as **Lester Mogreen**, **Phat Ed’s Pawnshop**, **mo.les.tech**, the **Crestfallen Library**, and the **old municipal bathhouse**. A few deliberately cryptic reports about binary chanting or strange underground infrastructure are allowed because they do not reveal more than the game’s opening premise.
+
+Content rule for future additions:
+
+> MoLife may reveal the existence and public-facing identity of Cosmic Trouble characters, places, businesses, institutions and opening-premise rumors, but must not reveal later story events, hidden relationships, motives, cult plans, mysteries or supernatural explanations.
+
+Aya, Kai and Aldous are intentionally excluded from MoLife’s ambient public-news flavor because they are ordinary private people rather than public Crestfallen fixtures.
+
 ## Crestfallen Daily
 
 Defeating Dark Doppelgänger creates a persistent newspaper-style battle report containing enemy HP, total damage, overkill, combos landed, Victory XP, Street Cred and Streak.
@@ -87,7 +102,7 @@ Reports are deterministic local content; they do not require an AI service.
 
 ## Crestfallen Newswire
 
-The header contains a reactive fake news feed that comments on the current fight: Dark Doppelgänger HP, damage, combos, overkill, yesterday's result, rank, streak, level and category resistance. Before victory it reports on the ongoing hostilities; after defeat it becomes reluctantly congratulatory. On wider layouts the Newswire spans the full app width instead of staying inside the brand column.
+The header contains a reactive fake news feed that comments on the current fight: Dark Doppelgänger HP, damage, combos, overkill, yesterday's result, rank, streak, level and category resistance. It also mixes in a small deterministic sample of tagged Crestfallen-world reports so references react to context such as weapons, loot, work, combos, overkill and late-night activity without overwhelming the MoLife-specific feed. Before victory it reports on the ongoing hostilities; after defeat it becomes reluctantly congratulatory. On wider layouts the Newswire spans the full app width instead of staying inside the brand column.
 
 
 ## Motion FX
