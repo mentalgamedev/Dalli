@@ -1,9 +1,10 @@
 (() => {
   'use strict';
 
-  const STATE_VERSION = 4;
+  const STATE_VERSION = 5;
   const TEMPLATE_VERSION = 1;
-  const WEAPON_DROP_CHANCE = 0.40;
+  const ITEM_DROP_CHANCE = 0.40;
+  const ITEM_CAPACITY = 8;
   const STORAGE_KEY = 'dailyXpGame.v2';
   const HISTORY_LIMIT = 365;
   const DETAILED_HISTORY_DAYS = 90;
@@ -20,22 +21,39 @@
   const COMBO_MAX_STEPS = 8;
 
 
-  const WEAPON_DEFINITIONS = Object.freeze([
-    { id: 'snub-nosed', name: 'Snub Nosed', baseDamage: 10, weight: 34, flavor: 'Small gun. Enormous confidence deficit.' },
-    { id: 'sawed-off', name: 'Sawed Off', baseDamage: 20, weight: 24, flavor: 'Subtlety was removed with the barrel.' },
-    { id: 'tommy-gun', name: 'Tommy Gun', baseDamage: 25, weight: 17, flavor: 'For problems requiring punctuation.' },
-    { id: 'grenade-launcher', name: 'Grenade Launcher', baseDamage: 30, weight: 11, flavor: 'Municipal permits pending.' },
-    { id: 'bazooka', name: 'Bazooka', baseDamage: 35, weight: 7, flavor: 'Point away from remaining architecture.' },
-    { id: 'flamethrower', name: 'Flamethrower', baseDamage: 40, weight: 6, flavor: 'Crestfallen fire code says absolutely not.' },
-    { id: 'golden-gun', name: 'Golden Gun', baseDamage: 999, weight: 1, special: true, flavor: 'One shot. One paperwork problem.' }
+  const ITEM_DEFINITIONS = Object.freeze([
+    { id: 'molight-pro', name: 'MoLight Pro', baseDamage: 10, weight: 34, flavor: 'Professional-grade illumination for amateur-grade problems. Warranty void in darkness.' },
+    { id: 'cosmic-laser-gun', name: 'Cosmic Laser Gun', baseDamage: 20, weight: 24, flavor: 'Concentrated cosmic light in a convenient handheld format. Safety procedures unavailable.' },
+    { id: 'flash-tube', name: 'Flash Tube', baseDamage: 25, weight: 17, flavor: 'Ridiculously super-charged. Produces enough light to briefly make poor decisions visible.' },
+    { id: 'light-rabbit-launcher', name: 'Light Rabbit Launcher', baseDamage: 30, weight: 11, flavor: 'Deploys a highly luminous rabbit-shaped countermeasure at deeply irresponsible velocity.' },
+    { id: 'sunflower-beam', name: 'Sunflower Beam', baseDamage: 35, weight: 7, flavor: 'Weaponized photosynthesis. Apparently the plants have had enough.' },
+    { id: 'light-sword', name: 'Light Sword', baseDamage: 40, weight: 6, flavor: 'A blade made mostly of light and questionable confidence. Very bad news for anything lurking in corners.' },
+    { id: 'rite-of-illumination', name: 'Rite Of Illumination', baseDamage: 999, weight: 1, special: true, flavor: 'Phat Ed describes it as “basically a lamp.” Further questions were discouraged.' }
   ]);
 
-  const WEAPON_CONDITIONS = Object.freeze([
-    { id: 'rusty', name: 'Rusty', multiplier: 0.5, weight: 50 },
-    { id: 'clean', name: 'Clean', multiplier: 1, weight: 30 },
+  const ITEM_CONDITIONS = Object.freeze([
+    { id: 'questionable', name: 'Questionable', multiplier: 0.5, weight: 50 },
+    { id: 'standard', name: 'Standard', multiplier: 1, weight: 30 },
     { id: 'pimped', name: 'Pimped', multiplier: 1.5, weight: 15 },
     { id: 'over-engineered', name: 'Over-engineered', multiplier: 2, weight: 5 }
   ]);
+
+  const V4_WEAPON_TO_ITEM = Object.freeze({
+    'snub-nosed': 'molight-pro',
+    'sawed-off': 'cosmic-laser-gun',
+    'tommy-gun': 'flash-tube',
+    'grenade-launcher': 'light-rabbit-launcher',
+    'bazooka': 'sunflower-beam',
+    'flamethrower': 'light-sword',
+    'golden-gun': 'rite-of-illumination'
+  });
+
+  const V4_CONDITION_TO_ITEM_CONDITION = Object.freeze({
+    rusty: 'questionable',
+    clean: 'standard',
+    pimped: 'pimped',
+    'over-engineered': 'over-engineered'
+  });
 
 
   // Public, spoiler-safe Crestfallen flavor only.
@@ -158,18 +176,18 @@
         { id: UNCATEGORIZED_ID, name: 'Uncategorized', icon: '•', focus: 0, color: '#8b93a4' }
       ],
       actions: [
-        { id: 'wellbeing-workout-30', categoryId: 'wellbeing', name: 'Proper workout', baseDamage: 20, type: 'repeatable', trackVisible: true },
-        { id: 'wellbeing-walk-20', categoryId: 'wellbeing', name: 'Walk / fresh air', baseDamage: 10, type: 'repeatable', trackVisible: true },
-        { id: 'wellbeing-mobility-10', categoryId: 'wellbeing', name: 'Quick movement / stretch', baseDamage: 5, type: 'repeatable', trackVisible: true },
-        { id: 'wellbeing-good-meal', categoryId: 'wellbeing', name: 'Proper healthy meal', baseDamage: 10, type: 'once', trackVisible: true },
-        { id: 'work-focus-25', categoryId: 'work', name: 'Focus session', baseDamage: 15, type: 'repeatable', trackVisible: true },
-        { id: 'work-focus-50', categoryId: 'work', name: 'Deep focus session', baseDamage: 30, type: 'repeatable', trackVisible: true },
-        { id: 'work-practice-20', categoryId: 'work', name: 'Practice / skill', baseDamage: 10, type: 'repeatable', trackVisible: true },
-        { id: 'work-admin', categoryId: 'work', name: 'Annoying admin task', baseDamage: 10, type: 'once', trackVisible: true },
-        { id: 'chores-small', categoryId: 'chores', name: 'Tiny chore', baseDamage: 5, type: 'repeatable', trackVisible: true },
-        { id: 'chores-medium', categoryId: 'chores', name: 'Proper chore / cleaning', baseDamage: 10, type: 'repeatable', trackVisible: true },
-        { id: 'chores-laundry', categoryId: 'chores', name: 'Laundry', baseDamage: 10, type: 'once', trackVisible: true },
-        { id: 'chores-big', categoryId: 'chores', name: 'Big chore / deep clean', baseDamage: 20, type: 'repeatable', trackVisible: true }
+        { id: 'wellbeing-workout-30', categoryId: 'wellbeing', name: 'Proper workout', baseDamage: 20, type: 'repeatable', trackVisible: true, requiredForVictory: false },
+        { id: 'wellbeing-walk-20', categoryId: 'wellbeing', name: 'Walk / fresh air', baseDamage: 10, type: 'repeatable', trackVisible: true, requiredForVictory: false },
+        { id: 'wellbeing-mobility-10', categoryId: 'wellbeing', name: 'Quick movement / stretch', baseDamage: 5, type: 'repeatable', trackVisible: true, requiredForVictory: false },
+        { id: 'wellbeing-good-meal', categoryId: 'wellbeing', name: 'Proper healthy meal', baseDamage: 10, type: 'once', trackVisible: true, requiredForVictory: false },
+        { id: 'work-focus-25', categoryId: 'work', name: 'Focus session', baseDamage: 15, type: 'repeatable', trackVisible: true, requiredForVictory: false },
+        { id: 'work-focus-50', categoryId: 'work', name: 'Deep focus session', baseDamage: 30, type: 'repeatable', trackVisible: true, requiredForVictory: false },
+        { id: 'work-practice-20', categoryId: 'work', name: 'Practice / skill', baseDamage: 10, type: 'repeatable', trackVisible: true, requiredForVictory: false },
+        { id: 'work-admin', categoryId: 'work', name: 'Annoying admin task', baseDamage: 10, type: 'once', trackVisible: true, requiredForVictory: false },
+        { id: 'chores-small', categoryId: 'chores', name: 'Tiny chore', baseDamage: 5, type: 'repeatable', trackVisible: true, requiredForVictory: false },
+        { id: 'chores-medium', categoryId: 'chores', name: 'Proper chore / cleaning', baseDamage: 10, type: 'repeatable', trackVisible: true, requiredForVictory: false },
+        { id: 'chores-laundry', categoryId: 'chores', name: 'Laundry', baseDamage: 10, type: 'once', trackVisible: true, requiredForVictory: false },
+        { id: 'chores-big', categoryId: 'chores', name: 'Big chore / deep clean', baseDamage: 20, type: 'repeatable', trackVisible: true, requiredForVictory: false }
       ],
       combos: []
     },
@@ -179,21 +197,22 @@
       archivedStreak: 0,
       streakThrough: ''
     },
-    armory: {
-      weapons: []
+    inventory: {
+      items: []
     },
     current: {
       date: '',
       maxHp: 0,
       transactions: [],
       comboProgress: {},
+      requiredActionIds: [],
       defeatedAt: null,
       victoryXpAwarded: 0,
       loot: {
         rolled: false,
         available: false,
         claimed: false,
-        pendingWeapon: null
+        pendingItem: null
       },
       dayCard: null
     },
@@ -460,24 +479,24 @@
       rolled: false,
       available: false,
       claimed: false,
-      pendingWeapon: null
+      pendingItem: null
     };
   }
 
-  function weaponDefinition(weaponId) {
-    return WEAPON_DEFINITIONS.find(weapon => weapon.id === weaponId) || null;
+  function itemDefinition(itemId) {
+    return ITEM_DEFINITIONS.find(item => item.id === itemId) || null;
   }
 
-  function weaponCondition(conditionId) {
-    return WEAPON_CONDITIONS.find(condition => condition.id === conditionId) || null;
+  function itemCondition(conditionId) {
+    return ITEM_CONDITIONS.find(condition => condition.id === conditionId) || null;
   }
 
-  function weaponDisplayName(item) {
-    const weapon = weaponDefinition(item?.weaponId);
-    if (!weapon) return 'Unknown Contraband';
-    if (weapon.special) return weapon.name;
-    const condition = weaponCondition(item?.conditionId);
-    return condition ? `${condition.name} ${weapon.name}` : weapon.name;
+  function itemDisplayName(item) {
+    const definition = itemDefinition(item?.itemId);
+    if (!definition) return 'Unknown Pawnshop Item';
+    if (definition.special) return definition.name;
+    const condition = itemCondition(item?.conditionId);
+    return condition ? `${condition.name} ${definition.name}` : definition.name;
   }
 
   function randomUnit() {
@@ -500,19 +519,19 @@
     return items[items.length - 1] || null;
   }
 
-  function rollWeaponItem() {
-    const weapon = weightedRandom(WEAPON_DEFINITIONS);
-    if (!weapon) return null;
+  function rollPawnshopItem() {
+    const definition = weightedRandom(ITEM_DEFINITIONS);
+    if (!definition) return null;
 
-    const condition = weapon.special ? null : weightedRandom(WEAPON_CONDITIONS);
-    const multiplier = weapon.special ? 1 : (condition?.multiplier || 1);
-    const damage = weapon.special
-      ? weapon.baseDamage
-      : Math.max(1, Math.round(weapon.baseDamage * multiplier));
+    const condition = definition.special ? null : weightedRandom(ITEM_CONDITIONS);
+    const multiplier = definition.special ? 1 : (condition?.multiplier || 1);
+    const damage = definition.special
+      ? definition.baseDamage
+      : Math.max(1, Math.round(definition.baseDamage * multiplier));
 
     return {
-      id: makeId('weapon'),
-      weaponId: weapon.id,
+      id: makeId('item'),
+      itemId: definition.id,
       conditionId: condition?.id || null,
       multiplier,
       damage,
@@ -521,27 +540,27 @@
     };
   }
 
-  function normalizeWeaponItem(value) {
+  function normalizePawnshopItem(value) {
     if (!value || typeof value !== 'object') return null;
-    const weapon = weaponDefinition(String(value.weaponId || ''));
-    if (!weapon) return null;
+    const definition = itemDefinition(String(value.itemId || ''));
+    if (!definition) return null;
 
     let conditionId = null;
     let multiplier = 1;
-    if (!weapon.special) {
-      const condition = weaponCondition(String(value.conditionId || ''));
+    if (!definition.special) {
+      const condition = itemCondition(String(value.conditionId || ''));
       if (!condition) return null;
       conditionId = condition.id;
       multiplier = condition.multiplier;
     }
 
-    const expectedDamage = weapon.special
-      ? weapon.baseDamage
-      : Math.max(1, Math.round(weapon.baseDamage * multiplier));
+    const expectedDamage = definition.special
+      ? definition.baseDamage
+      : Math.max(1, Math.round(definition.baseDamage * multiplier));
 
     return {
-      id: String(value.id || makeId('weapon')).slice(0, 128),
-      weaponId: weapon.id,
+      id: String(value.id || makeId('item')).slice(0, 128),
+      itemId: definition.id,
       conditionId,
       multiplier,
       damage: expectedDamage,
@@ -552,16 +571,85 @@
     };
   }
 
-  function normalizeLootState(value) {
-    const pendingWeapon = normalizeWeaponItem(value?.pendingWeapon);
-    const claimed = Boolean(value?.claimed && pendingWeapon);
-    const available = Boolean(value?.available && pendingWeapon && !claimed);
+  function migrateV4WeaponItem(value) {
+    if (!value || typeof value !== 'object') return null;
+    const itemId = V4_WEAPON_TO_ITEM[String(value.weaponId || '')];
+    const definition = itemDefinition(itemId || '');
+    if (!definition) return null;
+
+    let conditionId = null;
+    let multiplier = 1;
+    if (!definition.special) {
+      conditionId = V4_CONDITION_TO_ITEM_CONDITION[String(value.conditionId || '')] || '';
+      const condition = itemCondition(conditionId);
+      if (!condition) return null;
+      multiplier = condition.multiplier;
+    }
+
     return {
-      rolled: Boolean(value?.rolled || pendingWeapon),
+      id: String(value.id || makeId('item')).slice(0, 128),
+      itemId: definition.id,
+      conditionId,
+      multiplier,
+      damage: definition.special
+        ? definition.baseDamage
+        : Math.max(1, Math.round(definition.baseDamage * multiplier)),
+      acquiredDate: /^\d{4}-\d{2}-\d{2}$/.test(String(value.acquiredDate || ''))
+        ? String(value.acquiredDate)
+        : localDateKey(),
+      acquiredAt: normalizeTimestamp(value.acquiredAt) || Date.now()
+    };
+  }
+
+  function migrateV4Transaction(tx) {
+    if (tx?.type !== 'weapon') return deepClone(tx);
+    const itemId = V4_WEAPON_TO_ITEM[String(tx.weaponId || '')];
+    const definition = itemDefinition(itemId || '');
+    if (!definition) return null;
+
+    let conditionId = null;
+    let conditionName = null;
+    let multiplier = 1;
+    if (!definition.special) {
+      conditionId = V4_CONDITION_TO_ITEM_CONDITION[String(tx.conditionId || '')] || '';
+      const condition = itemCondition(conditionId);
+      if (!condition) return null;
+      conditionName = condition.name;
+      multiplier = condition.multiplier;
+    }
+
+    return {
+      type: 'item',
+      id: String(tx.id || makeId('item-tx')).slice(0, 128),
+      itemInstanceId: String(tx.weaponItemId || '').slice(0, 128),
+      itemId: definition.id,
+      itemName: definition.name,
+      conditionId,
+      conditionName,
+      multiplier,
+      damage: definition.special
+        ? clampInt(tx.damage, definition.baseDamage, 1000, definition.baseDamage)
+        : Math.max(1, Math.round(definition.baseDamage * multiplier)),
+      timestamp: normalizeTimestamp(tx.timestamp) || Date.now()
+    };
+  }
+
+  function normalizeLootState(value) {
+    const pendingItem = normalizePawnshopItem(value?.pendingItem);
+    const claimed = Boolean(value?.claimed && pendingItem);
+    const available = Boolean(value?.available && pendingItem && !claimed);
+    return {
+      rolled: Boolean(value?.rolled || pendingItem),
       available,
       claimed,
-      pendingWeapon
+      pendingItem
     };
+  }
+
+  function requiredActionIdsForNextFight(settings = state.settings) {
+    return settings.actions
+      .filter(action => action.requiredForVictory)
+      .map(action => action.id);
   }
 
   function legacyEnemyHp(candidate) {
@@ -696,18 +784,65 @@
 
   function migrateV3State(candidate) {
     const migrated = deepClone(candidate);
-    migrated.version = STATE_VERSION;
+    migrated.version = 4;
     migrated.armory = { weapons: [] };
     migrated.current = {
       ...(migrated.current || {}),
-      loot: emptyLootState()
+      loot: {
+        rolled: false,
+        available: false,
+        claimed: false,
+        pendingWeapon: null
+      }
     };
+    return migrated;
+  }
+
+  function migrateV4State(candidate) {
+    const migrated = deepClone(candidate);
+    migrated.version = STATE_VERSION;
+    migrated.settings = {
+      ...(migrated.settings || {}),
+      actions: (Array.isArray(migrated.settings?.actions) ? migrated.settings.actions : []).map(action => ({
+        ...action,
+        requiredForVictory: false
+      }))
+    };
+    migrated.inventory = {
+      items: (Array.isArray(candidate.armory?.weapons) ? candidate.armory.weapons : [])
+        .map(migrateV4WeaponItem)
+        .filter(Boolean)
+    };
+    delete migrated.armory;
+
+    const pendingItem = migrateV4WeaponItem(candidate.current?.loot?.pendingWeapon);
+    migrated.current = {
+      ...(migrated.current || {}),
+      transactions: (Array.isArray(candidate.current?.transactions) ? candidate.current.transactions : [])
+        .map(migrateV4Transaction)
+        .filter(Boolean),
+      requiredActionIds: [],
+      loot: {
+        rolled: Boolean(candidate.current?.loot?.rolled || pendingItem),
+        available: Boolean(candidate.current?.loot?.available && pendingItem && !candidate.current?.loot?.claimed),
+        claimed: Boolean(candidate.current?.loot?.claimed && pendingItem),
+        pendingItem
+      }
+    };
+
+    migrated.history = (Array.isArray(candidate.history) ? candidate.history : []).map(day => ({
+      ...day,
+      transactions: (Array.isArray(day?.transactions) ? day.transactions : [])
+        .map(migrateV4Transaction)
+        .filter(Boolean)
+    }));
     return migrated;
   }
 
   function normalizeState(candidate) {
     if (candidate?.version === 2) candidate = migrateV2State(candidate);
     if (candidate?.version === 3) candidate = migrateV3State(candidate);
+    if (candidate?.version === 4) candidate = migrateV4State(candidate);
     if (!candidate || candidate.version !== STATE_VERSION) return freshState();
 
     const next = freshState();
@@ -750,7 +885,8 @@
         name,
         baseDamage: clampInt(action?.baseDamage, 1, 200, 10),
         type: action?.type === 'once' ? 'once' : 'repeatable',
-        trackVisible: action?.trackVisible !== false
+        requiredForVictory: Boolean(action?.requiredForVictory),
+        trackVisible: action?.requiredForVictory ? true : action?.trackVisible !== false
       };
     });
 
@@ -781,14 +917,14 @@
       });
 
 
-    const weaponIds = new Set();
-    next.armory.weapons = (Array.isArray(candidate.armory?.weapons) ? candidate.armory.weapons : [])
+    const itemInstanceIds = new Set();
+    next.inventory.items = (Array.isArray(candidate.inventory?.items) ? candidate.inventory.items : [])
       .slice(0, 500)
-      .map(normalizeWeaponItem)
+      .map(normalizePawnshopItem)
       .filter(Boolean)
       .filter(item => {
-        if (weaponIds.has(item.id)) return false;
-        weaponIds.add(item.id);
+        if (itemInstanceIds.has(item.id)) return false;
+        itemInstanceIds.add(item.id);
         return true;
       });
 
@@ -809,6 +945,18 @@
       ? clampInt(candidate.current?.maxHp, 20, 1000, enemyHpForClearCount(next.settings, next.history.filter(day => day.won).length))
       : 0;
     next.current.transactions = normalizeTransactions(candidate.current?.transactions);
+    const currentActionIds = new Set(next.settings.actions.map(action => action.id));
+    const rawRequiredIds = Array.isArray(candidate.current?.requiredActionIds)
+      ? candidate.current.requiredActionIds
+      : [];
+    const seenRequiredIds = new Set();
+    next.current.requiredActionIds = rawRequiredIds
+      .map(value => String(value))
+      .filter(actionId => {
+        if (!currentActionIds.has(actionId) || seenRequiredIds.has(actionId)) return false;
+        seenRequiredIds.add(actionId);
+        return true;
+      });
     next.current.defeatedAt = normalizeTimestamp(candidate.current?.defeatedAt);
     next.current.victoryXpAwarded = next.current.defeatedAt
       ? clampInt(candidate.current?.victoryXpAwarded, 0, VICTORY_XP, VICTORY_XP)
@@ -846,9 +994,10 @@
     return value.slice(0, 3000).map(tx => {
       const type = tx?.type === 'combo'
         ? 'combo'
-        : tx?.type === 'weapon'
-          ? 'weapon'
+        : tx?.type === 'item'
+          ? 'item'
           : 'action';
+
       if (type === 'combo') {
         return {
           type,
@@ -857,31 +1006,34 @@
           comboName: String(tx?.comboName || 'Combo').slice(0, 80),
           multiplier: clampNumber(tx?.multiplier, COMBO_MIN_MULTIPLIER, COMBO_MAX_MULTIPLIER, COMBO_DEFAULT_MULTIPLIER),
           damage: clampInt(tx?.damage, 1, 100000, 1),
-          sourceTransactionIds: (Array.isArray(tx?.sourceTransactionIds) ? tx.sourceTransactionIds : []).map(id => String(id).slice(0, 128)).slice(0, COMBO_MAX_STEPS),
+          sourceTransactionIds: (Array.isArray(tx?.sourceTransactionIds) ? tx.sourceTransactionIds : [])
+            .map(id => String(id).slice(0, 128))
+            .slice(0, COMBO_MAX_STEPS),
           timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
         };
       }
 
-      if (type === 'weapon') {
-        const weapon = weaponDefinition(String(tx?.weaponId || ''));
-        if (!weapon) return null;
-        const condition = weapon.special ? null : weaponCondition(String(tx?.conditionId || ''));
-        if (!weapon.special && !condition) return null;
+      if (type === 'item') {
+        const definition = itemDefinition(String(tx?.itemId || ''));
+        if (!definition) return null;
+        const condition = definition.special ? null : itemCondition(String(tx?.conditionId || ''));
+        if (!definition.special && !condition) return null;
         return {
           type,
-          id: String(tx?.id || makeId('weapon-tx')).slice(0, 128),
-          weaponItemId: String(tx?.weaponItemId || '').slice(0, 128),
-          weaponId: weapon.id,
-          weaponName: weapon.name,
+          id: String(tx?.id || makeId('item-tx')).slice(0, 128),
+          itemInstanceId: String(tx?.itemInstanceId || '').slice(0, 128),
+          itemId: definition.id,
+          itemName: definition.name,
           conditionId: condition?.id || null,
           conditionName: condition?.name || null,
-          multiplier: weapon.special ? 1 : condition.multiplier,
-          damage: weapon.special
-            ? clampInt(tx?.damage, weapon.baseDamage, 1000, weapon.baseDamage)
-            : Math.max(1, Math.round(weapon.baseDamage * condition.multiplier)),
+          multiplier: definition.special ? 1 : condition.multiplier,
+          damage: definition.special
+            ? clampInt(tx?.damage, definition.baseDamage, 1000, definition.baseDamage)
+            : Math.max(1, Math.round(definition.baseDamage * condition.multiplier)),
           timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
         };
       }
+
       return {
         type,
         id: String(tx?.id || makeId('tx')).slice(0, 128),
@@ -960,7 +1112,7 @@
       const raw = localStorage.getItem(storageKey);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      if (!parsed || ![2, 3, STATE_VERSION].includes(parsed.version)) return null;
+      if (!parsed || ![2, 3, 4, STATE_VERSION].includes(parsed.version)) return null;
       return normalizeState(parsed);
     } catch (error) {
       console.warn('Could not read cached MoLife data:', error);
@@ -1068,12 +1220,17 @@
   function getSummary() {
     const categoryDamage = Object.fromEntries(state.settings.categories.map(category => [category.id, 0]));
     const categoryBaseDamage = Object.fromEntries(state.settings.categories.map(category => [category.id, 0]));
+    const maxHp = Math.max(20, state.current.maxHp || getEnemyHp());
+    const requiredIds = (Array.isArray(state.current.requiredActionIds) ? state.current.requiredActionIds : [])
+      .filter(actionId => state.settings.actions.some(action => action.id === actionId));
+    const completedRequiredIds = new Set();
     let totalDamage = 0;
     let totalBaseDamage = 0;
     let comboDamage = 0;
     let combosLanded = 0;
-    let weaponDamage = 0;
-    let weaponsUsed = 0;
+    let itemDamage = 0;
+    let itemsUsed = 0;
+    let itemBypassVictory = false;
 
     state.current.transactions.forEach(tx => {
       totalDamage += tx.damage;
@@ -1084,35 +1241,52 @@
         return;
       }
 
-      if (tx.type === 'weapon') {
-        weaponDamage += tx.damage;
-        weaponsUsed += 1;
+      if (tx.type === 'item') {
+        itemDamage += tx.damage;
+        itemsUsed += 1;
+        if (totalDamage >= maxHp) itemBypassVictory = true;
         return;
       }
 
+      if (requiredIds.includes(tx.actionId)) completedRequiredIds.add(tx.actionId);
       const categoryId = currentCategoryIdForTransaction(tx);
       totalBaseDamage += tx.baseDamage;
       categoryDamage[categoryId] = (categoryDamage[categoryId] || 0) + tx.damage;
       categoryBaseDamage[categoryId] = (categoryBaseDamage[categoryId] || 0) + tx.baseDamage;
     });
 
-    const maxHp = Math.max(20, state.current.maxHp || getEnemyHp());
-    const currentHp = Math.max(0, maxHp - totalDamage);
-    const overkill = Math.max(0, totalDamage - maxHp);
+    const requiredRemainingIds = requiredIds.filter(actionId => !completedRequiredIds.has(actionId));
+    const normalVictory = totalDamage >= maxHp && requiredRemainingIds.length === 0;
+    const isVictory = normalVictory || itemBypassVictory;
+    const isTenacious = !isVictory && requiredRemainingIds.length > 0;
+    const tenaciousHolding = isTenacious && totalDamage >= maxHp;
+    const currentHp = isVictory
+      ? 0
+      : tenaciousHolding
+        ? 1
+        : Math.max(0, maxHp - totalDamage);
+    const overkill = isVictory ? Math.max(0, totalDamage - maxHp) : 0;
 
     return {
       totalDamage,
       totalBaseDamage,
       comboDamage,
       combosLanded,
-      weaponDamage,
-      weaponsUsed,
+      itemDamage,
+      itemsUsed,
       categoryDamage,
       categoryBaseDamage,
       maxHp,
       currentHp,
       overkill,
-      isVictory: totalDamage >= maxHp
+      requiredTotal: requiredIds.length,
+      requiredCompleted: completedRequiredIds.size,
+      requiredRemainingIds,
+      requiredRemainingCount: requiredRemainingIds.length,
+      isTenacious,
+      tenaciousHolding,
+      itemBypassVictory,
+      isVictory
     };
   }
 
@@ -1250,7 +1424,7 @@
 
   function rollVictoryLootIfNeeded() {
     if (state.current.loot?.rolled) {
-      if (state.current.loot.pendingWeapon && !state.current.loot.claimed) {
+      if (state.current.loot.pendingItem && !state.current.loot.claimed) {
         state.current.loot.available = true;
       }
       return;
@@ -1259,19 +1433,20 @@
     state.current.loot = emptyLootState();
     state.current.loot.rolled = true;
 
-    if (randomUnit() >= WEAPON_DROP_CHANCE) return;
+    if (state.inventory.items.length >= ITEM_CAPACITY) return;
+    if (randomUnit() >= ITEM_DROP_CHANCE) return;
 
-    const pendingWeapon = rollWeaponItem();
-    if (!pendingWeapon) return;
+    const pendingItem = rollPawnshopItem();
+    if (!pendingItem) return;
     state.current.loot.available = true;
-    state.current.loot.pendingWeapon = pendingWeapon;
+    state.current.loot.pendingItem = pendingItem;
   }
 
   function revokeCurrentVictoryLoot() {
     const loot = state.current.loot || emptyLootState();
-    if (loot.claimed && loot.pendingWeapon?.id) {
-      state.armory.weapons = state.armory.weapons.filter(
-        item => item.id !== loot.pendingWeapon.id
+    if (loot.claimed && loot.pendingItem?.id) {
+      state.inventory.items = state.inventory.items.filter(
+        item => item.id !== loot.pendingItem.id
       );
     }
 
@@ -1279,21 +1454,22 @@
       rolled: Boolean(loot.rolled),
       available: false,
       claimed: false,
-      pendingWeapon: loot.pendingWeapon ? deepClone(loot.pendingWeapon) : null
+      pendingItem: loot.pendingItem ? deepClone(loot.pendingItem) : null
     };
   }
 
   function stashPendingVictoryLoot() {
     const loot = state.current.loot;
-    if (!loot?.available || loot.claimed || !loot.pendingWeapon) return null;
+    if (!loot?.available || loot.claimed || !loot.pendingItem) return null;
 
-    if (!state.armory.weapons.some(item => item.id === loot.pendingWeapon.id)) {
-      state.armory.weapons.push(deepClone(loot.pendingWeapon));
+    if (!state.inventory.items.some(item => item.id === loot.pendingItem.id)) {
+      // Existing rewards are never discarded, even if a migrated save is already over capacity.
+      state.inventory.items.push(deepClone(loot.pendingItem));
     }
 
     loot.available = false;
     loot.claimed = true;
-    return loot.pendingWeapon;
+    return loot.pendingItem;
   }
 
   function claimVictoryLoot() {
@@ -1307,31 +1483,32 @@
     render({ lootClaimed: claimed });
   }
 
-  function useWeapon(itemId) {
+  function usePawnshopItem(itemInstanceId) {
     ensureToday();
     const summary = getSummary();
     if (summary.isVictory) return;
 
-    const index = state.armory.weapons.findIndex(item => item.id === itemId);
+    const index = state.inventory.items.findIndex(item => item.id === itemInstanceId);
     if (index < 0) return;
 
-    const item = state.armory.weapons[index];
-    const weapon = weaponDefinition(item.weaponId);
-    if (!weapon) return;
+    const item = state.inventory.items[index];
+    const definition = itemDefinition(item.itemId);
+    if (!definition) return;
 
-    const actualDamage = weapon.special
+    const actualDamage = definition.special
       ? Math.max(item.damage, summary.currentHp)
       : item.damage;
+    const wasTenacious = summary.isTenacious;
 
-    state.armory.weapons.splice(index, 1);
+    state.inventory.items.splice(index, 1);
 
-    const condition = weapon.special ? null : weaponCondition(item.conditionId);
+    const condition = definition.special ? null : itemCondition(item.conditionId);
     const tx = {
-      type: 'weapon',
-      id: makeId('weapon-tx'),
-      weaponItemId: item.id,
-      weaponId: weapon.id,
-      weaponName: weapon.name,
+      type: 'item',
+      id: makeId('item-tx'),
+      itemInstanceId: item.id,
+      itemId: definition.id,
+      itemName: definition.name,
       conditionId: condition?.id || null,
       conditionName: condition?.name || null,
       multiplier: item.multiplier,
@@ -1341,13 +1518,15 @@
 
     state.current.transactions.push(tx);
     const justDefeated = finalizeVictoryIfNeeded();
+    const after = getSummary();
     saveState();
     render({
       showDayCard: justDefeated,
       justDefeated,
       hitDamage: tx.damage,
-      hitName: weaponDisplayName(item),
-      weaponEvent: tx
+      hitName: itemDisplayName(item),
+      itemEvent: tx,
+      itemBypassedTenacity: wasTenacious && after.isVictory
     });
   }
 
@@ -1498,6 +1677,7 @@
         maxHp: getEnemyHp(),
         transactions: [],
         comboProgress: {},
+        requiredActionIds: requiredActionIdsForNextFight(),
         defeatedAt: null,
         victoryXpAwarded: 0,
         loot: emptyLootState(),
@@ -1515,6 +1695,7 @@
       maxHp: getEnemyHp(),
       transactions: [],
       comboProgress: {},
+      requiredActionIds: requiredActionIdsForNextFight(),
       defeatedAt: null,
       victoryXpAwarded: 0,
       loot: emptyLootState(),
@@ -1759,6 +1940,7 @@
     if (!action) return;
     if (action.type === 'once' && hasCompletedOnceAction(action.id)) return;
 
+    const beforeSummary = getSummary();
     const category = state.settings.categories.find(item => item.id === action.categoryId)
       || uncategorizedCategory();
     const reward = calculateDamage(action);
@@ -1779,13 +1961,16 @@
 
     const comboEvent = processCombosForAction(actionTx);
     const justDefeated = finalizeVictoryIfNeeded();
+    const afterSummary = getSummary();
+    const tenaciousResisted = !beforeSummary.tenaciousHolding && afterSummary.tenaciousHolding;
     saveState();
     render({
       showDayCard: justDefeated,
       justDefeated,
       hitDamage: actionTx.damage,
       hitName: actionTx.actionName,
-      comboEvent
+      comboEvent,
+      tenaciousResisted
     });
   }
 
