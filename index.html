@@ -8,7 +8,7 @@
   <title>MoLife</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=4.3.0">
+  <link rel="stylesheet" href="styles.css?v=4.5.0">
 </head>
 <body>
   <div class="city-noise" aria-hidden="true"></div>
@@ -122,7 +122,7 @@
           <h2>Track-o-Tron</h2>
           <div class="track-subtitle">Choose an attack</div>
         </div>
-        <div class="balance-note">Focus decides how long a category stays at full damage</div>
+        <div class="balance-note">Higher Focus means less damage · repeating a category builds resistance</div>
       </section>
 
       <section id="categoriesGrid" class="categories-grid"></section>
@@ -237,16 +237,13 @@
           <span>
             <strong>Enemy HP</strong>
             <small>Every new Dark Doppelgänger starts at exactly this strength. Changing it affects future fights, never today's enemy.</small>
-            <small id="goalPreview" class="goal-ramp-preview"></small>
+            <small id="goalPreview" class="goal-preview"></small>
           </span>
           <input id="goalInput" type="number" min="20" max="1000" step="5" inputmode="numeric">
         </label>
       </section>
 
       <section class="settings-section">
-        <div class="settings-section-head">
-          <div>
-            <h3>Categories & Focus</h3>      <section class="settings-section">
         <div class="settings-section-head">
           <div>
             <h3>Categories & Focus</h3>
