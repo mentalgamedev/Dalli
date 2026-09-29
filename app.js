@@ -473,9 +473,7 @@
       weaponId: weapon.id,
       conditionId,
       multiplier,
-      damage: clampInt(value.damage, 1, 999, expectedDamage) === expectedDamage
-        ? expectedDamage
-        : expectedDamage,
+      damage: expectedDamage,
       acquiredDate: /^\d{4}-\d{2}-\d{2}$/.test(String(value.acquiredDate || ''))
         ? String(value.acquiredDate)
         : localDateKey(),
@@ -807,9 +805,9 @@
           conditionId: condition?.id || null,
           conditionName: condition?.name || null,
           multiplier: weapon.special ? 1 : condition.multiplier,
-          damage: clampInt(tx?.damage, 1, 999, weapon.special
+          damage: weapon.special
             ? weapon.baseDamage
-            : Math.max(1, Math.round(weapon.baseDamage * condition.multiplier))),
+            : Math.max(1, Math.round(weapon.baseDamage * condition.multiplier)),
           timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
         };
       }
