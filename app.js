@@ -37,6 +37,76 @@
     { id: 'over-engineered', name: 'Over-engineered', multiplier: 2, weight: 5 }
   ]);
 
+
+  // Public, spoiler-safe Crestfallen flavor only.
+  // These references may establish public people, places, businesses and rumors,
+  // but must not reveal hidden relationships, plot events or supernatural answers.
+  const CRESTFALLEN_NEWS_ITEMS = Object.freeze([
+    { id: 'mogreen-smart-day', tags: ['generic'], weight: 8, text: 'LESTER MOGREEN CAMPAIGN PROMISES A SMARTER CRESTFALLEN; EXISTING CRESTFALLEN REQUESTS CLARIFICATION' },
+    { id: 'mogreen-photo-op', tags: ['generic'], weight: 7, text: 'LESTER MOGREEN COMPLETES ANOTHER SUCCESSFUL PHOTO OP; PHOTOGRAPHER REPORTEDLY EXHAUSTED' },
+    { id: 'mogreen-efficiency', tags: ['work'], weight: 10, text: 'MOGREEN CAMPAIGN PRAISES LOCAL PRODUCTIVITY; DENIES HAVING MEASURED IT WITHOUT PERMISSION' },
+    { id: 'mogreen-overkill', tags: ['overkill'], weight: 10, text: 'LESTER MOGREEN CALLS TODAY’S OVERKILL “A BOLD PUBLIC-PRIVATE INITIATIVE”' },
+    { id: 'mogreen-victory', tags: ['victory'], weight: 8, text: 'MOGREEN CAMPAIGN CONGRATULATES VICTORIOUS CITIZEN; CREDIT ALLOCATION MEETING ALREADY SCHEDULED' },
+    { id: 'mogreen-contraband', tags: ['weapon'], weight: 7, text: 'MOGREEN CAMPAIGN DESCRIBES CONTRABAND PROBLEM AS “LEGACY INFRASTRUCTURE”' },
+
+    { id: 'moles-sleep', tags: ['generic', 'work'], weight: 10, text: 'MO.LES.TECH DENIES REPORTS THAT EMPLOYEES REQUIRE SLEEP' },
+    { id: 'moles-smart-bench', tags: ['generic'], weight: 8, text: 'MO.LES.TECH SMART BENCH UPDATE NOW REQUIRES BENCH TO RESTART' },
+    { id: 'moles-lamp', tags: ['generic'], weight: 7, text: 'NEW MO.LES.TECH STREETLIGHT SUCCESSFULLY IDENTIFIES NIGHTTIME IN 73% OF TESTS' },
+    { id: 'moles-work', tags: ['work'], weight: 10, text: 'MO.LES.TECH REPORTS PRODUCTIVITY SURGE; HUMAN FACTOR LISTED UNDER KNOWN ISSUES' },
+    { id: 'moles-combo', tags: ['combo'], weight: 8, text: 'MO.LES.TECH ANALYTICS FLAG ORDERED ACTION SEQUENCE AS “POSSIBLY INTENTIONAL”' },
+    { id: 'moles-overkill', tags: ['overkill'], weight: 9, text: 'MO.LES.TECH SAFETY MODEL CLASSIFIES OVERKILL AS “WITHIN DEMO PARAMETERS”' },
+
+    { id: 'phat-ed-rusty', tags: ['weapon', 'loot'], weight: 12, text: 'PHAT ED’S PAWNSHOP REMINDS CUSTOMERS THAT “RUSTY” IS A CONDITION, NOT A WARRANTY CATEGORY' },
+    { id: 'phat-ed-bazooka', tags: ['weapon'], weight: 10, text: 'PHAT ED’S PAWNSHOP DECLINES COMMENT ON BAZOOKA-ADJACENT INVENTORY' },
+    { id: 'phat-ed-receipt', tags: ['weapon'], weight: 10, text: 'PHAT ED’S PAWNSHOP: NO RECEIPT, NO REFUND, NO MEMORY OF THIS CONVERSATION' },
+    { id: 'phat-ed-crate', tags: ['loot'], weight: 12, text: 'UNMARKED CRATE APPEARS NEAR PHAT ED’S PAWNSHOP; ED CALLS TIMING “PURELY ATMOSPHERIC”' },
+    { id: 'phat-ed-golden', tags: ['golden'], weight: 10, text: 'PHAT ED DENIES EVER STOCKING A GOLDEN GUN; WINDOW DISPLAY CURTAIN IMMEDIATELY CLOSED' },
+    { id: 'phat-ed-clean', tags: ['weapon'], weight: 7, text: 'LOCAL PAWNSHOP INDUSTRY DISPUTES CLAIM THAT “CLEAN” MEANS “CLEAN”' },
+
+    { id: 'library-printer', tags: ['generic'], weight: 8, text: 'CRESTFALLEN LIBRARY PRINTER ACCEPTS DOCUMENT ON FIRST TRY; INVESTIGATION OPENED' },
+    { id: 'library-overdue', tags: ['generic'], weight: 7, text: 'CRESTFALLEN LIBRARY WAIVES LATE FEE AFTER BOOK RETURNED BEFORE CIVILIZATION ENDS' },
+    { id: 'library-work', tags: ['work'], weight: 9, text: 'CRESTFALLEN LIBRARY QUIET FLOOR OUTPERFORMS THREE OPEN-PLAN OFFICES IN INFORMAL STUDY' },
+    { id: 'library-victory', tags: ['victory'], weight: 7, text: 'CRESTFALLEN LIBRARY FILES TODAY’S VICTORY UNDER “UNLIKELY BUT DOCUMENTED”' },
+    { id: 'library-late', tags: ['late'], weight: 8, text: 'LATE-NIGHT LIBRARY BOOK DROP RECEIVES ITEM LABELLED ONLY “0 1 0 1”; STAFF UNIMPRESSED' },
+
+    { id: 'bathhouse-maintenance', tags: ['generic'], weight: 7, text: 'OLD MUNICIPAL BATHHOUSE MAINTENANCE DELAYED AGAIN; CITY CITES “UNCOOPERATIVE ARCHITECTURE”' },
+    { id: 'bathhouse-late', tags: ['late', 'mystery'], weight: 10, text: 'LIGHTS REPORTED INSIDE OLD MUNICIPAL BATHHOUSE AFTER HOURS; ELECTRICITY ACCOUNT DISAGREES' },
+    { id: 'bathhouse-binary', tags: ['mystery'], weight: 10, text: 'CITY WORKERS REPORT RHYTHMIC BINARY CHANTING BENEATH MUNICIPAL PROPERTY; IT DEPARTMENT DENIES INVOLVEMENT' },
+    { id: 'bathhouse-blueprint', tags: ['mystery'], weight: 8, text: 'OLD MUNICIPAL BATHHOUSE BLUEPRINTS DISCOVER EXTRA ROOM; SECOND SET OF BLUEPRINTS DISAGREES' },
+
+    { id: 'binary-drain', tags: ['mystery'], weight: 9, text: 'RESIDENTS REPORT STORM DRAINS HUMMING IN ZEROES AND ONES; CITY ADVISES NOT HUMMING BACK' },
+    { id: 'binary-utility', tags: ['mystery'], weight: 8, text: 'UTILITY CREW FINDS REPEATING 0-1 MARKINGS UNDER CRESTFALLEN; OFFICIAL TERM IS NOW “OLD WIRING”' },
+    { id: 'binary-night', tags: ['late', 'mystery'], weight: 9, text: 'MIDNIGHT NOISE COMPLAINT DESCRIBES “COUNTING, BUT ONLY TWO NUMBERS”; CASE FORWARDED TO NOBODY' },
+    { id: 'binary-council', tags: ['mystery'], weight: 7, text: 'CITY COUNCIL DENIES KNOWLEDGE OF UNDERGROUND BINARY RITUALS BEFORE REPORTER FINISHES QUESTION' },
+
+    { id: 'city-combo', tags: ['combo'], weight: 8, text: 'CRESTFALLEN TRAFFIC OFFICE APPROVES COMBO SEQUENCE PROVIDED STEPS OCCUR IN THE CORRECT ORDER' },
+    { id: 'city-streak', tags: ['streak'], weight: 8, text: 'LOCAL WIN STREAK NOW LONG ENOUGH TO REQUIRE ITS OWN MUNICIPAL FORM' },
+    { id: 'city-victory', tags: ['victory'], weight: 8, text: 'CITY HALL CONFIRMS DARK DOPPELGÄNGER DEFEAT; CEREMONIAL RIBBON ALREADY MISSING' },
+    { id: 'city-no-damage', tags: ['idle'], weight: 8, text: 'CRESTFALLEN EMERGENCY SERVICES REPORT NO ACTIVITY; DARK DOPPELGÄNGER SEEN LOOKING COMFORTABLE' },
+    { id: 'city-low-hp', tags: ['wounded'], weight: 8, text: 'LOCAL BOOKMAKERS SUSPEND ODDS AS DARK DOPPELGÄNGER ENTERS VISIBLY UNCOMFORTABLE TERRITORY' }
+  ]);
+
+  const CRESTFALLEN_DAILY_REFERENCES = Object.freeze({
+    weapon: [
+      ['PAWNSHOP INDUSTRY DISTANCES ITSELF FROM DAILY SHOOTING', 'Phat Ed’s Pawnshop issued a statement consisting primarily of “no receipt, no comment.”'],
+      ['CONTRABAND SOLVES PROBLEM; CREATES SEVERAL NEW ONES', 'Crestfallen officials confirmed the weapon worked and immediately regretted confirming anything.']
+    ],
+    work: [
+      ['LOCAL PRODUCTIVITY INCIDENT DRAWS CORPORATE ATTENTION', 'mo.les.tech called the results promising. The Mogreen campaign called them inevitable.'],
+      ['WORK OUTPUT EXCEEDS RECOMMENDED CIVIC DOSAGE', 'A Lester Mogreen spokesperson praised the numbers before asking where they came from.']
+    ],
+    overkill: [
+      ['CITY REQUESTS EXPLANATION FOR EXCESSIVE DAMAGE', 'mo.les.tech classified the overkill as statistically interesting and legally someone else’s problem.'],
+      ['DARK DOPPELGÄNGER DEFEATED; PAWNSHOP WINDOWS RATTLE', 'Phat Ed’s Pawnshop denies any connection to the remaining damage.']
+    ],
+    barely: [
+      ['CRESTFALLEN LIBRARY CONFIRMS ZERO HP STILL COUNTS AS ZERO', 'The finding has been filed under “technically correct,” where it may never be seen again.']
+    ],
+    combo: [
+      ['ORDERED ACTIONS TRIGGER MUNICIPAL SUSPICION', 'City analysts agree the sequence looked coordinated, which is unusual enough to document.']
+    ]
+  });
+
   const DEFAULT_ACTION_NAME_MIGRATIONS = Object.freeze({
     'wellbeing-workout-30': ['Workout — 30 min', 'Proper workout'],
     'wellbeing-walk-20': ['Walk — 20 min', 'Walk / fresh air'],
@@ -1467,6 +1537,67 @@
     return items[stringHash(seed) % items.length];
   }
 
+
+  function deterministicWeightedSample(items, count, seed) {
+    return items
+      .map(item => {
+        const hash = stringHash(`${seed}|${item.id}`);
+        const unit = Math.max(1 / 0x100000000, hash / 0xffffffff);
+        const weight = Math.max(0.01, Number(item.weight) || 1);
+        return { item, score: -Math.log(unit) / weight };
+      })
+      .sort((a, b) => a.score - b.score)
+      .slice(0, Math.max(0, count))
+      .map(entry => entry.item);
+  }
+
+  function crestfallenNewswireTags(summary, dominant, hour) {
+    const tags = new Set(['generic']);
+
+    if (summary.isVictory) tags.add('victory');
+    if (summary.weaponsUsed > 0) tags.add('weapon');
+    if (summary.combosLanded > 0) tags.add('combo');
+    if (summary.overkill > 0) tags.add('overkill');
+    if (summary.totalDamage === 0) tags.add('idle');
+    if (!summary.isVictory && summary.currentHp <= summary.maxHp * 0.35) tags.add('wounded');
+    if (state.current.loot?.available || state.current.loot?.claimed) tags.add('loot');
+    if (state.current.loot?.pendingWeapon?.weaponId === 'golden-gun') tags.add('golden');
+    if (getCurrentStreak() >= 3) tags.add('streak');
+    if (dominant?.id === 'work') tags.add('work');
+    if (hour >= 21) tags.add('late');
+
+    // A few spoiler-safe opening-premise oddities are always eligible at low frequency.
+    tags.add('mystery');
+    return tags;
+  }
+
+  function getCrestfallenReferenceMessages(summary, dominant, hour) {
+    const tags = crestfallenNewswireTags(summary, dominant, hour);
+    const candidates = CRESTFALLEN_NEWS_ITEMS.filter(item => (
+      item.tags.some(tag => tags.has(tag))
+    ));
+
+    return deterministicWeightedSample(
+      candidates,
+      4,
+      `${state.current.date}|${summary.totalDamage}|${summary.weaponsUsed}|${summary.combosLanded}|${hour >= 21 ? 'late' : 'day'}`
+    ).map(item => item.text);
+  }
+
+  function maybeCrestfallenDailyReference(personality, summary, basePair) {
+    const pool = CRESTFALLEN_DAILY_REFERENCES[personality.key];
+    if (!pool?.length) return basePair;
+
+    // One in four deterministic reports gets an explicit Crestfallen-world crossover.
+    const gate = stringHash(`${state.current.date}|crestfallen-daily|${personality.key}`) % 4;
+    if (gate !== 0) return basePair;
+
+    return deterministicPick(
+      pool,
+      `${state.current.date}|crestfallen-daily-pick|${summary.totalDamage}|${summary.weaponsUsed}`
+    );
+  }
+
   function getDayPersonality(summary) {
     const active = state.settings.categories
       .filter(category => category.id !== UNCATEGORIZED_ID)
@@ -1560,10 +1691,11 @@
       ]
     };
 
-    return deterministicPick(
+    const basePair = deterministicPick(
       pools[personality.key] || pools.custom,
       `${state.current.date}|${personality.key}|${summary.totalDamage}|${summary.combosLanded}`
     );
+    return maybeCrestfallenDailyReference(personality, summary, basePair);
   }
 
   function createDayCard(summary) {
@@ -1823,10 +1955,9 @@
       messages.push(`LEVEL ${level.level} CITIZEN STILL RECEIVES NO ADDITIONAL SALARY OR PARKING PRIVILEGES`);
     }
 
-    messages.push(
-      'MO.LES.TECH DENIES REPORTS THAT EMPLOYEES REQUIRE SLEEP',
-      'CITY COUNCIL ANNOUNCES NEW INITIATIVE TO ANNOUNCE MORE INITIATIVES'
-    );
+    messages.push('CITY COUNCIL ANNOUNCES NEW INITIATIVE TO ANNOUNCE MORE INITIATIVES');
+
+    messages.push(...getCrestfallenReferenceMessages(summary, dominant, hour));
 
     return [...new Set(messages)];
   }
