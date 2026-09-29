@@ -106,7 +106,7 @@ Reports are deterministic local content; they do not require an AI service.
 
 ## Crestfallen Newswire
 
-The header contains a reactive fake news feed that comments on the current fight: Dark Doppelgänger HP, damage, combos, overkill, yesterday's result, rank, streak, level and category resistance. It also mixes in a small deterministic sample of tagged Crestfallen-world reports so references react to context such as weapons, loot, work, combos, overkill and late-night activity without overwhelming the MoLife-specific feed. Before victory it reports on the ongoing hostilities; after defeat it becomes reluctantly congratulatory. On wider layouts the Newswire spans the full app width instead of staying inside the brand column.
+The header contains a reactive fake news feed that comments on the current fight: Dark Doppelgänger HP, damage, combos, overkill, yesterday's result, rank, streak, level and category resistance. It also mixes in a small deterministic sample of tagged Crestfallen-world reports so references react to context such as Pawnshop items, loot, Tenacious status, work, combos, overkill and late-night activity without overwhelming the MoLife-specific feed. Before victory it reports on the ongoing hostilities; after defeat it becomes reluctantly congratulatory. On wider layouts the Newswire spans the full app width instead of staying inside the brand column.
 
 
 ## Motion FX
