@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const STATE_VERSION = 5;
+  const STATE_VERSION = 6;
   const TEMPLATE_VERSION = 1;
   const ITEM_DROP_CHANCE = 0.40;
   const ITEM_CAPACITY = 8;
@@ -10,10 +10,8 @@
   const DETAILED_HISTORY_DAYS = 90;
   const UNCATEGORIZED_ID = 'uncategorized';
   const UNCATEGORIZED_EFFICIENCY = 0.50;
-  const EFFICIENCY_TIERS = [1, 0.8, 0.6, 0.4];
-  const STARTER_HP_RATIO = 0.60;
-  const HP_RAMP_STEPS = 8;
-  const VICTORIES_PER_RAMP_STEP = 2;
+  const CATEGORY_RESISTANCE = Object.freeze([1, 0.65, 0.40, 0.25]);
+  const REQUIRED_COUNT_MAX = 1000;
   const VICTORY_XP = 20;
   const COMBO_MIN_MULTIPLIER = 1.05;
   const COMBO_MAX_MULTIPLIER = 3;
@@ -178,18 +176,18 @@
         { id: UNCATEGORIZED_ID, name: 'Uncategorized', icon: '•', focus: 0, color: '#8b93a4' }
       ],
       actions: [
-        { id: 'wellbeing-workout-30', categoryId: 'wellbeing', name: 'Proper workout', baseDamage: 20, type: 'repeatable', trackVisible: true, requiredForVictory: false },
-        { id: 'wellbeing-walk-20', categoryId: 'wellbeing', name: 'Walk / fresh air', baseDamage: 10, type: 'repeatable', trackVisible: true, requiredForVictory: false },
-        { id: 'wellbeing-mobility-10', categoryId: 'wellbeing', name: 'Quick movement / stretch', baseDamage: 5, type: 'repeatable', trackVisible: true, requiredForVictory: false },
-        { id: 'wellbeing-good-meal', categoryId: 'wellbeing', name: 'Proper healthy meal', baseDamage: 10, type: 'once', trackVisible: true, requiredForVictory: false },
-        { id: 'work-focus-25', categoryId: 'work', name: 'Focus session', baseDamage: 15, type: 'repeatable', trackVisible: true, requiredForVictory: false },
-        { id: 'work-focus-50', categoryId: 'work', name: 'Deep focus session', baseDamage: 30, type: 'repeatable', trackVisible: true, requiredForVictory: false },
-        { id: 'work-practice-20', categoryId: 'work', name: 'Practice / skill', baseDamage: 10, type: 'repeatable', trackVisible: true, requiredForVictory: false },
-        { id: 'work-admin', categoryId: 'work', name: 'Annoying admin task', baseDamage: 10, type: 'once', trackVisible: true, requiredForVictory: false },
-        { id: 'chores-small', categoryId: 'chores', name: 'Tiny chore', baseDamage: 5, type: 'repeatable', trackVisible: true, requiredForVictory: false },
-        { id: 'chores-medium', categoryId: 'chores', name: 'Proper chore / cleaning', baseDamage: 10, type: 'repeatable', trackVisible: true, requiredForVictory: false },
-        { id: 'chores-laundry', categoryId: 'chores', name: 'Laundry', baseDamage: 10, type: 'once', trackVisible: true, requiredForVictory: false },
-        { id: 'chores-big', categoryId: 'chores', name: 'Big chore / deep clean', baseDamage: 20, type: 'repeatable', trackVisible: true, requiredForVictory: false }
+        { id: 'wellbeing-workout-30', categoryId: 'wellbeing', name: 'Proper workout', baseDamage: 20, type: 'repeatable', trackVisible: true, requiredForVictory: false, requiredCount: 1 },
+        { id: 'wellbeing-walk-20', categoryId: 'wellbeing', name: 'Walk / fresh air', baseDamage: 10, type: 'repeatable', trackVisible: true, requiredForVictory: false, requiredCount: 1 },
+        { id: 'wellbeing-mobility-10', categoryId: 'wellbeing', name: 'Quick movement / stretch', baseDamage: 5, type: 'repeatable', trackVisible: true, requiredForVictory: false, requiredCount: 1 },
+        { id: 'wellbeing-good-meal', categoryId: 'wellbeing', name: 'Proper healthy meal', baseDamage: 10, type: 'once', trackVisible: true, requiredForVictory: false, requiredCount: 1 },
+        { id: 'work-focus-25', categoryId: 'work', name: 'Focus session', baseDamage: 15, type: 'repeatable', trackVisible: true, requiredForVictory: false, requiredCount: 1 },
+        { id: 'work-focus-50', categoryId: 'work', name: 'Deep focus session', baseDamage: 30, type: 'repeatable', trackVisible: true, requiredForVictory: false, requiredCount: 1 },
+        { id: 'work-practice-20', categoryId: 'work', name: 'Practice / skill', baseDamage: 10, type: 'repeatable', trackVisible: true, requiredForVictory: false, requiredCount: 1 },
+        { id: 'work-admin', categoryId: 'work', name: 'Annoying admin task', baseDamage: 10, type: 'once', trackVisible: true, requiredForVictory: false, requiredCount: 1 },
+        { id: 'chores-small', categoryId: 'chores', name: 'Tiny chore', baseDamage: 5, type: 'repeatable', trackVisible: true, requiredForVictory: false, requiredCount: 1 },
+        { id: 'chores-medium', categoryId: 'chores', name: 'Proper chore / cleaning', baseDamage: 10, type: 'repeatable', trackVisible: true, requiredForVictory: false, requiredCount: 1 },
+        { id: 'chores-laundry', categoryId: 'chores', name: 'Laundry', baseDamage: 10, type: 'once', trackVisible: true, requiredForVictory: false, requiredCount: 1 },
+        { id: 'chores-big', categoryId: 'chores', name: 'Big chore / deep clean', baseDamage: 20, type: 'repeatable', trackVisible: true, requiredForVictory: false, requiredCount: 1 }
       ],
       combos: []
     },
@@ -207,7 +205,7 @@
       maxHp: 0,
       transactions: [],
       comboProgress: {},
-      requiredActionIds: [],
+      requiredActions: [],
       defeatedAt: null,
       victoryXpAwarded: 0,
       loot: {
@@ -283,7 +281,7 @@
     settingsForm: document.querySelector('#settingsForm'),
     closeSettingsButton: document.querySelector('#closeSettingsButton'),
     goalInput: document.querySelector('#goalInput'),
-    goalRampPreview: document.querySelector('#goalRampPreview'),
+    goalPreview: document.querySelector('#goalPreview'),
     categoriesEditor: document.querySelector('#categoriesEditor'),
     newCategoryName: document.querySelector('#newCategoryName'),
     newCategoryIcon: document.querySelector('#newCategoryIcon'),
@@ -297,6 +295,7 @@
     newActionDamage: document.querySelector('#newActionDamage'),
     newActionType: document.querySelector('#newActionType'),
     newActionRequired: document.querySelector('#newActionRequired'),
+    newActionRequiredCount: document.querySelector('#newActionRequiredCount'),
     newActionVisible: document.querySelector('#newActionVisible'),
     addActionButton: document.querySelector('#addActionButton'),
     combosEditor: document.querySelector('#combosEditor'),
@@ -309,8 +308,6 @@
     importTemplateInput: document.querySelector('#importTemplateInput'),
     templateStatus: document.querySelector('#templateStatus'),
     resetGameButton: document.querySelector('#resetGameButton'),
-    motionFxButton: document.querySelector('#motionFxButton'),
-    motionFxStatus: document.querySelector('#motionFxStatus'),
     settingsMessage: document.querySelector('#settingsMessage')
   };
 
@@ -327,33 +324,10 @@
   let visualFrame = null;
   let dayCardTimer = null;
   let settingsSaveTimer = null;
-  let settingsTriggeredClear = false;
   let actionDrag = null;
   const categoryScrollPositions = new Map();
 
-  const MOTION_PREF_KEY = 'molife.motionFx.v1';
   const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const finePointerQuery = window.matchMedia('(pointer: fine)');
-  let motionFxEnabled = false;
-  let motionSensorLive = false;
-  let orientationListenerAttached = false;
-  let motionListenerAttached = false;
-  let motionProbeTimer = null;
-  let orientationSamples = 0;
-  let motionSamples = 0;
-  let lastOrientationSampleAt = 0;
-  let lastMotionSampleAt = 0;
-  let neutralGamma = null;
-  let neutralBeta = null;
-  let neutralAlpha = null;
-  let neutralMotionRoll = null;
-  let neutralMotionPitch = null;
-  let targetRoll = 0;
-  let targetPitch = 0;
-  let targetYaw = 0;
-  let smoothRoll = 0;
-  let smoothPitch = 0;
-  let smoothYaw = 0;
 
   function deepClone(value) {
     return JSON.parse(JSON.stringify(value));
@@ -651,32 +625,19 @@
     };
   }
 
-  function requiredActionIdsForNextFight(settings = state.settings) {
+  function requiredActionsForNextFight(settings = state.settings) {
     return settings.actions
       .filter(action => action.requiredForVictory)
-      .map(action => action.id);
+      .map(action => ({
+        actionId: action.id,
+        requiredCount: action.type === 'repeatable'
+          ? clampInt(action.requiredCount, 1, REQUIRED_COUNT_MAX, 1)
+          : 1
+      }));
   }
 
   function legacyEnemyHp(candidate) {
-    const fullEnemyHp = clampInt(candidate?.settings?.goal, 20, 1000, 100);
-    const starterHp = Math.max(
-      20,
-      Math.min(fullEnemyHp, Math.round((fullEnemyHp * STARTER_HP_RATIO) / 5) * 5)
-    );
-    if (starterHp >= fullEnemyHp) return fullEnemyHp;
-
-    const clearCount = Array.isArray(candidate?.history)
-      ? candidate.history.reduce((count, day) => count + (day?.won ? 1 : 0), 0)
-      : 0;
-    const rampStep = Math.min(
-      HP_RAMP_STEPS,
-      Math.floor(clearCount / VICTORIES_PER_RAMP_STEP)
-    );
-    const progress = rampStep / HP_RAMP_STEPS;
-    return Math.min(
-      fullEnemyHp,
-      Math.max(20, Math.round((starterHp + ((fullEnemyHp - starterHp) * progress)) / 5) * 5)
-    );
+    return clampInt(candidate?.settings?.goal, 20, 1000, 100);
   }
 
   function migrateLegacyTransaction(tx) {
@@ -805,7 +766,7 @@
 
   function migrateV4State(candidate) {
     const migrated = deepClone(candidate);
-    migrated.version = STATE_VERSION;
+    migrated.version = 5;
     migrated.settings = {
       ...(migrated.settings || {}),
       actions: (Array.isArray(migrated.settings?.actions) ? migrated.settings.actions : []).map(action => ({
@@ -844,10 +805,37 @@
     return migrated;
   }
 
+  function migrateV5State(candidate) {
+    const migrated = deepClone(candidate);
+    migrated.version = STATE_VERSION;
+    migrated.settings = {
+      ...(migrated.settings || {}),
+      actions: (Array.isArray(migrated.settings?.actions) ? migrated.settings.actions : []).map(action => ({
+        ...action,
+        requiredCount: 1
+      }))
+    };
+
+    const requiredIds = Array.isArray(candidate.current?.requiredActionIds)
+      ? candidate.current.requiredActionIds
+      : [];
+    migrated.current = {
+      ...(migrated.current || {}),
+      requiredActions: requiredIds.map(actionId => ({
+        actionId: String(actionId),
+        requiredCount: 1
+      }))
+    };
+    delete migrated.current.requiredActionIds;
+    return migrated;
+  }
+
+
   function normalizeState(candidate) {
     if (candidate?.version === 2) candidate = migrateV2State(candidate);
     if (candidate?.version === 3) candidate = migrateV3State(candidate);
     if (candidate?.version === 4) candidate = migrateV4State(candidate);
+    if (candidate?.version === 5) candidate = migrateV5State(candidate);
     if (!candidate || candidate.version !== STATE_VERSION) return freshState();
 
     const next = freshState();
@@ -891,6 +879,9 @@
         baseDamage: clampInt(action?.baseDamage, 1, 200, 10),
         type: action?.type === 'once' ? 'once' : 'repeatable',
         requiredForVictory: Boolean(action?.requiredForVictory),
+        requiredCount: action?.type === 'once'
+          ? 1
+          : clampInt(action?.requiredCount, 1, REQUIRED_COUNT_MAX, 1),
         trackVisible: action?.requiredForVictory ? true : action?.trackVisible !== false
       };
     });
@@ -947,19 +938,22 @@
       ? String(candidate.current.date)
       : '';
     next.current.maxHp = next.current.date
-      ? clampInt(candidate.current?.maxHp, 20, 1000, enemyHpForClearCount(next.settings, next.history.filter(day => day.won).length))
+      ? clampInt(candidate.current?.maxHp, 20, 1000, getEnemyHp(next.settings))
       : 0;
     next.current.transactions = normalizeTransactions(candidate.current?.transactions);
     const currentActionIds = new Set(next.settings.actions.map(action => action.id));
-    const rawRequiredIds = Array.isArray(candidate.current?.requiredActionIds)
-      ? candidate.current.requiredActionIds
+    const rawRequiredActions = Array.isArray(candidate.current?.requiredActions)
+      ? candidate.current.requiredActions
       : [];
     const seenRequiredIds = new Set();
-    next.current.requiredActionIds = rawRequiredIds
-      .map(value => String(value))
-      .filter(actionId => {
-        if (!currentActionIds.has(actionId) || seenRequiredIds.has(actionId)) return false;
-        seenRequiredIds.add(actionId);
+    next.current.requiredActions = rawRequiredActions
+      .map(value => ({
+        actionId: String(value?.actionId || ''),
+        requiredCount: clampInt(value?.requiredCount, 1, REQUIRED_COUNT_MAX, 1)
+      }))
+      .filter(required => {
+        if (!currentActionIds.has(required.actionId) || seenRequiredIds.has(required.actionId)) return false;
+        seenRequiredIds.add(required.actionId);
         return true;
       });
     next.current.defeatedAt = normalizeTimestamp(candidate.current?.defeatedAt);
@@ -1047,8 +1041,8 @@
         categoryId: /^[A-Za-z0-9_-]{1,64}$/.test(String(tx?.categoryId || '')) ? String(tx.categoryId) : UNCATEGORIZED_ID,
         categoryName: String(tx?.categoryName || 'Uncategorized').slice(0, 80),
         baseDamage: clampInt(tx?.baseDamage, 1, 200, 1),
-        damage: clampInt(tx?.damage, 1, 200, 1),
-        efficiency: clampNumber(tx?.efficiency, 0.01, 1, 1),
+        damage: clampInt(tx?.damage, 1, 800, 1),
+        efficiency: clampNumber(tx?.efficiency, 0.01, 4, 1),
         timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
       };
     }).filter(Boolean);
@@ -1117,7 +1111,7 @@
       const raw = localStorage.getItem(storageKey);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      if (!parsed || ![2, 3, 4, STATE_VERSION].includes(parsed.version)) return null;
+      if (!parsed || ![2, 3, 4, 5, STATE_VERSION].includes(parsed.version)) return null;
       return normalizeState(parsed);
     } catch (error) {
       console.warn('Could not read cached MoLife data:', error);
@@ -1158,62 +1152,28 @@
   }
 
 
-  function getPriorVictoryCount() {
-    return state.history.reduce((count, day) => count + (day.won ? 1 : 0), 0);
-  }
-
-  function enemyHpForClearCount(settings, victoryCount) {
-    const fullEnemyHp = clampInt(settings.fullEnemyHp, 20, 1000, 100);
-    const starterHp = Math.max(
-      20,
-      Math.min(fullEnemyHp, Math.round((fullEnemyHp * STARTER_HP_RATIO) / 5) * 5)
-    );
-    if (starterHp >= fullEnemyHp) return fullEnemyHp;
-
-    const rampStep = Math.min(
-      HP_RAMP_STEPS,
-      Math.floor(Math.max(0, victoryCount) / VICTORIES_PER_RAMP_STEP)
-    );
-    const progress = rampStep / HP_RAMP_STEPS;
-    return Math.min(
-      fullEnemyHp,
-      Math.max(20, Math.round((starterHp + ((fullEnemyHp - starterHp) * progress)) / 5) * 5)
-    );
-  }
-
   function getEnemyHp(settings = state.settings) {
-    return enemyHpForClearCount(settings, getPriorVictoryCount());
+    return clampInt(settings.fullEnemyHp, 20, 1000, 100);
   }
 
-  function getHpRampInfo(settings = state.settings) {
-    const fullEnemyHp = clampInt(settings.fullEnemyHp, 20, 1000, 100);
-    const nextFightHp = getEnemyHp(settings);
-    const victoryCount = getPriorVictoryCount();
-    const victoriesToMature = HP_RAMP_STEPS * VICTORIES_PER_RAMP_STEP;
-    return {
-      fullEnemyHp,
-      nextFightHp,
-      victoryCount,
-      victoriesToMature,
-      active: nextFightHp < fullEnemyHp
-    };
+  function categoryResistanceForCount(actionCount) {
+    const index = Math.min(CATEGORY_RESISTANCE.length - 1, Math.max(0, clampInt(actionCount, 0, 100000, 0)));
+    return CATEGORY_RESISTANCE[index];
   }
 
-  function balancedCategories(settings = state.settings) {
-    return settings.categories.filter(category => category.id !== UNCATEGORIZED_ID);
-  }
-
-  function getFocusBand(categoryId, settings = state.settings) {
-    if (categoryId === UNCATEGORIZED_ID) return 0;
+  function getCategoryEfficiency(categoryId, actionCount = 0, settings = state.settings) {
+    if (categoryId === UNCATEGORIZED_ID) {
+      return { focus: 0, resistance: 1, multiplier: UNCATEGORIZED_EFFICIENCY, tier: 0, nextResistance: null };
+    }
     const category = settings.categories.find(item => item.id === categoryId);
-    if (!category) return 0;
+    if (!category) return { focus: 1, resistance: 1, multiplier: 1, tier: 0, nextResistance: null };
 
-    const categories = balancedCategories(settings);
-    const totalFocus = categories.reduce((sum, item) => sum + item.focus, 0) || 1;
-    const hpReference = settings === state.settings && state.current.maxHp
-      ? state.current.maxHp
-      : getEnemyHp(settings);
-    return Math.max(1, hpReference * (category.focus / totalFocus));
+    const focus = clampNumber(category.focus, 0.25, 10, 1);
+    const count = Math.max(0, clampInt(actionCount, 0, 100000, 0));
+    const tier = Math.min(CATEGORY_RESISTANCE.length - 1, count);
+    const resistance = categoryResistanceForCount(count);
+    const nextResistance = count + 1 < CATEGORY_RESISTANCE.length ? CATEGORY_RESISTANCE[count + 1] : null;
+    return { focus, resistance, multiplier: resistance / focus, tier, nextResistance };
   }
 
   function currentCategoryIdForTransaction(tx) {
@@ -1225,141 +1185,79 @@
   function getSummary() {
     const categoryDamage = Object.fromEntries(state.settings.categories.map(category => [category.id, 0]));
     const categoryBaseDamage = Object.fromEntries(state.settings.categories.map(category => [category.id, 0]));
+    const categoryActionCount = Object.fromEntries(state.settings.categories.map(category => [category.id, 0]));
     const maxHp = Math.max(20, state.current.maxHp || getEnemyHp());
-    const requiredIds = (Array.isArray(state.current.requiredActionIds) ? state.current.requiredActionIds : [])
-      .filter(actionId => state.settings.actions.some(action => action.id === actionId));
-    const completedRequiredIds = new Set();
-    let totalDamage = 0;
-    let totalBaseDamage = 0;
-    let comboDamage = 0;
-    let combosLanded = 0;
-    let itemDamage = 0;
-    let itemsUsed = 0;
+    const requiredActions = (Array.isArray(state.current.requiredActions) ? state.current.requiredActions : [])
+      .filter(required => state.settings.actions.some(action => action.id === required.actionId));
+    const actionCompletionCounts = new Map();
+    let totalDamage = 0, totalBaseDamage = 0, comboDamage = 0, combosLanded = 0, itemDamage = 0, itemsUsed = 0;
     let itemBypassVictory = false;
 
     state.current.transactions.forEach(tx => {
       totalDamage += tx.damage;
-
-      if (tx.type === 'combo') {
-        comboDamage += tx.damage;
-        combosLanded += 1;
-        return;
-      }
-
+      if (tx.type === 'combo') { comboDamage += tx.damage; combosLanded += 1; return; }
       if (tx.type === 'item') {
-        itemDamage += tx.damage;
-        itemsUsed += 1;
+        itemDamage += tx.damage; itemsUsed += 1;
         if (totalDamage >= maxHp) itemBypassVictory = true;
         return;
       }
 
-      if (requiredIds.includes(tx.actionId)) completedRequiredIds.add(tx.actionId);
+      actionCompletionCounts.set(tx.actionId, (actionCompletionCounts.get(tx.actionId) || 0) + 1);
       const categoryId = currentCategoryIdForTransaction(tx);
       totalBaseDamage += tx.baseDamage;
       categoryDamage[categoryId] = (categoryDamage[categoryId] || 0) + tx.damage;
       categoryBaseDamage[categoryId] = (categoryBaseDamage[categoryId] || 0) + tx.baseDamage;
+      categoryActionCount[categoryId] = (categoryActionCount[categoryId] || 0) + 1;
     });
 
-    const requiredRemainingIds = requiredIds.filter(actionId => !completedRequiredIds.has(actionId));
-    const normalVictory = totalDamage >= maxHp && requiredRemainingIds.length === 0;
+    const requiredProgress = {};
+    let requiredTotal = 0, requiredCompleted = 0, requiredRemainingCount = 0;
+    requiredActions.forEach(required => {
+      const requiredCount = clampInt(required.requiredCount, 1, REQUIRED_COUNT_MAX, 1);
+      const completedCount = Math.min(requiredCount, actionCompletionCounts.get(required.actionId) || 0);
+      const remainingCount = Math.max(0, requiredCount - completedCount);
+      requiredProgress[required.actionId] = { requiredCount, completedCount, remainingCount };
+      requiredTotal += requiredCount;
+      requiredCompleted += completedCount;
+      requiredRemainingCount += remainingCount;
+    });
+
+    const requiredRemainingIds = requiredActions
+      .filter(required => (requiredProgress[required.actionId]?.remainingCount || 0) > 0)
+      .map(required => required.actionId);
+    const normalVictory = totalDamage >= maxHp && requiredRemainingCount === 0;
     const isVictory = normalVictory || itemBypassVictory;
-    const isTenacious = !isVictory && requiredRemainingIds.length > 0;
+    const isTenacious = !isVictory && requiredRemainingCount > 0;
     const tenaciousHolding = isTenacious && totalDamage >= maxHp;
-    const currentHp = isVictory
-      ? 0
-      : tenaciousHolding
-        ? 1
-        : Math.max(0, maxHp - totalDamage);
+    const currentHp = isVictory ? 0 : tenaciousHolding ? 1 : Math.max(0, maxHp - totalDamage);
     const overkill = isVictory ? Math.max(0, totalDamage - maxHp) : 0;
 
     return {
-      totalDamage,
-      totalBaseDamage,
-      comboDamage,
-      combosLanded,
-      itemDamage,
-      itemsUsed,
-      categoryDamage,
-      categoryBaseDamage,
-      maxHp,
-      currentHp,
-      overkill,
-      requiredTotal: requiredIds.length,
-      requiredCompleted: completedRequiredIds.size,
-      requiredRemainingIds,
-      requiredRemainingCount: requiredRemainingIds.length,
-      isTenacious,
-      tenaciousHolding,
-      itemBypassVictory,
-      isVictory
+      totalDamage, totalBaseDamage, comboDamage, combosLanded, itemDamage, itemsUsed,
+      categoryDamage, categoryBaseDamage, categoryActionCount,
+      maxHp, currentHp, overkill, requiredTotal, requiredCompleted, requiredProgress,
+      requiredRemainingIds, requiredRemainingCount, isTenacious, tenaciousHolding,
+      itemBypassVictory, isVictory
     };
   }
 
-  function calculateDamage(action, usedBaseDamage = null, settings = state.settings) {
+  function calculateDamage(action, priorActionCount = null, settings = state.settings) {
     const baseDamage = action.baseDamage;
     const categoryId = action.categoryId;
-
-    if (categoryId === UNCATEGORIZED_ID || !settings.categories.some(category => category.id === categoryId)) {
-      const raw = baseDamage * UNCATEGORIZED_EFFICIENCY;
-      return {
-        baseDamage,
-        damage: Math.max(1, Math.round(raw)),
-        efficiency: UNCATEGORIZED_EFFICIENCY,
-        raw
-      };
-    }
-
-    const summary = usedBaseDamage === null ? getSummary() : null;
-    let cursor = usedBaseDamage === null ? (summary.categoryBaseDamage[categoryId] || 0) : usedBaseDamage;
-    const band = getFocusBand(categoryId, settings);
-    let remaining = baseDamage;
-    let raw = 0;
-
-    for (let tier = 0; tier < EFFICIENCY_TIERS.length && remaining > 0; tier += 1) {
-      const multiplier = EFFICIENCY_TIERS[tier];
-      const upper = tier < EFFICIENCY_TIERS.length - 1 ? band * (tier + 1) : Infinity;
-      if (cursor >= upper) continue;
-
-      const available = upper === Infinity ? remaining : Math.max(0, upper - cursor);
-      const amount = Math.min(remaining, available);
-      if (amount <= 0) continue;
-
-      raw += amount * multiplier;
-      cursor += amount;
-      remaining -= amount;
-    }
-
-    const damage = Math.max(1, Math.round(raw));
+    const summary = priorActionCount === null ? getSummary() : null;
+    const actionCount = priorActionCount === null
+      ? (summary.categoryActionCount[categoryId] || 0)
+      : Math.max(0, clampInt(priorActionCount, 0, 100000, 0));
+    const efficiency = getCategoryEfficiency(categoryId, actionCount, settings);
+    const raw = baseDamage * efficiency.multiplier;
     return {
       baseDamage,
-      damage,
-      efficiency: Math.max(0.01, Math.min(1, raw / Math.max(1, baseDamage))),
+      damage: Math.max(1, Math.round(raw)),
+      efficiency: efficiency.multiplier,
+      focus: efficiency.focus,
+      resistance: efficiency.resistance,
       raw
     };
-  }
-
-  function getCategoryEfficiency(categoryId, usedBaseDamage) {
-    if (categoryId === UNCATEGORIZED_ID) {
-      return {
-        multiplier: UNCATEGORIZED_EFFICIENCY,
-        tier: 3,
-        progress: 1,
-        untilNext: null,
-        band: 0
-      };
-    }
-
-    const band = getFocusBand(categoryId);
-    if (usedBaseDamage < band) {
-      return { multiplier: 1, tier: 0, progress: usedBaseDamage / band, untilNext: band - usedBaseDamage, band };
-    }
-    if (usedBaseDamage < band * 2) {
-      return { multiplier: 0.8, tier: 1, progress: (usedBaseDamage - band) / band, untilNext: band * 2 - usedBaseDamage, band };
-    }
-    if (usedBaseDamage < band * 3) {
-      return { multiplier: 0.6, tier: 2, progress: (usedBaseDamage - band * 2) / band, untilNext: band * 3 - usedBaseDamage, band };
-    }
-    return { multiplier: 0.4, tier: 3, progress: 1, untilNext: null, band };
   }
 
   function hasCompletedOnceAction(actionId) {
@@ -1682,7 +1580,7 @@
         maxHp: getEnemyHp(),
         transactions: [],
         comboProgress: {},
-        requiredActionIds: requiredActionIdsForNextFight(),
+        requiredActions: requiredActionsForNextFight(),
         defeatedAt: null,
         victoryXpAwarded: 0,
         loot: emptyLootState(),
@@ -1700,7 +1598,7 @@
       maxHp: getEnemyHp(),
       transactions: [],
       comboProgress: {},
-      requiredActionIds: requiredActionIdsForNextFight(),
+      requiredActions: requiredActionsForNextFight(),
       defeatedAt: null,
       victoryXpAwarded: 0,
       loot: emptyLootState(),
@@ -2105,13 +2003,6 @@
       );
     }
 
-    const ramp = getHpRampInfo();
-    if (state.current.maxHp < state.settings.fullEnemyHp) {
-      messages.push(
-        `STARTER PROTOCOL ACTIVE: TODAY'S DARK DOPPELGÄNGER SPAWNED WITH ${state.current.maxHp} HP. FULL STRENGTH IS ${ramp.fullEnemyHp} HP.`
-      );
-    }
-
     if (!summary.isVictory && hour >= 22) {
       messages.push('LATE BULLETIN: DARK DOPPELGÄNGER HAS NOT GONE TO BED JUST BECAUSE YOU WANT TO');
     }
@@ -2139,7 +2030,7 @@
     }
 
     if (dominant && dominant.baseDamage > 0) {
-      const efficiency = getCategoryEfficiency(dominant.id, dominant.baseDamage);
+      const efficiency = getCategoryEfficiency(dominant.id, summary.categoryActionCount[dominant.id] || 0);
       if (efficiency.multiplier <= 0.6) {
         messages.push(`TRACK-O-TRON REPORTS ${dominant.name.toUpperCase()} SATURATION; DARK DOPPELGÄNGER HAS DEVELOPED RESISTANCE`);
       } else {
@@ -2186,7 +2077,7 @@
       newswireSignature = signature;
       newswireMessages = messages;
       newswireIndex = messages.length
-        ? stringHash(`${state.current.date}|${summary.totalXp}|${state.history.length}`) % messages.length
+        ? stringHash(`${state.current.date}|${summary.totalDamage}|${state.history.length}`) % messages.length
         : 0;
 
       if (!specialMessage && newswireMessages.length) {
@@ -2210,385 +2101,26 @@
     showNewswireMessage(newswireMessages[newswireIndex], { pauseMs: 750 });
   }
 
-  function normalizeAngle(value) {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return 0;
-    return ((numeric % 360) + 360) % 360;
-  }
-  function signedAngleDelta(value, origin) {
-    let delta = normalizeAngle(value) - normalizeAngle(origin);
-    if (delta > 180) delta -= 360;
-    if (delta < -180) delta += 360;
-    return delta;
-  }
-
-
-  function markMotionSensorLive(mode) {
-    if (motionSensorLive) return;
-
-    motionSensorLive = true;
-    document.body.classList.add('motion-fx-enabled', 'ambient-fx-enabled');
-    window.clearTimeout(motionProbeTimer);
-    motionProbeTimer = null;
-    updateMotionFxUi(
-      mode === 'orientation'
-        ? 'Active · tilt sideways to fast-forward the Newswire.'
-        : 'Active · motion fallback connected; tilt sideways to fast-forward.'
-    );
-  }
-
-  function handleDeviceOrientation(event) {
-    if (!motionFxEnabled || reducedMotionQuery.matches) return;
-
-    const gamma = typeof event.gamma === 'number' && Number.isFinite(event.gamma) ? event.gamma : null;
-    const beta = typeof event.beta === 'number' && Number.isFinite(event.beta) ? event.beta : null;
-    const alpha = typeof event.alpha === 'number' && Number.isFinite(event.alpha) ? event.alpha : null;
-    const hasTilt = gamma !== null || beta !== null;
-
-    if (!hasTilt && alpha === null) return;
-
-    orientationSamples += 1;
-    lastOrientationSampleAt = performance.now();
-
-    if (gamma !== null && neutralGamma === null) neutralGamma = gamma;
-    if (beta !== null && neutralBeta === null) neutralBeta = beta;
-    if (alpha !== null && neutralAlpha === null) neutralAlpha = alpha;
-
-    if (gamma !== null && neutralGamma !== null) {
-      targetRoll = clampNumber((gamma - neutralGamma) / 22, -1, 1, 0);
-    }
-    if (beta !== null && neutralBeta !== null) {
-      targetPitch = clampNumber((beta - neutralBeta) / 28, -1, 1, 0);
-    }
-    if (alpha !== null && neutralAlpha !== null) {
-      const yawDelta = signedAngleDelta(alpha, neutralAlpha);
-      targetYaw = normalizeAngle(yawDelta * 2.6);
-    }
-
-    markMotionSensorLive('orientation');
-  }
-
-  function handleDeviceMotion(event) {
-    if (!motionFxEnabled || reducedMotionQuery.matches) return;
-
-    const gravity = event.accelerationIncludingGravity;
-    if (!gravity) return;
-
-    const x = typeof gravity.x === 'number' && Number.isFinite(gravity.x) ? gravity.x : null;
-    const y = typeof gravity.y === 'number' && Number.isFinite(gravity.y) ? gravity.y : null;
-    const z = typeof gravity.z === 'number' && Number.isFinite(gravity.z) ? gravity.z : null;
-    if (x === null && y === null && z === null) return;
-
-    motionSamples += 1;
-    lastMotionSampleAt = performance.now();
-
-    // DeviceMotion is a fallback for browsers that expose gravity but not orientation.
-    // Prefer orientation whenever it is arriving recently because it provides yaw too.
-    const orientationIsFresh = (performance.now() - lastOrientationSampleAt) < 1500;
-    if (!orientationIsFresh) {
-      const gx = x ?? 0;
-      const gy = y ?? 0;
-      const gz = z ?? 0;
-      const rollRad = Math.atan2(gx, Math.sqrt((gy * gy) + (gz * gz)));
-      const pitchRad = Math.atan2(-gy, Math.sqrt((gx * gx) + (gz * gz)));
-
-      if (neutralMotionRoll === null) neutralMotionRoll = rollRad;
-      if (neutralMotionPitch === null) neutralMotionPitch = pitchRad;
-
-      targetRoll = clampNumber((rollRad - neutralMotionRoll) / (Math.PI / 9), -1, 1, 0);
-      targetPitch = clampNumber((pitchRad - neutralMotionPitch) / (Math.PI / 8), -1, 1, 0);
-      targetYaw = normalizeAngle((targetRoll * 120) - (targetPitch * 65));
-    }
-
-    markMotionSensorLive(orientationIsFresh ? 'orientation' : 'motion');
-  }
-
-  function attachMotionListeners() {
-    if (!orientationListenerAttached) {
-      window.addEventListener('deviceorientation', handleDeviceOrientation, true);
-      orientationListenerAttached = true;
-    }
-
-    if (!motionListenerAttached) {
-      window.addEventListener('devicemotion', handleDeviceMotion, true);
-      motionListenerAttached = true;
-    }
-  }
-
-  function detachMotionListeners() {
-    if (orientationListenerAttached) {
-      window.removeEventListener('deviceorientation', handleDeviceOrientation, true);
-      orientationListenerAttached = false;
-    }
-
-    if (motionListenerAttached) {
-      window.removeEventListener('devicemotion', handleDeviceMotion, true);
-      motionListenerAttached = false;
-    }
-
-    window.clearTimeout(motionProbeTimer);
-    motionProbeTimer = null;
-  }
-
-  function motionApiSupported() {
-    return typeof window.DeviceOrientationEvent !== 'undefined'
-      || typeof window.DeviceMotionEvent !== 'undefined';
-  }
-
-  function updateMotionFxUi(message = '') {
-    if (!els.motionFxButton || !els.motionFxStatus) return;
-
-    if (reducedMotionQuery.matches) {
-      els.motionFxButton.disabled = true;
-      els.motionFxButton.textContent = 'Motion reduced';
-      els.motionFxStatus.textContent = 'Disabled because your device requests reduced motion.';
-      return;
-    }
-
-    const supported = motionApiSupported();
-    els.motionFxButton.disabled = !supported;
-
-    if (!supported) {
-      els.motionFxButton.textContent = 'Motion unavailable';
-      els.motionFxStatus.textContent = 'This browser does not expose device motion sensors.';
-      return;
-    }
-
-    els.motionFxButton.textContent = motionFxEnabled ? 'Disable Motion FX' : 'Enable Motion FX';
-
-    if (message) {
-      els.motionFxStatus.textContent = message;
-    } else if (motionFxEnabled && motionSensorLive) {
-      els.motionFxStatus.textContent = 'Active · tilt changes shimmer and Newswire speed.';
-    } else if (motionFxEnabled) {
-      els.motionFxStatus.textContent = 'Waiting for motion sensor data…';
-    } else {
-      els.motionFxStatus.textContent = 'Optional · orientation data stays on this device.';
-    }
-  }
-
-  function disableMotionFx() {
-    motionFxEnabled = false;
-    motionSensorLive = false;
-    orientationSamples = 0;
-    motionSamples = 0;
-    lastOrientationSampleAt = 0;
-    lastMotionSampleAt = 0;
-    neutralGamma = null;
-    neutralBeta = null;
-    neutralAlpha = null;
-    neutralMotionRoll = null;
-    neutralMotionPitch = null;
-    detachMotionListeners();
-    targetRoll = 0;
-    targetPitch = 0;
-    targetYaw = 0;
-    document.body.classList.remove('motion-fx-enabled');
-
-    if (!finePointerQuery.matches) {
-      document.body.classList.remove('ambient-fx-enabled');
-    }
-
-    try {
-      localStorage.setItem(MOTION_PREF_KEY, '0');
-    } catch (error) {
-      // Preference storage is optional.
-    }
-    updateMotionFxUi();
-  }
-
-  async function requestMotionPermissionIfNeeded() {
-    const requests = [];
-
-    try {
-      // Invoke every permission request while the button-click user activation is still live.
-      if (typeof window.DeviceOrientationEvent?.requestPermission === 'function') {
-        requests.push(window.DeviceOrientationEvent.requestPermission());
-      }
-
-      if (typeof window.DeviceMotionEvent?.requestPermission === 'function') {
-        requests.push(window.DeviceMotionEvent.requestPermission());
-      }
-
-      if (!requests.length) return true;
-      const results = await Promise.all(requests);
-      return results.every(result => result === 'granted');
-    } catch (error) {
-      return false;
-    }
-  }
-
-  function beginMotionProbe() {
-    window.clearTimeout(motionProbeTimer);
-    updateMotionFxUi('Waiting for motion sensor data…');
-
-    motionProbeTimer = window.setTimeout(() => {
-      if (!motionFxEnabled || motionSensorLive) return;
-
-      const secureHint = window.isSecureContext
-        ? ''
-        : ' MoLife must be opened over HTTPS.';
-      updateMotionFxUi(
-        'No tilt data received. Check Chrome site settings → Motion sensors, then disable and re-enable Motion FX.' + secureHint
-      );
-    }, 3000);
-  }
-
-  async function enableMotionFx({ fromSavedPreference = false } = {}) {
-    if (reducedMotionQuery.matches) {
-      updateMotionFxUi();
-      return;
-    }
-
-    if (!motionApiSupported()) {
-      updateMotionFxUi('Device motion is not available in this browser.');
-      return;
-    }
-
-    const permissionApi = typeof window.DeviceOrientationEvent?.requestPermission === 'function'
-      || typeof window.DeviceMotionEvent?.requestPermission === 'function';
-
-    if (permissionApi && fromSavedPreference) {
-      updateMotionFxUi('Tap Enable Motion FX to re-authorize tilt effects on this device.');
-      return;
-    }
-
-    if (permissionApi) {
-      const granted = await requestMotionPermissionIfNeeded();
-      if (!granted) {
-        updateMotionFxUi('Motion permission was not granted.');
-        return;
-      }
-    }
-
-    motionFxEnabled = true;
-    motionSensorLive = false;
-    orientationSamples = 0;
-    motionSamples = 0;
-    lastOrientationSampleAt = 0;
-    lastMotionSampleAt = 0;
-    neutralGamma = null;
-    neutralBeta = null;
-    neutralAlpha = null;
-    neutralMotionRoll = null;
-    neutralMotionPitch = null;
-    targetRoll = 0;
-    targetPitch = 0;
-    targetYaw = 0;
-    smoothRoll = 0;
-    smoothPitch = 0;
-    smoothYaw = 0;
-    attachMotionListeners();
-    beginMotionProbe();
-
-    try {
-      localStorage.setItem(MOTION_PREF_KEY, '1');
-    } catch (error) {
-      // Preference storage is optional.
-    }
-  }
-
-  async function toggleMotionFx() {
-    if (motionFxEnabled) {
-      disableMotionFx();
-    } else {
-      await enableMotionFx();
-    }
-  }
-
   async function nudgePortraitOrientation() {
-    const standalone = window.matchMedia('(display-mode: standalone)').matches
-      || window.navigator.standalone === true;
-
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
     if (!standalone || !screen.orientation?.lock) return;
-
-    try {
-      await screen.orientation.lock('portrait-primary');
-    } catch (error) {
-      // The manifest is the primary portrait hint; browser locking is opportunistic.
-    }
-  }
-
-  function setupPointerShimmer() {
-    if (reducedMotionQuery.matches || !finePointerQuery.matches) return;
-
-    document.body.classList.add('ambient-fx-enabled');
-    window.addEventListener('pointermove', event => {
-      if (motionFxEnabled) return;
-      const x = event.clientX / Math.max(1, window.innerWidth);
-      const y = event.clientY / Math.max(1, window.innerHeight);
-      targetRoll = clampNumber((x - 0.5) * 1.15, -0.65, 0.65, 0);
-      targetPitch = clampNumber((y - 0.5) * 1.05, -0.55, 0.55, 0);
-      targetYaw = normalizeAngle((x * 80) + (y * 35));
-    }, { passive: true });
-  }
-
-  function updateAmbientFx() {
-    const smoothing = 0.07;
-    smoothRoll += (targetRoll - smoothRoll) * smoothing;
-    smoothPitch += (targetPitch - smoothPitch) * smoothing;
-
-    let yawDelta = targetYaw - smoothYaw;
-    if (yawDelta > 180) yawDelta -= 360;
-    if (yawDelta < -180) yawDelta += 360;
-    smoothYaw = normalizeAngle(smoothYaw + (yawDelta * 0.045));
-
-    const motionEnergy = Math.min(
-      1,
-      (Math.abs(smoothRoll) * 0.72) + (Math.abs(smoothPitch) * 0.48)
-    );
-    const root = document.documentElement;
-    root.style.setProperty('--motion-x', `${50 + (smoothRoll * 42)}%`);
-    root.style.setProperty('--motion-y', `${24 + (smoothPitch * 38)}%`);
-    root.style.setProperty('--motion-x-2', `${76 - (smoothRoll * 36)}%`);
-    root.style.setProperty('--motion-y-2', `${16 - (smoothPitch * 31)}%`);
-    root.style.setProperty('--motion-hue', `${Math.round(smoothYaw)}deg`);
-    root.style.setProperty('--motion-tilt', smoothRoll.toFixed(3));
-    root.style.setProperty('--motion-energy', motionEnergy.toFixed(3));
-    root.style.setProperty('--motion-shift-x', `${(smoothRoll * 4.5).toFixed(2)}vw`);
-    root.style.setProperty('--motion-shift-y', `${(smoothPitch * 3.2).toFixed(2)}vh`);
-    root.style.setProperty('--motion-rotate', `${(smoothRoll * 4.5).toFixed(2)}deg`);
-    root.style.setProperty('--motion-scale', (1.04 + (motionEnergy * 0.07)).toFixed(3));
-    root.style.setProperty('--motion-saturation', (1.25 + (motionEnergy * 0.95)).toFixed(3));
-    root.style.setProperty('--motion-brightness', (1.02 + (motionEnergy * 0.12)).toFixed(3));
-    root.style.setProperty('--motion-opacity', (0.52 + (motionEnergy * 0.30)).toFixed(3));
+    try { await screen.orientation.lock('portrait-primary'); } catch (error) {}
   }
 
   function animateVisuals(timestamp) {
     visualFrame = requestAnimationFrame(animateVisuals);
-
-    if (document.hidden) {
-      newswireLastFrame = timestamp;
-      return;
-    }
-
-    updateAmbientFx();
-
+    if (document.hidden) { newswireLastFrame = timestamp; return; }
     if (!els.newswireViewport || !els.newswireMessage || reducedMotionQuery.matches) {
-      newswireLastFrame = timestamp;
-      return;
+      newswireLastFrame = timestamp; return;
     }
-
     if (!newswireLastFrame) newswireLastFrame = timestamp;
     const deltaSeconds = Math.min(0.05, Math.max(0, (timestamp - newswireLastFrame) / 1000));
     newswireLastFrame = timestamp;
+    if (timestamp < newswireSpecialUntil || timestamp < newswirePausedUntil) return;
 
-    if (timestamp < newswireSpecialUntil || timestamp < newswirePausedUntil) {
-      return;
-    }
-
-    const tiltFactor = motionFxEnabled
-      ? 1 + (Math.pow(Math.abs(smoothRoll), 0.78) * 4.4)
-      : 1;
-    const speed = 36 * tiltFactor;
-
-    newswireOffset -= speed * deltaSeconds;
+    newswireOffset -= 36 * deltaSeconds;
     els.newswireMessage.style.transform = `translate3d(${Math.round(newswireOffset)}px,0,0)`;
-
-    const messageWidth = els.newswireMessage.scrollWidth;
-    if (newswireOffset + messageWidth < 0) {
-      advanceNewswire();
-    }
+    if (newswireOffset + els.newswireMessage.scrollWidth < 0) advanceNewswire();
   }
 
   function startVisualLoop() {
@@ -2596,31 +2128,6 @@
     visualFrame = requestAnimationFrame(animateVisuals);
   }
 
-  function initializeMotionFx() {
-    updateMotionFxUi();
-    setupPointerShimmer();
-
-    let saved = false;
-    try {
-      saved = localStorage.getItem(MOTION_PREF_KEY) === '1';
-    } catch (error) {
-      saved = false;
-    }
-
-    if (saved) {
-      enableMotionFx({ fromSavedPreference: true });
-    }
-
-    reducedMotionQuery.addEventListener?.('change', () => {
-      if (reducedMotionQuery.matches) {
-        disableMotionFx();
-        document.body.classList.remove('ambient-fx-enabled');
-      } else {
-        setupPointerShimmer();
-        updateMotionFxUi();
-      }
-    });
-  }
 
   function updateActionDeckState(deck, list) {
     if (!deck || !list) return;
@@ -2926,14 +2433,11 @@
       const list = card.querySelector('.actions-list');
       if (list) categoryScrollPositions.set(card.dataset.categoryId, list.scrollTop);
     });
-
     els.categoriesGrid.replaceChildren();
 
     const visibleCategories = state.settings.categories.filter(category => {
       if (category.id !== UNCATEGORIZED_ID) return true;
-      const hasActions = state.settings.actions.some(
-        action => action.categoryId === UNCATEGORIZED_ID && action.trackVisible !== false
-      );
+      const hasActions = state.settings.actions.some(action => action.categoryId === UNCATEGORIZED_ID && action.trackVisible !== false);
       const hasDamage = (summary.categoryBaseDamage[UNCATEGORIZED_ID] || 0) > 0;
       return hasActions || hasDamage;
     });
@@ -2951,9 +2455,9 @@
       const actionDeck = fragment.querySelector('.action-deck');
       const actionsList = fragment.querySelector('.actions-list');
 
-      const usedBase = summary.categoryBaseDamage[category.id] || 0;
       const dealtDamage = summary.categoryDamage[category.id] || 0;
-      const efficiency = getCategoryEfficiency(category.id, usedBase);
+      const actionCount = summary.categoryActionCount[category.id] || 0;
+      const efficiency = getCategoryEfficiency(category.id, actionCount);
       applyCategoryPaletteVars(card, category, index);
       card.dataset.categoryId = category.id;
       if (category.id === UNCATEGORIZED_ID) card.classList.add('is-fallback-category');
@@ -2968,32 +2472,38 @@
         fill.style.width = '100%';
         next.textContent = 'Assign these actions to a real category when convenient.';
       } else {
-        subtitle.textContent = `Focus ${category.focus}× · ${Math.round(efficiency.band)} base DMG full-damage band`;
-        efficiencyValue.textContent = `${Math.round(efficiency.multiplier * 100)}%`;
-        fill.style.width = `${Math.round(Math.max(0, Math.min(1, efficiency.progress)) * 100)}%`;
-        next.textContent = efficiency.untilNext === null
-          ? 'Resistance floor reached · further actions still deal 40%'
-          : `≈ ${Math.max(1, Math.ceil(efficiency.untilNext))} base DMG until next resistance tier`;
+        const overallPercent = Math.round(efficiency.multiplier * 100);
+        const resistancePercent = Math.round(efficiency.resistance * 100);
+        subtitle.textContent = `Focus ${category.focus}× · higher Focus = less damage`;
+        efficiencyValue.textContent = `${overallPercent}%`;
+        fill.style.width = `${resistancePercent}%`;
+        next.textContent = efficiency.nextResistance === null
+          ? `Resistance floor reached · category stays at ${resistancePercent}% before Focus`
+          : `Category resistance ${resistancePercent}% · next action drops to ${Math.round(efficiency.nextResistance * 100)}% before Focus`;
       }
 
-      const actions = state.settings.actions.filter(
-        action => action.categoryId === category.id && action.trackVisible !== false
-      );
+      const originalOrder = new Map(state.settings.actions.map((action, actionIndex) => [action.id, actionIndex]));
+      const requirementRank = action => {
+        const progress = summary.requiredProgress[action.id];
+        if (!progress) return 2;
+        return progress.remainingCount > 0 ? 0 : 1;
+      };
+      const actions = state.settings.actions
+        .filter(action => action.categoryId === category.id && action.trackVisible !== false)
+        .sort((a, b) => requirementRank(a) - requirementRank(b)
+          || (originalOrder.get(a.id) ?? 0) - (originalOrder.get(b.id) ?? 0));
+
       if (!actions.length) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
-        const hasHiddenActions = state.settings.actions.some(
-          action => action.categoryId === category.id && action.trackVisible === false
-        );
+        const hasHiddenActions = state.settings.actions.some(action => action.categoryId === category.id && action.trackVisible === false);
         empty.textContent = category.id === UNCATEGORIZED_ID
           ? 'Deleted-category actions will hide here.'
-          : hasHiddenActions
-            ? 'No visible attacks. Unhide one in Settings.'
-            : 'No actions yet. Add one in Settings.';
+          : hasHiddenActions ? 'No visible attacks. Unhide one in Settings.' : 'No actions yet. Add one in Settings.';
         actionsList.append(empty);
       } else {
         actions.forEach(action => {
-          const reward = calculateDamage(action, usedBase);
+          const reward = calculateDamage(action, actionCount);
           const button = document.createElement('button');
           button.type = 'button';
           button.className = 'action-button';
@@ -3001,10 +2511,12 @@
 
           const completedToday = hasCompletedOnceAction(action.id);
           const used = action.type === 'once' && completedToday;
-          const requiredToday = (state.current.requiredActionIds || []).includes(action.id);
+          const requiredProgress = summary.requiredProgress[action.id] || null;
+          const requiredToday = Boolean(requiredProgress);
+          const requiredComplete = requiredToday && requiredProgress.remainingCount === 0;
           button.disabled = used;
           button.classList.toggle('is-required', requiredToday);
-          button.classList.toggle('is-required-complete', requiredToday && completedToday);
+          button.classList.toggle('is-required-complete', requiredComplete);
 
           const nameWrap = document.createElement('span');
           nameWrap.className = 'action-name';
@@ -3012,17 +2524,18 @@
           strong.textContent = action.name;
           const requiredBadge = document.createElement('span');
           requiredBadge.className = 'required-action-badge';
-          requiredBadge.textContent = completedToday ? 'REQUIRED ✓' : 'REQUIRED';
+          if (requiredToday) {
+            requiredBadge.textContent = requiredProgress.requiredCount > 1
+              ? `REQUIRED · ${requiredProgress.completedCount} / ${requiredProgress.requiredCount}${requiredComplete ? ' ✓' : ''}`
+              : (requiredComplete ? 'REQUIRED ✓' : 'REQUIRED');
+          }
           const small = document.createElement('small');
-
           if (used) {
             small.textContent = 'Completed today';
           } else {
             const payout = Math.round(reward.efficiency * 100);
             const typeText = action.type === 'once' ? 'Once per day' : 'Repeatable';
-            small.textContent = payout < 100
-              ? `${typeText} · ${payout}% damage · base ${action.baseDamage}`
-              : `${typeText} · full damage`;
+            small.textContent = payout === 100 ? `${typeText} · full base damage` : `${typeText} · ${payout}% of base damage`;
           }
 
           nameWrap.append(strong);
@@ -3032,7 +2545,6 @@
           const damage = document.createElement('span');
           damage.className = 'action-xp';
           damage.textContent = `+${reward.damage} DMG`;
-
           button.append(nameWrap, damage);
           button.addEventListener('click', () => addDamage(action.id));
           actionsList.append(button);
@@ -3045,7 +2557,6 @@
       }, { passive: true });
 
       els.categoriesGrid.append(fragment);
-
       requestAnimationFrame(() => {
         actionsList.scrollTop = categoryScrollPositions.get(category.id) || 0;
         updateActionDeckState(actionDeck, actionsList);
@@ -3259,14 +2770,13 @@
     settingsDraft.combos = Array.isArray(settingsDraft.combos) ? settingsDraft.combos : [];
     els.goalInput.value = settingsDraft.fullEnemyHp;
     els.settingsMessage.textContent = 'Changes save automatically. Enemy HP and Required-for-victory changes apply to the next daily fight.';
-    settingsTriggeredClear = false;
     if (els.newCategoryColor) {
       const customCount = settingsDraft.categories.filter(
         category => category.id !== UNCATEGORIZED_ID && !DEFAULT_CATEGORY_COLORS[category.id]
       ).length;
       els.newCategoryColor.value = CUSTOM_CATEGORY_COLORS[customCount % CUSTOM_CATEGORY_COLORS.length];
     }
-    updateGoalRampPreview();
+    updateGoalPreview();
     renderCategoriesEditor();
     renderActionsEditor();
     renderCombosEditor();
@@ -3279,27 +2789,16 @@
     }
   }
 
-  function updateGoalRampPreview() {
-    if (!els.goalRampPreview || !settingsDraft) return;
-
-    const temporarySettings = {
-      ...settingsDraft,
-      fullEnemyHp: clampInt(els.goalInput.value, 20, 1000, settingsDraft.fullEnemyHp)
-    };
-    const ramp = getHpRampInfo(temporarySettings);
-
-    els.goalRampPreview.textContent = ramp.active
-      ? `Next fight: ${ramp.nextFightHp} HP · ${ramp.victoryCount}/${ramp.victoriesToMature} victories toward full ${ramp.fullEnemyHp} HP strength. Today's ${state.current.maxHp} HP is already locked.`
-      : `Next fight: ${ramp.nextFightHp} HP · full-strength ramp complete. Today's ${state.current.maxHp} HP is already locked.`;
+  function updateGoalPreview() {
+    if (!els.goalPreview || !settingsDraft) return;
+    const nextHp = clampInt(els.goalInput.value, 20, 1000, settingsDraft.fullEnemyHp);
+    els.goalPreview.textContent = `Every new fight starts at ${nextHp} HP. Today's ${state.current.maxHp} HP is already locked.`;
   }
 
-  function previewBandText(category) {
+  function previewFocusText(category) {
     if (category.id === UNCATEGORIZED_ID) return 'Fixed 50% damage';
-    const temporarySettings = {
-      ...settingsDraft,
-      fullEnemyHp: clampInt(els.goalInput.value, 20, 1000, settingsDraft.fullEnemyHp)
-    };
-    return `≈ ${Math.round(getFocusBand(category.id, temporarySettings))} base DMG at 100%`;
+    const focus = clampNumber(category.focus, 0.25, 10, 1);
+    return `First action ≈ ${Math.round(100 / focus)}% of base DMG before resistance`;
   }
 
   function renderCategoriesEditor() {
@@ -3364,7 +2863,7 @@
       focusInput.value = category.focus;
       focusInput.addEventListener('input', () => {
         category.focus = clampNumber(focusInput.value, 0.25, 10, category.focus);
-        band.textContent = previewBandText(category);
+        band.textContent = previewFocusText(category);
       });
       focusLabel.append(focusInput);
 
@@ -3384,7 +2883,7 @@
 
       const band = document.createElement('div');
       band.className = 'category-band-preview';
-      band.textContent = previewBandText(category);
+      band.textContent = previewFocusText(category);
 
       const remove = document.createElement('button');
       remove.type = 'button';
@@ -3594,7 +3093,6 @@
       const row = document.createElement('div');
       row.className = 'action-editor-row';
       row.dataset.actionId = action.id;
-
       const categoryIndex = settingsDraft.categories.findIndex(category => category.id === action.categoryId);
       const category = settingsDraft.categories[categoryIndex] || uncategorizedCategory();
       applyCategoryPaletteVars(row, category, Math.max(0, categoryIndex));
@@ -3613,44 +3111,29 @@
       const nameLabel = document.createElement('label');
       nameLabel.innerHTML = '<span>Name</span>';
       const nameInput = document.createElement('input');
-      nameInput.type = 'text';
-      nameInput.maxLength = 40;
-      nameInput.value = action.name;
-      nameInput.addEventListener('input', () => {
-        action.name = nameInput.value.slice(0, 100);
-        renderCombosEditor();
-      });
+      nameInput.type = 'text'; nameInput.maxLength = 40; nameInput.value = action.name;
+      nameInput.addEventListener('input', () => { action.name = nameInput.value.slice(0, 100); renderCombosEditor(); });
       nameLabel.append(nameInput);
 
       const categoryLabel = document.createElement('label');
       categoryLabel.innerHTML = '<span>Category</span>';
       const categorySelect = document.createElement('select');
       settingsDraft.categories.forEach(categoryItem => {
-        const option = document.createElement('option');
-        option.value = categoryItem.id;
-        option.textContent = categoryItem.name;
-        categorySelect.append(option);
+        const option = document.createElement('option'); option.value = categoryItem.id; option.textContent = categoryItem.name; categorySelect.append(option);
       });
       categorySelect.value = action.categoryId;
       categorySelect.addEventListener('change', () => {
         action.categoryId = categorySelect.value;
         const nextIndex = settingsDraft.categories.findIndex(categoryItem => categoryItem.id === action.categoryId);
-        const nextCategory = settingsDraft.categories[nextIndex] || uncategorizedCategory();
-        applyCategoryPaletteVars(row, nextCategory, Math.max(0, nextIndex));
+        applyCategoryPaletteVars(row, settingsDraft.categories[nextIndex] || uncategorizedCategory(), Math.max(0, nextIndex));
       });
       categoryLabel.append(categorySelect);
 
       const damageLabel = document.createElement('label');
       damageLabel.innerHTML = '<span>Base Damage</span>';
       const damageInput = document.createElement('input');
-      damageInput.type = 'number';
-      damageInput.min = '1';
-      damageInput.max = '200';
-      damageInput.step = '1';
-      damageInput.value = action.baseDamage;
-      damageInput.addEventListener('input', () => {
-        action.baseDamage = clampInt(damageInput.value, 1, 200, action.baseDamage);
-      });
+      damageInput.type = 'number'; damageInput.min = '1'; damageInput.max = '200'; damageInput.step = '1'; damageInput.value = action.baseDamage;
+      damageInput.addEventListener('input', () => { action.baseDamage = clampInt(damageInput.value, 1, 200, action.baseDamage); });
       damageLabel.append(damageInput);
 
       const typeLabel = document.createElement('label');
@@ -3658,65 +3141,57 @@
       const typeSelect = document.createElement('select');
       typeSelect.innerHTML = '<option value="repeatable">Repeatable</option><option value="once">Once per day</option>';
       typeSelect.value = action.type;
-      typeSelect.addEventListener('change', () => {
-        action.type = typeSelect.value === 'once' ? 'once' : 'repeatable';
-      });
       typeLabel.append(typeSelect);
 
       const requiredLabel = document.createElement('label');
       requiredLabel.className = 'action-required-field';
-      const requiredTitle = document.createElement('span');
-      requiredTitle.textContent = 'Victory rule';
-      const requiredToggle = document.createElement('span');
-      requiredToggle.className = 'action-visibility-toggle action-required-toggle';
-      const requiredInput = document.createElement('input');
-      requiredInput.type = 'checkbox';
-      requiredInput.checked = Boolean(action.requiredForVictory);
-      const requiredText = document.createElement('span');
-      requiredText.textContent = 'Required';
-      requiredToggle.append(requiredInput, requiredText);
-      requiredLabel.append(requiredTitle, requiredToggle);
+      const requiredTitle = document.createElement('span'); requiredTitle.textContent = 'Victory rule';
+      const requiredToggle = document.createElement('span'); requiredToggle.className = 'action-visibility-toggle action-required-toggle';
+      const requiredInput = document.createElement('input'); requiredInput.type = 'checkbox'; requiredInput.checked = Boolean(action.requiredForVictory);
+      const requiredText = document.createElement('span'); requiredText.textContent = 'Required';
+      requiredToggle.append(requiredInput, requiredText); requiredLabel.append(requiredTitle, requiredToggle);
+
+      const requiredCountLabel = document.createElement('label');
+      requiredCountLabel.className = 'action-required-count-field';
+      requiredCountLabel.innerHTML = '<span>Required repetitions</span>';
+      const requiredCountInput = document.createElement('input');
+      requiredCountInput.type = 'number'; requiredCountInput.min = '1'; requiredCountInput.max = String(REQUIRED_COUNT_MAX); requiredCountInput.step = '1'; requiredCountInput.inputMode = 'numeric';
+      requiredCountInput.value = action.type === 'once' ? '1' : String(clampInt(action.requiredCount, 1, REQUIRED_COUNT_MAX, 1));
+      requiredCountLabel.append(requiredCountInput);
 
       const visibilityLabel = document.createElement('label');
       visibilityLabel.className = 'action-visibility-field';
-      const visibilityTitle = document.createElement('span');
-      visibilityTitle.textContent = 'Track-o-Tron';
-      const visibilityToggle = document.createElement('span');
-      visibilityToggle.className = 'action-visibility-toggle';
-      const visibilityInput = document.createElement('input');
-      visibilityInput.type = 'checkbox';
-      visibilityInput.checked = action.trackVisible !== false;
-      const visibilityText = document.createElement('span');
-      visibilityText.textContent = 'Show';
-      visibilityToggle.append(visibilityInput, visibilityText);
-      visibilityLabel.append(visibilityTitle, visibilityToggle);
+      const visibilityTitle = document.createElement('span'); visibilityTitle.textContent = 'Track-o-Tron';
+      const visibilityToggle = document.createElement('span'); visibilityToggle.className = 'action-visibility-toggle';
+      const visibilityInput = document.createElement('input'); visibilityInput.type = 'checkbox'; visibilityInput.checked = action.trackVisible !== false;
+      const visibilityText = document.createElement('span'); visibilityText.textContent = 'Show';
+      visibilityToggle.append(visibilityInput, visibilityText); visibilityLabel.append(visibilityTitle, visibilityToggle);
 
-      const requiredToday = (state.current.requiredActionIds || []).includes(action.id);
+      const requiredToday = (state.current.requiredActions || []).some(required => required.actionId === action.id);
+      const syncRequiredControls = () => {
+        const isRepeatable = typeSelect.value === 'repeatable';
+        if (!isRepeatable) { action.requiredCount = 1; requiredCountInput.value = '1'; }
+        requiredCountInput.disabled = !requiredInput.checked || !isRepeatable;
+      };
       const syncVisibilityStyle = () => {
         const mustStayVisible = requiredInput.checked || requiredToday;
-        if (mustStayVisible) {
-          visibilityInput.checked = true;
-          action.trackVisible = true;
-        }
+        if (mustStayVisible) { visibilityInput.checked = true; action.trackVisible = true; }
         visibilityInput.disabled = mustStayVisible;
         row.classList.toggle('is-track-hidden', !visibilityInput.checked);
         row.classList.toggle('is-required-action', requiredInput.checked || requiredToday);
+        syncRequiredControls();
       };
-      requiredInput.addEventListener('change', () => {
-        action.requiredForVictory = requiredInput.checked;
-        syncVisibilityStyle();
+
+      typeSelect.addEventListener('change', () => { action.type = typeSelect.value === 'once' ? 'once' : 'repeatable'; syncRequiredControls(); });
+      requiredInput.addEventListener('change', () => { action.requiredForVictory = requiredInput.checked; syncVisibilityStyle(); });
+      requiredCountInput.addEventListener('input', () => {
+        if (typeSelect.value === 'repeatable') action.requiredCount = clampInt(requiredCountInput.value, 1, REQUIRED_COUNT_MAX, action.requiredCount || 1);
       });
-      visibilityInput.addEventListener('change', () => {
-        action.trackVisible = visibilityInput.checked;
-        syncVisibilityStyle();
-      });
+      visibilityInput.addEventListener('change', () => { action.trackVisible = visibilityInput.checked; syncVisibilityStyle(); });
       syncVisibilityStyle();
 
       const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'delete-action';
-      remove.textContent = '×';
-      remove.setAttribute('aria-label', `Delete ${action.name}`);
+      remove.type = 'button'; remove.className = 'delete-action'; remove.textContent = '×'; remove.setAttribute('aria-label', `Delete ${action.name}`);
       remove.addEventListener('click', () => {
         settingsDraft.actions = settingsDraft.actions.filter(item => item.id !== action.id);
         settingsDraft.combos.forEach(combo => {
@@ -3724,16 +3199,14 @@
           if (combo.actionIds.length < 2) combo.enabled = false;
         });
         const duplicateCombosDisabled = disableDuplicateEnabledCombos(settingsDraft.combos);
-        renderActionsEditor();
-        renderCombosEditor();
-        populateCategorySelect();
+        renderActionsEditor(); renderCombosEditor(); populateCategorySelect();
         els.settingsMessage.textContent = duplicateCombosDisabled
           ? 'Action removed. Affected combos were updated; a duplicate sequence was disabled.'
           : 'Action removed. Affected combo steps were updated.';
         commitSettingsDraft();
       });
 
-      grid.append(nameLabel, categoryLabel, damageLabel, typeLabel, requiredLabel, visibilityLabel, remove);
+      grid.append(nameLabel, categoryLabel, damageLabel, typeLabel, requiredLabel, requiredCountLabel, visibilityLabel, remove);
       row.append(dragHandle, grid);
       els.actionsEditor.append(row);
     });
@@ -3807,44 +3280,33 @@
   }
 
 
+  function syncNewActionRequirementControls() {
+    if (!els.newActionRequiredCount || !els.newActionType || !els.newActionRequired) return;
+    const repeatable = els.newActionType.value === 'repeatable';
+    if (!repeatable) els.newActionRequiredCount.value = '1';
+    els.newActionRequiredCount.disabled = !repeatable || !els.newActionRequired.checked;
+  }
+
+
   function addActionFromForm() {
     const name = els.newActionName.value.trim();
     const categoryId = els.newActionCategory.value;
     const baseDamage = clampInt(els.newActionDamage.value, 1, 200, 10);
     const type = els.newActionType.value === 'once' ? 'once' : 'repeatable';
     const requiredForVictory = Boolean(els.newActionRequired?.checked);
-    const trackVisible = requiredForVictory
-      ? true
-      : (els.newActionVisible ? els.newActionVisible.checked : true);
+    const requiredCount = type === 'repeatable' ? clampInt(els.newActionRequiredCount?.value, 1, REQUIRED_COUNT_MAX, 1) : 1;
+    const trackVisible = requiredForVictory ? true : (els.newActionVisible ? els.newActionVisible.checked : true);
 
-    if (!name) {
-      els.settingsMessage.textContent = 'Give the action a name first.';
-      els.newActionName.focus();
-      return;
-    }
+    if (!name) { els.settingsMessage.textContent = 'Give the action a name first.'; els.newActionName.focus(); return; }
+    if (!settingsDraft.categories.some(category => category.id === categoryId)) { els.settingsMessage.textContent = 'Choose a valid category.'; return; }
 
-    if (!settingsDraft.categories.some(category => category.id === categoryId)) {
-      els.settingsMessage.textContent = 'Choose a valid category.';
-      return;
-    }
-
-    settingsDraft.actions.push({
-      id: makeId('action'),
-      categoryId,
-      name,
-      baseDamage,
-      type,
-      requiredForVictory,
-      trackVisible
-    });
-
-    els.newActionName.value = '';
-    els.newActionDamage.value = '10';
-    els.newActionType.value = 'repeatable';
+    settingsDraft.actions.push({ id: makeId('action'), categoryId, name, baseDamage, type, requiredForVictory, requiredCount, trackVisible });
+    els.newActionName.value = ''; els.newActionDamage.value = '10'; els.newActionType.value = 'repeatable';
     if (els.newActionRequired) els.newActionRequired.checked = false;
+    if (els.newActionRequiredCount) els.newActionRequiredCount.value = '1';
     if (els.newActionVisible) els.newActionVisible.checked = true;
-    renderActionsEditor();
-    renderCombosEditor();
+    syncNewActionRequirementControls();
+    renderActionsEditor(); renderCombosEditor();
     els.settingsMessage.textContent = 'Action added. Dark Doppelgänger has been notified.';
     commitSettingsDraft();
   }
@@ -4153,19 +3615,19 @@
     }
 
     const categoryIds = new Set(categories.map(category => category.id));
-    const requiredTodayIds = new Set(state.current.requiredActionIds || []);
+    const requiredTodayIds = new Set((state.current.requiredActions || []).map(required => required.actionId));
     const actions = settingsDraft.actions.map(action => {
       const requiredForVictory = Boolean(action.requiredForVictory);
+      const type = action.type === 'once' ? 'once' : 'repeatable';
       return {
         ...action,
         name: String(action.name || '').trim(),
         categoryId: categoryIds.has(action.categoryId) ? action.categoryId : UNCATEGORIZED_ID,
         baseDamage: clampInt(action.baseDamage, 1, 200, 10),
-        type: action.type === 'once' ? 'once' : 'repeatable',
+        type,
         requiredForVictory,
-        trackVisible: requiredForVictory || requiredTodayIds.has(action.id)
-          ? true
-          : action.trackVisible !== false
+        requiredCount: type === 'repeatable' ? clampInt(action.requiredCount, 1, REQUIRED_COUNT_MAX, 1) : 1,
+        trackVisible: requiredForVictory || requiredTodayIds.has(action.id) ? true : action.trackVisible !== false
       };
     });
 
@@ -4233,8 +3695,8 @@
     state.settings = result.settings;
 
     const nextActionIds = new Set(state.settings.actions.map(action => action.id));
-    state.current.requiredActionIds = (state.current.requiredActionIds || [])
-      .filter(actionId => nextActionIds.has(actionId));
+    state.current.requiredActions = (state.current.requiredActions || [])
+      .filter(required => nextActionIds.has(required.actionId));
 
     const nextComboIds = new Set(state.settings.combos.map(combo => combo.id));
     Object.keys(state.current.comboProgress).forEach(comboId => {
@@ -4349,14 +3811,14 @@
       state.settings = deepClone(importedSettings);
       state.current.comboProgress = {};
       const importedActionIds = new Set(state.settings.actions.map(action => action.id));
-      state.current.requiredActionIds = (state.current.requiredActionIds || [])
-        .filter(actionId => importedActionIds.has(actionId));
+      state.current.requiredActions = (state.current.requiredActions || [])
+        .filter(required => importedActionIds.has(required.actionId));
       finalizeVictoryIfNeeded();
       saveState();
 
       els.goalInput.value = settingsDraft.fullEnemyHp;
       if (els.templateName) els.templateName.value = importedName;
-      updateGoalRampPreview();
+      updateGoalPreview();
       renderCategoriesEditor();
       renderActionsEditor();
       renderCombosEditor();
@@ -4395,7 +3857,6 @@
     }
 
     settingsDraft = null;
-    settingsTriggeredClear = false;
     els.settingsDialog.close();
   }
 
@@ -4411,7 +3872,7 @@
       maxHp: getEnemyHp(),
       transactions: [],
       comboProgress: {},
-      requiredActionIds: requiredActionIdsForNextFight(),
+      requiredActions: requiredActionsForNextFight(),
       defeatedAt: null,
       victoryXpAwarded: 0,
       loot: emptyLootState(),
@@ -4439,7 +3900,7 @@
   els.closeSettingsButton?.addEventListener('click', closeSettings);
 
   els.goalInput.addEventListener('input', () => {
-    updateGoalRampPreview();
+    updateGoalPreview();
     renderCategoriesEditor();
   });
 
@@ -4478,6 +3939,8 @@
   });
 
   els.addCategoryButton.addEventListener('click', addCategoryFromForm);
+  els.newActionType?.addEventListener('change', syncNewActionRequirementControls);
+  els.newActionRequired?.addEventListener('change', syncNewActionRequirementControls);
   els.addActionButton.addEventListener('click', addActionFromForm);
   els.addComboButton?.addEventListener('click', addComboFromForm);
   els.lootCrateButton?.addEventListener('click', claimVictoryLoot);
@@ -4487,7 +3950,6 @@
     importSettingsTemplateFile(els.importTemplateInput.files?.[0]);
   });
   els.resetGameButton.addEventListener('click', resetGameData);
-  els.motionFxButton?.addEventListener('click', toggleMotionFx);
   els.viewDayCardButton.addEventListener('click', () => openDayCard(state.current.dayCard));
   els.closeDayCardButton.addEventListener('click', () => els.dayCardDialog.close());
 
@@ -4526,7 +3988,7 @@
   const migratedVictory = finalizeVictoryIfNeeded();
   if (migratedVictory) saveState();
   render({ showDayCard: migratedVictory, justDefeated: migratedVictory });
-  initializeMotionFx();
+  syncNewActionRequirementControls();
   nudgePortraitOrientation();
   startVisualLoop();
 })();
