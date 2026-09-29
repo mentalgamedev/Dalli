@@ -1,7 +1,9 @@
 (() => {
   'use strict';
 
-  const STATE_VERSION = 3;
+  const STATE_VERSION = 4;
+  const TEMPLATE_VERSION = 1;
+  const WEAPON_DROP_CHANCE = 0.40;
   const STORAGE_KEY = 'dailyXpGame.v2';
   const HISTORY_LIMIT = 365;
   const DETAILED_HISTORY_DAYS = 90;
@@ -16,6 +18,24 @@
   const COMBO_MAX_MULTIPLIER = 3;
   const COMBO_DEFAULT_MULTIPLIER = 1.25;
   const COMBO_MAX_STEPS = 8;
+
+
+  const WEAPON_DEFINITIONS = Object.freeze([
+    { id: 'snub-nosed', name: 'Snub Nosed', baseDamage: 10, weight: 34, flavor: 'Small gun. Enormous confidence deficit.' },
+    { id: 'sawed-off', name: 'Sawed Off', baseDamage: 20, weight: 24, flavor: 'Subtlety was removed with the barrel.' },
+    { id: 'tommy-gun', name: 'Tommy Gun', baseDamage: 25, weight: 17, flavor: 'For problems requiring punctuation.' },
+    { id: 'grenade-launcher', name: 'Grenade Launcher', baseDamage: 30, weight: 11, flavor: 'Municipal permits pending.' },
+    { id: 'bazooka', name: 'Bazooka', baseDamage: 35, weight: 7, flavor: 'Point away from remaining architecture.' },
+    { id: 'flamethrower', name: 'Flamethrower', baseDamage: 40, weight: 6, flavor: 'Crestfallen fire code says absolutely not.' },
+    { id: 'golden-gun', name: 'Golden Gun', baseDamage: 999, weight: 1, special: true, flavor: 'One shot. One paperwork problem.' }
+  ]);
+
+  const WEAPON_CONDITIONS = Object.freeze([
+    { id: 'rusty', name: 'Rusty', multiplier: 0.5, weight: 50 },
+    { id: 'clean', name: 'Clean', multiplier: 1, weight: 30 },
+    { id: 'pimped', name: 'Pimped', multiplier: 1.5, weight: 15 },
+    { id: 'over-engineered', name: 'Over-engineered', multiplier: 2, weight: 5 }
+  ]);
 
   const DEFAULT_ACTION_NAME_MIGRATIONS = Object.freeze({
     'wellbeing-workout-30': ['Workout — 30 min', 'Proper workout'],
@@ -89,6 +109,9 @@
       archivedStreak: 0,
       streakThrough: ''
     },
+    armory: {
+      weapons: []
+    },
     current: {
       date: '',
       maxHp: 0,
@@ -96,6 +119,12 @@
       comboProgress: {},
       defeatedAt: null,
       victoryXpAwarded: 0,
+      loot: {
+        rolled: false,
+        available: false,
+        claimed: false,
+        pendingWeapon: null
+      },
       dayCard: null
     },
     history: []
@@ -111,6 +140,13 @@
     overkillValue: document.querySelector('#overkillValue'),
     fightFeedback: document.querySelector('#fightFeedback'),
     combosPanel: document.querySelector('#combosPanel'),
+    arsenalPanel: document.querySelector('#arsenalPanel'),
+    arsenalList: document.querySelector('#arsenalList'),
+    arsenalCount: document.querySelector('#arsenalCount'),
+    arsenalStatus: document.querySelector('#arsenalStatus'),
+    lootDrop: document.querySelector('#lootDrop'),
+    lootCrateButton: document.querySelector('#lootCrateButton'),
+    lootDropMessage: document.querySelector('#lootDropMessage'),
     statusBadge: document.querySelector('#statusBadge'),
     heroMessage: document.querySelector('#heroMessage'),
     fightCard: document.querySelector('#fightCard'),
@@ -173,6 +209,11 @@
     newComboName: document.querySelector('#newComboName'),
     newComboMultiplier: document.querySelector('#newComboMultiplier'),
     addComboButton: document.querySelector('#addComboButton'),
+    templateName: document.querySelector('#templateName'),
+    exportTemplateButton: document.querySelector('#exportTemplateButton'),
+    importTemplateButton: document.querySelector('#importTemplateButton'),
+    importTemplateInput: document.querySelector('#importTemplateInput'),
+    templateStatus: document.querySelector('#templateStatus'),
     resetGameButton: document.querySelector('#resetGameButton'),
     motionFxButton: document.querySelector('#motionFxButton'),
     motionFxStatus: document.querySelector('#motionFxStatus'),
@@ -343,6 +384,116 @@
   }
 
 
+
+  function emptyLootState() {
+    return {
+      rolled: false,
+      available: false,
+      claimed: false,
+      pendingWeapon: null
+    };
+  }
+
+  function weaponDefinition(weaponId) {
+    return WEAPON_DEFINITIONS.find(weapon => weapon.id === weaponId) || null;
+  }
+
+  function weaponCondition(conditionId) {
+    return WEAPON_CONDITIONS.find(condition => condition.id === conditionId) || null;
+  }
+
+  function weaponDisplayName(item) {
+    const weapon = weaponDefinition(item?.weaponId);
+    if (!weapon) return 'Unknown Contraband';
+    if (weapon.special) return weapon.name;
+    const condition = weaponCondition(item?.conditionId);
+    return condition ? `${condition.name} ${weapon.name}` : weapon.name;
+  }
+
+  function randomUnit() {
+    if (globalThis.crypto?.getRandomValues) {
+      const value = new Uint32Array(1);
+      globalThis.crypto.getRandomValues(value);
+      return value[0] / 0x100000000;
+    }
+    return Math.random();
+  }
+
+  function weightedRandom(items) {
+    const total = items.reduce((sum, item) => sum + Math.max(0, Number(item.weight) || 0), 0);
+    if (total <= 0) return items[0] || null;
+    let cursor = randomUnit() * total;
+    for (const item of items) {
+      cursor -= Math.max(0, Number(item.weight) || 0);
+      if (cursor < 0) return item;
+    }
+    return items[items.length - 1] || null;
+  }
+
+  function rollWeaponItem() {
+    const weapon = weightedRandom(WEAPON_DEFINITIONS);
+    if (!weapon) return null;
+
+    const condition = weapon.special ? null : weightedRandom(WEAPON_CONDITIONS);
+    const multiplier = weapon.special ? 1 : (condition?.multiplier || 1);
+    const damage = weapon.special
+      ? weapon.baseDamage
+      : Math.max(1, Math.round(weapon.baseDamage * multiplier));
+
+    return {
+      id: makeId('weapon'),
+      weaponId: weapon.id,
+      conditionId: condition?.id || null,
+      multiplier,
+      damage,
+      acquiredDate: state.current.date || localDateKey(),
+      acquiredAt: Date.now()
+    };
+  }
+
+  function normalizeWeaponItem(value) {
+    if (!value || typeof value !== 'object') return null;
+    const weapon = weaponDefinition(String(value.weaponId || ''));
+    if (!weapon) return null;
+
+    let conditionId = null;
+    let multiplier = 1;
+    if (!weapon.special) {
+      const condition = weaponCondition(String(value.conditionId || ''));
+      if (!condition) return null;
+      conditionId = condition.id;
+      multiplier = condition.multiplier;
+    }
+
+    const expectedDamage = weapon.special
+      ? weapon.baseDamage
+      : Math.max(1, Math.round(weapon.baseDamage * multiplier));
+
+    return {
+      id: String(value.id || makeId('weapon')).slice(0, 128),
+      weaponId: weapon.id,
+      conditionId,
+      multiplier,
+      damage: expectedDamage,
+      acquiredDate: /^\d{4}-\d{2}-\d{2}$/.test(String(value.acquiredDate || ''))
+        ? String(value.acquiredDate)
+        : localDateKey(),
+      acquiredAt: normalizeTimestamp(value.acquiredAt) || Date.now()
+    };
+  }
+
+  function normalizeLootState(value) {
+    const pendingWeapon = normalizeWeaponItem(value?.pendingWeapon);
+    const claimed = Boolean(value?.claimed && pendingWeapon);
+    const available = Boolean(value?.available && pendingWeapon && !claimed);
+    return {
+      rolled: Boolean(value?.rolled || pendingWeapon),
+      available,
+      claimed,
+      pendingWeapon
+    };
+  }
+
   function legacyEnemyHp(candidate) {
     const fullEnemyHp = clampInt(candidate?.settings?.goal, 20, 1000, 100);
     const starterHp = Math.max(
@@ -472,8 +623,21 @@
     };
   }
 
+
+  function migrateV3State(candidate) {
+    const migrated = deepClone(candidate);
+    migrated.version = STATE_VERSION;
+    migrated.armory = { weapons: [] };
+    migrated.current = {
+      ...(migrated.current || {}),
+      loot: emptyLootState()
+    };
+    return migrated;
+  }
+
   function normalizeState(candidate) {
     if (candidate?.version === 2) candidate = migrateV2State(candidate);
+    if (candidate?.version === 3) candidate = migrateV3State(candidate);
     if (!candidate || candidate.version !== STATE_VERSION) return freshState();
 
     const next = freshState();
@@ -546,6 +710,18 @@
         };
       });
 
+
+    const weaponIds = new Set();
+    next.armory.weapons = (Array.isArray(candidate.armory?.weapons) ? candidate.armory.weapons : [])
+      .slice(0, 500)
+      .map(normalizeWeaponItem)
+      .filter(Boolean)
+      .filter(item => {
+        if (weaponIds.has(item.id)) return false;
+        weaponIds.add(item.id);
+        return true;
+      });
+
     next.progression.victoryXp = clampInt(candidate.progression?.victoryXp, 0, 1000000000, 0);
     next.progression.bestStreak = clampInt(candidate.progression?.bestStreak, 0, 1000000, 0);
     next.progression.archivedStreak = clampInt(candidate.progression?.archivedStreak, 0, 1000000, 0);
@@ -567,6 +743,7 @@
     next.current.victoryXpAwarded = next.current.defeatedAt
       ? clampInt(candidate.current?.victoryXpAwarded, 0, VICTORY_XP, VICTORY_XP)
       : 0;
+    next.current.loot = normalizeLootState(candidate.current?.loot);
     next.current.dayCard = normalizeDayCard(candidate.current?.dayCard);
 
     const comboIdSet = new Set(next.settings.combos.map(combo => combo.id));
@@ -597,7 +774,11 @@
   function normalizeTransactions(value) {
     if (!Array.isArray(value)) return [];
     return value.slice(0, 3000).map(tx => {
-      const type = tx?.type === 'combo' ? 'combo' : 'action';
+      const type = tx?.type === 'combo'
+        ? 'combo'
+        : tx?.type === 'weapon'
+          ? 'weapon'
+          : 'action';
       if (type === 'combo') {
         return {
           type,
@@ -607,6 +788,27 @@
           multiplier: clampNumber(tx?.multiplier, COMBO_MIN_MULTIPLIER, COMBO_MAX_MULTIPLIER, COMBO_DEFAULT_MULTIPLIER),
           damage: clampInt(tx?.damage, 1, 100000, 1),
           sourceTransactionIds: (Array.isArray(tx?.sourceTransactionIds) ? tx.sourceTransactionIds : []).map(id => String(id).slice(0, 128)).slice(0, COMBO_MAX_STEPS),
+          timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
+        };
+      }
+
+      if (type === 'weapon') {
+        const weapon = weaponDefinition(String(tx?.weaponId || ''));
+        if (!weapon) return null;
+        const condition = weapon.special ? null : weaponCondition(String(tx?.conditionId || ''));
+        if (!weapon.special && !condition) return null;
+        return {
+          type,
+          id: String(tx?.id || makeId('weapon-tx')).slice(0, 128),
+          weaponItemId: String(tx?.weaponItemId || '').slice(0, 128),
+          weaponId: weapon.id,
+          weaponName: weapon.name,
+          conditionId: condition?.id || null,
+          conditionName: condition?.name || null,
+          multiplier: weapon.special ? 1 : condition.multiplier,
+          damage: weapon.special
+            ? clampInt(tx?.damage, weapon.baseDamage, 1000, weapon.baseDamage)
+            : Math.max(1, Math.round(weapon.baseDamage * condition.multiplier)),
           timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
         };
       }
@@ -622,7 +824,7 @@
         efficiency: clampNumber(tx?.efficiency, 0.01, 1, 1),
         timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
       };
-    });
+    }).filter(Boolean);
   }
 
   function normalizeDayCard(value) {
@@ -688,7 +890,7 @@
       const raw = localStorage.getItem(storageKey);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      if (!parsed || ![2, STATE_VERSION].includes(parsed.version)) return null;
+      if (!parsed || ![2, 3, STATE_VERSION].includes(parsed.version)) return null;
       return normalizeState(parsed);
     } catch (error) {
       console.warn('Could not read cached MoLife data:', error);
@@ -800,12 +1002,21 @@
     let totalBaseDamage = 0;
     let comboDamage = 0;
     let combosLanded = 0;
+    let weaponDamage = 0;
+    let weaponsUsed = 0;
 
     state.current.transactions.forEach(tx => {
       totalDamage += tx.damage;
+
       if (tx.type === 'combo') {
         comboDamage += tx.damage;
         combosLanded += 1;
+        return;
+      }
+
+      if (tx.type === 'weapon') {
+        weaponDamage += tx.damage;
+        weaponsUsed += 1;
         return;
       }
 
@@ -824,6 +1035,8 @@
       totalBaseDamage,
       comboDamage,
       combosLanded,
+      weaponDamage,
+      weaponsUsed,
       categoryDamage,
       categoryBaseDamage,
       maxHp,
@@ -964,6 +1177,110 @@
     return event;
   }
 
+
+  function rollVictoryLootIfNeeded() {
+    if (state.current.loot?.rolled) {
+      if (state.current.loot.pendingWeapon && !state.current.loot.claimed) {
+        state.current.loot.available = true;
+      }
+      return;
+    }
+
+    state.current.loot = emptyLootState();
+    state.current.loot.rolled = true;
+
+    if (randomUnit() >= WEAPON_DROP_CHANCE) return;
+
+    const pendingWeapon = rollWeaponItem();
+    if (!pendingWeapon) return;
+    state.current.loot.available = true;
+    state.current.loot.pendingWeapon = pendingWeapon;
+  }
+
+  function revokeCurrentVictoryLoot() {
+    const loot = state.current.loot || emptyLootState();
+    if (loot.claimed && loot.pendingWeapon?.id) {
+      state.armory.weapons = state.armory.weapons.filter(
+        item => item.id !== loot.pendingWeapon.id
+      );
+    }
+
+    state.current.loot = {
+      rolled: Boolean(loot.rolled),
+      available: false,
+      claimed: false,
+      pendingWeapon: loot.pendingWeapon ? deepClone(loot.pendingWeapon) : null
+    };
+  }
+
+  function stashPendingVictoryLoot() {
+    const loot = state.current.loot;
+    if (!loot?.available || loot.claimed || !loot.pendingWeapon) return null;
+
+    if (!state.armory.weapons.some(item => item.id === loot.pendingWeapon.id)) {
+      state.armory.weapons.push(deepClone(loot.pendingWeapon));
+    }
+
+    loot.available = false;
+    loot.claimed = true;
+    return loot.pendingWeapon;
+  }
+
+  function claimVictoryLoot() {
+    const summary = getSummary();
+    if (!summary.isVictory) return;
+
+    const claimed = stashPendingVictoryLoot();
+    if (!claimed) return;
+
+    saveState();
+    render({ lootClaimed: claimed });
+  }
+
+  function useWeapon(itemId) {
+    ensureToday();
+    const summary = getSummary();
+    if (summary.isVictory) return;
+
+    const index = state.armory.weapons.findIndex(item => item.id === itemId);
+    if (index < 0) return;
+
+    const item = state.armory.weapons[index];
+    const weapon = weaponDefinition(item.weaponId);
+    if (!weapon) return;
+
+    const actualDamage = weapon.special
+      ? Math.max(item.damage, summary.currentHp)
+      : item.damage;
+
+    state.armory.weapons.splice(index, 1);
+
+    const condition = weapon.special ? null : weaponCondition(item.conditionId);
+    const tx = {
+      type: 'weapon',
+      id: makeId('weapon-tx'),
+      weaponItemId: item.id,
+      weaponId: weapon.id,
+      weaponName: weapon.name,
+      conditionId: condition?.id || null,
+      conditionName: condition?.name || null,
+      multiplier: item.multiplier,
+      damage: actualDamage,
+      timestamp: Date.now()
+    };
+
+    state.current.transactions.push(tx);
+    const justDefeated = finalizeVictoryIfNeeded();
+    saveState();
+    render({
+      showDayCard: justDefeated,
+      justDefeated,
+      hitDamage: tx.damage,
+      hitName: weaponDisplayName(item),
+      weaponEvent: tx
+    });
+  }
+
   function completedDateSet() {
     const set = new Set(state.history.filter(day => day.won).map(day => day.date));
     if (state.current.defeatedAt) set.add(state.current.date);
@@ -1069,6 +1386,10 @@
   function archiveCurrentDay() {
     if (!state.current.date) return;
 
+    if (state.current.defeatedAt && state.current.loot?.available) {
+      stashPendingVictoryLoot();
+    }
+
     const summary = getSummary();
     const record = {
       date: state.current.date,
@@ -1109,6 +1430,7 @@
         comboProgress: {},
         defeatedAt: null,
         victoryXpAwarded: 0,
+        loot: emptyLootState(),
         dayCard: null
       };
       saveState();
@@ -1125,6 +1447,7 @@
       comboProgress: {},
       defeatedAt: null,
       victoryXpAwarded: 0,
+      loot: emptyLootState(),
       dayCard: null
     };
     wasVictory = false;
@@ -1158,6 +1481,9 @@
     const dominant = active[0] || { id: UNCATEGORIZED_ID, name: 'Uncategorized', base: 0 };
     const share = dominant.base / total;
 
+    if (summary.weaponsUsed > 0) {
+      return { key: 'weapon', type: 'ARMED & UNMOTIVATED', dominant };
+    }
     if (summary.overkill >= Math.max(10, summary.maxHp * 0.5)) {
       return { key: 'overkill', type: 'EXCESSIVE FORCE', dominant };
     }
@@ -1182,6 +1508,11 @@
   function headlineContent(personality, summary) {
     const category = personality.dominant.name;
     const pools = {
+      weapon: [
+        ['UNREGISTERED HARDWARE RESOLVES INTERNAL DISPUTE', `${summary.weaponsUsed} weapon discharge${summary.weaponsUsed === 1 ? '' : 's'} recorded. Officials confirm this still counts as personal development.`],
+        ['CITIZEN SKIPS PERSONAL GROWTH, REACHES FOR ARSENAL', 'The Dark Doppelgänger was unavailable for comment after a brief equipment malfunction.'],
+        ['QUESTIONABLE PROCUREMENT ENDS DAILY HOSTILITIES', 'Authorities stress that the weapon was earned through previous good behavior, which somehow makes this worse.']
+      ],
       overkill: [
         ['DARK SELF DEFEATED; USER CONTINUES HITTING IT FOR ADMINISTRATIVE REASONS', `${summary.overkill} points of overkill were recorded. Authorities insist this was probably unnecessary.`],
         ['INTERNAL HOSTILITY ENDS IN DISPROPORTIONATE RESPONSE', 'Crestfallen observers describe the damage total as “legally a bit much.”'],
@@ -1269,11 +1600,15 @@
       state.current.defeatedAt = null;
       state.current.victoryXpAwarded = 0;
       state.current.dayCard = null;
+      revokeCurrentVictoryLoot();
       return false;
     }
 
     const justDefeated = !state.current.defeatedAt;
-    if (justDefeated) state.current.defeatedAt = Date.now();
+    if (justDefeated) {
+      state.current.defeatedAt = Date.now();
+      rollVictoryLootIfNeeded();
+    }
 
     if (state.current.victoryXpAwarded !== VICTORY_XP) {
       const delta = VICTORY_XP - state.current.victoryXpAwarded;
@@ -1397,11 +1732,19 @@
       if (summary.combosLanded > 0) {
         messages.push(`${summary.combosLanded} COMBO ATTACK${summary.combosLanded === 1 ? '' : 'S'} LANDED; INTERNAL DARKNESS ALLEGES COLLUSION`);
       }
+      if (summary.weaponsUsed > 0) {
+        messages.push(`${summary.weaponsUsed} CONTRABAND WEAPON${summary.weaponsUsed === 1 ? '' : 'S'} USED; PERSONAL GROWTH AUTHORITIES LOOK THE OTHER WAY`);
+      }
       if (streak >= 3) {
         messages.push(`${streak}-DAY VICTORY STREAK CONTINUES; SITUATION NOW TOO EXPENSIVE TO ABANDON`);
       }
       if (rank.name !== 'Nobody') {
         messages.push(`STREET CRED OFFICE RELUCTANTLY CONFIRMS ${rank.name.toUpperCase()} STATUS`);
+      }
+      if (state.current.loot?.available) {
+        messages.push('UNMARKED CRATE DISCOVERED AFTER HOSTILITIES; CONTENTS RATTLE WHEN SHAKEN');
+      } else if (state.current.loot?.claimed && state.current.loot.pendingWeapon) {
+        messages.push(`CONTRABAND OFFICE CONFIRMS ACQUISITION OF ${weaponDisplayName(state.current.loot.pendingWeapon).toUpperCase()}`);
       }
     } else if (summary.totalDamage === 0) {
       messages.push(
@@ -1970,13 +2313,18 @@
 
     renderHero(summary);
     renderProgression();
+    renderArsenal(summary, options.lootClaimed?.id || '');
     renderCategories(summary);
     renderCombos();
     renderLog();
     renderHistory();
 
     let specialMessage = '';
-    if (options.comboEvent) {
+    if (options.lootClaimed) {
+      specialMessage = `CONTRABAND ACQUIRED: ${weaponDisplayName(options.lootClaimed).toUpperCase()} · ${options.lootClaimed.damage} DMG`;
+    } else if (options.weaponEvent) {
+      specialMessage = `${options.hitName.toUpperCase()} DISCHARGED; ${options.weaponEvent.damage} DAMAGE RECORDED`;
+    } else if (options.comboEvent) {
       specialMessage = `${options.comboEvent.comboName.toUpperCase()} COMBO LANDS; LOCAL DARKNESS TAKES ADDITIONAL ${options.comboEvent.damage} DAMAGE`;
     } else if (options.justDefeated) {
       specialMessage = '…WE HAVE RECEIVED UPDATED INFORMATION. DARK DOPPELGÄNGER IS DOWN. VICTORY +20 XP.';
@@ -2101,6 +2449,81 @@
 
     els.streakCount.textContent = `${streak} day${streak === 1 ? '' : 's'}`;
     els.bestStreak.textContent = `Best: ${best}`;
+  }
+
+
+  function renderArsenal(summary, newlyClaimedId = '') {
+    if (!els.arsenalPanel || !els.arsenalList) return;
+
+    const inventory = state.armory.weapons;
+    els.arsenalCount.textContent = `${inventory.length} weapon${inventory.length === 1 ? '' : 's'}`;
+
+    const loot = state.current.loot || emptyLootState();
+    els.lootDrop.hidden = !loot.available;
+
+    if (loot.available && loot.pendingWeapon) {
+      els.lootDropMessage.textContent = 'Suspicious package detected. Contents probably legal somewhere.';
+      els.lootCrateButton.disabled = false;
+      els.lootCrateButton.setAttribute('aria-label', 'Open mystery contraband crate');
+    } else if (summary.isVictory && loot.claimed && loot.pendingWeapon) {
+      els.lootDropMessage.textContent = `Acquired: ${weaponDisplayName(loot.pendingWeapon)} · ${loot.pendingWeapon.damage} DMG`;
+    } else if (summary.isVictory && loot.rolled) {
+      els.lootDropMessage.textContent = 'No contraband drop today. The streets remain stingy.';
+    } else {
+      els.lootDropMessage.textContent = 'Each victory has a 40% chance to attract questionable hardware.';
+    }
+
+    els.arsenalStatus.textContent = summary.isVictory
+      ? 'Target down · save your ammunition for a worse day.'
+      : inventory.length
+        ? 'Weapons ignore category resistance and are consumed when fired.'
+        : 'Empty. Win fights for a chance to find contraband.';
+
+    els.arsenalList.replaceChildren();
+
+    if (!inventory.length) {
+      const empty = document.createElement('div');
+      empty.className = 'arsenal-empty';
+      empty.textContent = 'NO CONTRABAND ON FILE';
+      els.arsenalList.append(empty);
+      return;
+    }
+
+    [...inventory]
+      .sort((a, b) => b.damage - a.damage || b.acquiredAt - a.acquiredAt)
+      .forEach(item => {
+        const weapon = weaponDefinition(item.weaponId);
+        if (!weapon) return;
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `weapon-card condition-${item.conditionId || 'golden'}${weapon.special ? ' is-golden' : ''}${item.id === newlyClaimedId ? ' is-new' : ''}`;
+        button.disabled = summary.isVictory;
+        button.dataset.weaponId = item.id;
+        button.title = weapon.flavor;
+
+        const condition = document.createElement('span');
+        condition.className = 'weapon-condition';
+        condition.textContent = weapon.special
+          ? 'LEGENDARY'
+          : (weaponCondition(item.conditionId)?.name || 'Unknown').toUpperCase();
+
+        const name = document.createElement('strong');
+        name.className = 'weapon-name';
+        name.textContent = weapon.name;
+
+        const damage = document.createElement('span');
+        damage.className = 'weapon-damage';
+        damage.textContent = `${item.damage} DMG`;
+
+        const fire = document.createElement('span');
+        fire.className = 'weapon-fire';
+        fire.textContent = summary.isVictory ? 'SAVE AMMO' : 'FIRE';
+
+        button.append(condition, name, damage, fire);
+        button.addEventListener('click', () => useWeapon(item.id));
+        els.arsenalList.append(button);
+      });
   }
 
   function renderCategories(summary) {
@@ -2303,12 +2726,16 @@
 
     transactions.forEach(tx => {
       const row = document.createElement('div');
-      row.className = `log-row${tx.type === 'combo' ? ' combo-log-row' : ''}`;
+      row.className = `log-row${tx.type === 'combo' ? ' combo-log-row' : tx.type === 'weapon' ? ' weapon-log-row' : ''}`;
 
       const main = document.createElement('div');
       main.className = 'log-main';
       const strong = document.createElement('strong');
-      strong.textContent = tx.type === 'combo' ? `COMBO · ${tx.comboName}` : tx.actionName;
+      strong.textContent = tx.type === 'combo'
+        ? `COMBO · ${tx.comboName}`
+        : tx.type === 'weapon'
+          ? `WEAPON · ${tx.conditionName ? `${tx.conditionName} ` : ''}${tx.weaponName}`
+          : tx.actionName;
       const meta = document.createElement('span');
       const time = new Intl.DateTimeFormat(undefined, {
         hour: '2-digit',
@@ -2316,7 +2743,9 @@
       }).format(new Date(tx.timestamp));
       meta.textContent = tx.type === 'combo'
         ? `×${tx.multiplier.toFixed(2)} · ${tx.sourceTransactionIds.length} matched actions · ${time}`
-        : `${tx.categoryName} · ${Math.round(tx.efficiency * 100)}% · ${time}`;
+        : tx.type === 'weapon'
+          ? `Contraband · consumed · ${time}`
+          : `${tx.categoryName} · ${Math.round(tx.efficiency * 100)}% · ${time}`;
       main.append(strong, meta);
 
       const actions = document.createElement('div');
@@ -3387,6 +3816,116 @@
     return true;
   }
 
+
+  function settingsTemplatePayload(settings, name = '') {
+    return {
+      kind: 'molife-settings-template',
+      version: TEMPLATE_VERSION,
+      name: String(name || '').trim().slice(0, 60),
+      exportedAt: new Date().toISOString(),
+      settings: deepClone(settings)
+    };
+  }
+
+  function filenameSlug(value) {
+    return String(value || '')
+      .trim()
+      .toLocaleLowerCase()
+      .normalize('NFKD')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48);
+  }
+
+  function normalizeImportedTemplate(payload) {
+    if (!payload || typeof payload !== 'object'
+      || payload.kind !== 'molife-settings-template'
+      || payload.version !== TEMPLATE_VERSION
+      || !payload.settings || typeof payload.settings !== 'object') {
+      throw new Error('This is not a compatible MoLife settings template.');
+    }
+
+    const raw = payload.settings;
+    if (!Array.isArray(raw.categories) || !Array.isArray(raw.actions) || !Array.isArray(raw.combos)) {
+      throw new Error('Template is missing categories, actions or combos.');
+    }
+
+    const candidate = freshState();
+    candidate.settings = deepClone(raw);
+    return normalizeState(candidate).settings;
+  }
+
+  function exportSettingsTemplate() {
+    let settings = state.settings;
+
+    if (settingsDraft) {
+      const result = buildSettingsFromDraft();
+      if (!result.ok) {
+        els.settingsMessage.textContent = result.message;
+        return;
+      }
+      settings = result.settings;
+    }
+
+    const templateName = els.templateName?.value.trim() || '';
+    const payload = settingsTemplatePayload(settings, templateName);
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = href;
+    const slug = filenameSlug(templateName) || localDateKey();
+    link.download = `molife-template-${slug}.json`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(href), 1000);
+
+    if (els.templateStatus) {
+      els.templateStatus.textContent = 'Template exported. Progress, history and arsenal were intentionally excluded.';
+    }
+  }
+
+  async function importSettingsTemplateFile(file) {
+    if (!file) return;
+
+    try {
+      const payload = JSON.parse(await file.text());
+      const importedSettings = normalizeImportedTemplate(payload);
+      const importedName = typeof payload.name === 'string' ? payload.name.slice(0, 60) : '';
+
+      const confirmed = window.confirm(
+        'Switch to this MoLife settings template?\n\nThis replaces difficulty, categories, Focus/colors, actions, ordering and combos. Your fight history, Level, Street Cred, streak, today’s recorded damage and arsenal stay untouched.'
+      );
+      if (!confirmed) return;
+
+      settingsDraft = deepClone(importedSettings);
+      state.settings = deepClone(importedSettings);
+      state.current.comboProgress = {};
+      saveState();
+
+      els.goalInput.value = settingsDraft.fullEnemyHp;
+      if (els.templateName) els.templateName.value = importedName;
+      updateGoalRampPreview();
+      renderCategoriesEditor();
+      renderActionsEditor();
+      renderCombosEditor();
+      populateCategorySelect();
+      render();
+
+      els.settingsMessage.textContent = 'Template imported and activated.';
+      if (els.templateStatus) {
+        els.templateStatus.textContent = `${importedName ? importedName + ' · ' : ''}${settingsDraft.categories.length - 1} categories · ${settingsDraft.actions.length} actions · ${settingsDraft.combos.length} combos`;
+      }
+    } catch (error) {
+      console.warn('Could not import MoLife template:', error);
+      const message = error instanceof Error ? error.message : 'Could not read that template.';
+      els.settingsMessage.textContent = message;
+      if (els.templateStatus) els.templateStatus.textContent = message;
+    } finally {
+      els.importTemplateInput.value = '';
+    }
+  }
+
   function scheduleSettingsSave(delay = 260) {
     window.clearTimeout(settingsSaveTimer);
     settingsSaveTimer = window.setTimeout(() => {
@@ -3411,7 +3950,7 @@
 
   function resetGameData() {
     const confirmed = window.confirm(
-      'Reset ALL MoLife game data?\n\nThis wipes categories, actions, combos, history, Level, Street Cred and streaks. Your login/account remains.\n\nThe Crestfallen Department of Records will pretend none of this ever happened.'
+      'Reset ALL MoLife game data?\n\nThis wipes categories, actions, combos, weapons, history, Level, Street Cred and streaks. Your login/account remains.\n\nThe Crestfallen Department of Records will pretend none of this ever happened.'
     );
     if (!confirmed) return;
 
@@ -3423,6 +3962,7 @@
       comboProgress: {},
       defeatedAt: null,
       victoryXpAwarded: 0,
+      loot: emptyLootState(),
       dayCard: null
     };
     settingsDraft = null;
@@ -3488,6 +4028,12 @@
   els.addCategoryButton.addEventListener('click', addCategoryFromForm);
   els.addActionButton.addEventListener('click', addActionFromForm);
   els.addComboButton?.addEventListener('click', addComboFromForm);
+  els.lootCrateButton?.addEventListener('click', claimVictoryLoot);
+  els.exportTemplateButton?.addEventListener('click', exportSettingsTemplate);
+  els.importTemplateButton?.addEventListener('click', () => els.importTemplateInput?.click());
+  els.importTemplateInput?.addEventListener('change', () => {
+    importSettingsTemplateFile(els.importTemplateInput.files?.[0]);
+  });
   els.resetGameButton.addEventListener('click', resetGameData);
   els.motionFxButton?.addEventListener('click', toggleMotionFx);
   els.viewDayCardButton.addEventListener('click', () => openDayCard(state.current.dayCard));

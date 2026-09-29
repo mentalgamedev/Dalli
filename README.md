@@ -42,6 +42,32 @@ Current ranks:
 - Kingpin
 - Head Honcho
 
+
+## Arsenal & contraband
+
+Victories can generate **contraband drops**. Each newly defeated day rolls once for a mystery crate; the current drop chance is 40%. The roll is persisted for that day, so undoing and re-defeating the same fight cannot be used to reroll the crate.
+
+Weapons live in a persistent Arsenal and can be fired only while today's Dark Doppelgänger is still alive. Firing consumes the weapon immediately, ignores category resistance, and records a weapon damage transaction. This provides an intentionally limited way to cash in previous successful days when the player wants to preserve a streak without doing the usual actions.
+
+Current weapon pool:
+
+- **Snub Nosed** — 10 base DMG
+- **Sawed Off** — 20 base DMG
+- **Tommy Gun** — 25 base DMG
+- **Grenade Launcher** — 30 base DMG
+- **Bazooka** — 35 base DMG
+- **Flamethrower** — 40 base DMG
+- **Golden Gun** — 999 DMG, always special and always an instant kill at current HP limits
+
+Normal weapons also roll a condition. Better conditions are progressively rarer:
+
+- **Rusty** — ×0.5
+- **Clean** — ×1.0
+- **Pimped** — ×1.5
+- **Over-engineered** — ×2.0
+
+Golden Gun does not roll a condition. Weapon rarity and condition rarity are weighted separately, making Rusty Snub Nosed the most common combination while high-end hardware and high-end condition combinations are increasingly scarce. Unopened victory crates are automatically moved into the Arsenal when the day rolls over so a reward is not lost merely because the player forgot to tap it.
+
 ## Crestfallen Daily
 
 Defeating Dark Doppelgänger creates a persistent newspaper-style battle report containing enemy HP, total damage, overkill, combos landed, Victory XP, Street Cred and Streak.
@@ -95,9 +121,16 @@ The main action area is branded **Track-o-Tron**. Category action decks keep a c
 - deleting a category moves its actions to **Uncategorized**
 - Uncategorized is a permanent fallback with fixed 50% damage and a fixed neutral slate color
 
+
+## Settings templates
+
+Settings can be exported as a small JSON **template** and imported later to swap between different challenge setups. A template contains the configured enemy HP plus categories, colors, Focus values, actions, ordering, visibility, damage values, category links, combos and combo action links.
+
+Templates deliberately do **not** behave like save-game backups. Importing one leaves Level, Victory XP, Street Cred, streak/history, today's already-recorded damage and the Arsenal untouched. Current combo progress is reset because the imported combo definitions may differ.
+
 ## History and statistics foundation
 
-Action transactions retain immutable action/category identity, base Damage, effective Damage, efficiency and timestamp. Combo bonus transactions retain the combo identity, multiplier, bonus Damage and the source transaction IDs that produced them. Undoing a source action therefore also removes dependent combo bonuses and can revoke today's victory and its 20 XP.
+Action transactions retain immutable action/category identity, base Damage, effective Damage, efficiency and timestamp. Combo bonus transactions retain the combo identity, multiplier, bonus Damage and the source transaction IDs that produced them. Weapon transactions retain the consumed inventory item and actual damage dealt. Undoing a source action therefore also removes dependent combo bonuses and can revoke today's victory, its 20 XP and any still-current victory loot.
 
 Detailed events are retained for recent history while compact daily summaries can remain longer.
 
@@ -127,7 +160,7 @@ The database schema remains intentionally small:
 - `users`
 - `user_state`
 
-MoLife v4 uses gameplay state **v3** while deliberately retaining the existing browser storage keys. v2 states migrate in place: categories, Focus, colors, actions, ordering, visibility, history and streak data are preserved where possible; action `baseXp` becomes `baseDamage`, and Victory XP is recalculated as 20 × historical victories rather than carrying old lifetime action XP forward.
+MoLife v4.2 uses gameplay state **v4** while deliberately retaining the existing browser storage keys. v2 still migrates through the damage/victory model, and v3 migrates in place into v4 with an empty Arsenal and no retroactive weapon drops. Existing categories, Focus, colors, actions, ordering, visibility, combos, history and progression remain intact.
 
 ## Security
 
