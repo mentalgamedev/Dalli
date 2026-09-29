@@ -1264,6 +1264,13 @@
     return state.current.transactions.some(tx => tx.type === 'action' && tx.actionId === actionId);
   }
 
+  function isOnceLimitedToday(action) {
+    if (action.type !== 'once') return false;
+    const currentRequirement = (state.current.requiredActions || [])
+      .find(required => required.actionId === action.id);
+    return !currentRequirement || currentRequirement.requiredCount <= 1;
+  }
+
   function comboProgress(comboId) {
     return state.current.comboProgress[comboId] || { index: 0, sourceTransactionIds: [] };
   }
@@ -1842,7 +1849,7 @@
 
     const action = state.settings.actions.find(item => item.id === actionId);
     if (!action) return;
-    if (action.type === 'once' && hasCompletedOnceAction(action.id)) return;
+    if (isOnceLimitedToday(action) && hasCompletedOnceAction(action.id)) return;
 
     const beforeSummary = getSummary();
     const category = state.settings.categories.find(item => item.id === action.categoryId)
@@ -2510,7 +2517,7 @@
           button.dataset.actionId = action.id;
 
           const completedToday = hasCompletedOnceAction(action.id);
-          const used = action.type === 'once' && completedToday;
+          const used = isOnceLimitedToday(action) && completedToday;
           const requiredProgress = summary.requiredProgress[action.id] || null;
           const requiredToday = Boolean(requiredProgress);
           const requiredComplete = requiredToday && requiredProgress.remainingCount === 0;
@@ -2534,7 +2541,11 @@
             small.textContent = 'Completed today';
           } else {
             const payout = Math.round(reward.efficiency * 100);
-            const typeText = action.type === 'once' ? 'Once per day' : 'Repeatable';
+            const typeText = action.type === 'once' && !isOnceLimitedToday(action)
+              ? 'Repeatable for today’s requirement'
+              : action.type === 'once'
+                ? 'Once per day'
+                : 'Repeatable';
             small.textContent = payout === 100 ? `${typeText} · full base damage` : `${typeText} · ${payout}% of base damage`;
           }
 
