@@ -1069,7 +1069,7 @@ function dalli_validate_state_v4(mixed $state): array
                 return ($tx['conditionId'] ?? null) === null
                     && ($tx['conditionName'] ?? null) === null
                     && dalli_number_between($tx['multiplier'] ?? null, 1, 1)
-                    && $tx['damage'] === 999;
+                    && $tx['damage'] >= 999 && $tx['damage'] <= 1000;
             }
 
             $conditionId = $tx['conditionId'] ?? null;
