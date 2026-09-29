@@ -817,10 +817,12 @@ input, select {
 
 body {
   background:
-    radial-gradient(circle at 12% -8%, rgba(122,108,255,.22), transparent 32rem),
-    radial-gradient(circle at 88% 2%, rgba(57,215,183,.13), transparent 28rem),
+    radial-gradient(ellipse at 12% -8%, rgba(126, 100, 255, .22), transparent 38rem),
+    radial-gradient(ellipse at 91% 10%, rgba(92, 190, 255, .14), transparent 34rem),
+    radial-gradient(ellipse at 63% 108%, rgba(255, 145, 76, .11), transparent 40rem),
     linear-gradient(180deg, rgba(255,255,255,.012), transparent 20rem),
     var(--bg);
+  background-attachment: fixed;
 }
 
 .city-noise {
