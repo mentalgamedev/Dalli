@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: dalli-production
+  group: molife-production
   cancel-in-progress: true
 
 jobs:
@@ -52,9 +52,9 @@ jobs:
 
       - name: Deploy
         env:
-          DEPLOY_FTP_HOST: ${{ secrets.DEPLOY_FTP_HOST || secrets.LIMA_FTP_HOST }}
-          DEPLOY_FTP_USER: ${{ secrets.DEPLOY_FTP_USER || secrets.LIMA_FTP_USER }}
-          DEPLOY_FTP_PASSWORD: ${{ secrets.DEPLOY_FTP_PASSWORD || secrets.LIMA_FTP_PASSWORD }}
+          DEPLOY_FTP_HOST: ${{ secrets.DEPLOY_FTP_HOST }}
+          DEPLOY_FTP_USER: ${{ secrets.DEPLOY_FTP_USER }}
+          DEPLOY_FTP_PASSWORD: ${{ secrets.DEPLOY_FTP_PASSWORD }}
           DEPLOY_FTP_PATH: ${{ secrets.DEPLOY_FTP_PATH }}
         shell: bash
         run: |
