@@ -999,7 +999,7 @@ function dalli_validate_state_v4(mixed $state): array
             && $item['damage'] === $expectedDamage;
     };
 
-    $validateTransaction = static function (mixed $tx): bool {
+    $validateTransaction = static function (mixed $tx) use ($weaponBases, $conditionMultipliers): bool {
         if (!is_array($tx) || !is_string($tx['type'] ?? null)) return false;
 
         if ($tx['type'] === 'action') {
@@ -1054,15 +1054,12 @@ function dalli_validate_state_v4(mixed $state): array
             }
 
             $weaponId = $tx['weaponId'] ?? null;
-            $validWeapons = ['snub-nosed', 'sawed-off', 'tommy-gun', 'grenade-launcher', 'bazooka', 'flamethrower', 'golden-gun'];
-            $validConditions = ['rusty', 'clean', 'pimped', 'over-engineered'];
 
-            if (!is_string($weaponId) || !in_array($weaponId, $validWeapons, true)
+            if (!is_string($weaponId) || !array_key_exists($weaponId, $weaponBases)
                 || !dalli_string_ok($tx['id'] ?? null, 1, 128)
                 || !dalli_string_ok($tx['weaponItemId'] ?? null, 1, 128)
                 || !dalli_string_ok($tx['weaponName'] ?? null, 1, 80)
-                || !is_int($tx['damage'] ?? null) || $tx['damage'] < 1 || $tx['damage'] > 999
-                || !dalli_number_between($tx['multiplier'] ?? null, 0.5, 2)
+                || !is_int($tx['damage'] ?? null)
                 || (is_int($tx['timestamp'] ?? null) || is_float($tx['timestamp'] ?? null)) === false
                 || (float) $tx['timestamp'] <= 0) {
                 return false;
@@ -1071,13 +1068,21 @@ function dalli_validate_state_v4(mixed $state): array
             if ($weaponId === 'golden-gun') {
                 return ($tx['conditionId'] ?? null) === null
                     && ($tx['conditionName'] ?? null) === null
-                    && (float) $tx['multiplier'] === 1.0
+                    && dalli_number_between($tx['multiplier'] ?? null, 1, 1)
                     && $tx['damage'] === 999;
             }
 
-            return is_string($tx['conditionId'] ?? null)
-                && in_array($tx['conditionId'], $validConditions, true)
-                && dalli_string_ok($tx['conditionName'] ?? null, 1, 80);
+            $conditionId = $tx['conditionId'] ?? null;
+            if (!is_string($conditionId)
+                || !array_key_exists($conditionId, $conditionMultipliers)
+                || !dalli_string_ok($tx['conditionName'] ?? null, 1, 80)) {
+                return false;
+            }
+
+            $multiplier = $conditionMultipliers[$conditionId];
+            $expectedDamage = (int) round($weaponBases[$weaponId] * $multiplier);
+            return dalli_number_between($tx['multiplier'] ?? null, $multiplier, $multiplier)
+                && $tx['damage'] === $expectedDamage;
         }
 
         return false;
