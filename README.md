@@ -81,7 +81,7 @@ Content rule for future additions:
 
 > MoLife may reveal the existence and public-facing identity of Cosmic Trouble characters, places, businesses, institutions and opening-premise rumors, but must not reveal later story events, hidden relationships, motives, cult plans, mysteries or supernatural explanations.
 
-Aya, Kai and Aldous are intentionally excluded from MoLife’s ambient public-news flavor because they are ordinary private people rather than public Crestfallen fixtures.
+Private residents and protagonist-level characters are intentionally excluded from MoLife’s ambient public-news flavor; the crossover stays focused on people and places that plausibly belong in a citywide ticker.
 
 ## Crestfallen Daily
 
