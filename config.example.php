@@ -4,7 +4,7 @@ declare(strict_types=1);
 /*
  * EXAMPLE ONLY — DO NOT PUT REAL CREDENTIALS IN THIS REPOSITORY.
  *
- * Place the real dalli-config.php one directory above Dalli's public document
+ * Place the real molife-config.php one directory above MoLife's public document
  * root. The backend deliberately resolves it from outside the web root.
  */
 if (realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__) {
@@ -21,10 +21,10 @@ return [
     ],
 
     'app' => [
-        'origin' => 'https://dalli.example.com',
+        'origin' => 'https://molife.example.com',
 
         /*
-         * Used only to claim the first Dalli owner account.
+         * Used only to claim the first MoLife owner account.
          * Use at least 32 random bytes (64 hex characters).
          * Once an owner exists, later accounts require invite links.
          */

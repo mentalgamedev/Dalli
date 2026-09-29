@@ -26,5 +26,6 @@ jobs:
 
       - name: Ensure no live config was committed
         run: |
+          test ! -e molife-config.php
           test ! -e dalli-config.php
           test ! -e .env

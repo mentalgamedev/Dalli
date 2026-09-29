@@ -29,6 +29,7 @@ jobs:
           node --check cloud.js
           node --check service-worker.js
           find . -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
+          test ! -e molife-config.php
           test ! -e dalli-config.php
           test ! -e .env
 
@@ -39,7 +40,7 @@ jobs:
 
           mkdir -p _deploy
 
-          rsync -a ./ _deploy/             --exclude '.git/'             --exclude '.github/'             --exclude '_deploy/'             --exclude 'README.md'             --exclude 'DEPLOY.md'             --exclude 'docs/'             --exclude 'schema.sql'             --exclude 'config.example.php'             --exclude 'dalli-config.php'             --exclude '.env'             --exclude '.env.*'
+          rsync -a ./ _deploy/             --exclude '.git/'             --exclude '.github/'             --exclude '_deploy/'             --exclude 'README.md'             --exclude 'DEPLOY.md'             --exclude 'docs/'             --exclude 'schema.sql'             --exclude 'config.example.php'             --exclude 'molife-config.php'             --exclude 'dalli-config.php'             --exclude '.env'             --exclude '.env.*'
 
           echo "Files prepared for deployment:"
           find _deploy -maxdepth 3 -type f -printf '%P\n' | sort
