@@ -806,7 +806,7 @@
           conditionName: condition?.name || null,
           multiplier: weapon.special ? 1 : condition.multiplier,
           damage: weapon.special
-            ? weapon.baseDamage
+            ? clampInt(tx?.damage, weapon.baseDamage, 1000, weapon.baseDamage)
             : Math.max(1, Math.round(weapon.baseDamage * condition.multiplier)),
           timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
         };
@@ -1248,6 +1248,10 @@
     const weapon = weaponDefinition(item.weaponId);
     if (!weapon) return;
 
+    const actualDamage = weapon.special
+      ? Math.max(item.damage, summary.currentHp)
+      : item.damage;
+
     state.armory.weapons.splice(index, 1);
 
     const condition = weapon.special ? null : weaponCondition(item.conditionId);
@@ -1260,7 +1264,7 @@
       conditionId: condition?.id || null,
       conditionName: condition?.name || null,
       multiplier: item.multiplier,
-      damage: item.damage,
+      damage: actualDamage,
       timestamp: Date.now()
     };
 
