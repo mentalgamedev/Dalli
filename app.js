@@ -2520,10 +2520,12 @@
           const used = isOnceLimitedToday(action) && completedToday;
           const requiredProgress = summary.requiredProgress[action.id] || null;
           const requiredToday = Boolean(requiredProgress);
+          const requiredNextFight = Boolean(action.requiredForVictory) && !requiredToday;
           const requiredComplete = requiredToday && requiredProgress.remainingCount === 0;
           button.disabled = used;
           button.classList.toggle('is-required', requiredToday);
           button.classList.toggle('is-required-complete', requiredComplete);
+          button.classList.toggle('is-required-next', requiredNextFight);
 
           const nameWrap = document.createElement('span');
           nameWrap.className = 'action-name';
@@ -2535,6 +2537,10 @@
             requiredBadge.textContent = requiredProgress.requiredCount > 1
               ? `REQUIRED · ${requiredProgress.completedCount} / ${requiredProgress.requiredCount}${requiredComplete ? ' ✓' : ''}`
               : (requiredComplete ? 'REQUIRED ✓' : 'REQUIRED');
+          } else if (requiredNextFight) {
+            requiredBadge.textContent = action.type === 'repeatable' && action.requiredCount > 1
+              ? `REQUIRED NEXT FIGHT · ×${action.requiredCount}`
+              : 'REQUIRED NEXT FIGHT';
           }
           const small = document.createElement('small');
           if (used) {
@@ -2550,7 +2556,7 @@
           }
 
           nameWrap.append(strong);
-          if (requiredToday) nameWrap.append(requiredBadge);
+          if (requiredToday || requiredNextFight) nameWrap.append(requiredBadge);
           nameWrap.append(small);
 
           const damage = document.createElement('span');
