@@ -65,7 +65,7 @@
     { id: 'mogreen-efficiency', tags: ['work'], weight: 10, text: 'MOGREEN CAMPAIGN PRAISES LOCAL PRODUCTIVITY; DENIES HAVING MEASURED IT WITHOUT PERMISSION' },
     { id: 'mogreen-overkill', tags: ['overkill'], weight: 10, text: 'LESTER MOGREEN CALLS TODAY’S OVERKILL “A BOLD PUBLIC-PRIVATE INITIATIVE”' },
     { id: 'mogreen-victory', tags: ['victory'], weight: 8, text: 'MOGREEN CAMPAIGN CONGRATULATES VICTORIOUS CITIZEN; CREDIT ALLOCATION MEETING ALREADY SCHEDULED' },
-    { id: 'mogreen-contraband', tags: ['weapon'], weight: 7, text: 'MOGREEN CAMPAIGN DESCRIBES CONTRABAND PROBLEM AS “LEGACY INFRASTRUCTURE”' },
+    { id: 'mogreen-contraband', tags: ['item'], weight: 7, text: 'MOGREEN CAMPAIGN DESCRIBES PAWNSHOP-ASSISTED SELF-IMPROVEMENT AS “LEGACY INFRASTRUCTURE”' },
 
     { id: 'moles-sleep', tags: ['generic', 'work'], weight: 10, text: 'MO.LES.TECH DENIES REPORTS THAT EMPLOYEES REQUIRE SLEEP' },
     { id: 'moles-smart-bench', tags: ['generic'], weight: 8, text: 'MO.LES.TECH SMART BENCH UPDATE NOW REQUIRES BENCH TO RESTART' },
@@ -74,12 +74,12 @@
     { id: 'moles-combo', tags: ['combo'], weight: 8, text: 'MO.LES.TECH ANALYTICS FLAG ORDERED ACTION SEQUENCE AS “POSSIBLY INTENTIONAL”' },
     { id: 'moles-overkill', tags: ['overkill'], weight: 9, text: 'MO.LES.TECH SAFETY MODEL CLASSIFIES OVERKILL AS “WITHIN DEMO PARAMETERS”' },
 
-    { id: 'phat-ed-rusty', tags: ['weapon', 'loot'], weight: 12, text: 'PHAT ED’S PAWNSHOP REMINDS CUSTOMERS THAT “RUSTY” IS A CONDITION, NOT A WARRANTY CATEGORY' },
-    { id: 'phat-ed-bazooka', tags: ['weapon'], weight: 10, text: 'PHAT ED’S PAWNSHOP DECLINES COMMENT ON BAZOOKA-ADJACENT INVENTORY' },
-    { id: 'phat-ed-receipt', tags: ['weapon'], weight: 10, text: 'PHAT ED’S PAWNSHOP: NO RECEIPT, NO REFUND, NO MEMORY OF THIS CONVERSATION' },
+    { id: 'phat-ed-questionable', tags: ['item', 'loot'], weight: 12, text: 'PHAT ED’S PAWNSHOP REMINDS CUSTOMERS THAT “QUESTIONABLE” IS A CONDITION, NOT A WARRANTY CATEGORY' },
+    { id: 'phat-ed-light-sword', tags: ['item'], weight: 10, text: 'PHAT ED’S PAWNSHOP DECLINES COMMENT ON LIGHT-SWORD-ADJACENT INVENTORY' },
+    { id: 'phat-ed-receipt', tags: ['item'], weight: 10, text: 'PHAT ED’S PAWNSHOP: NO RECEIPT, NO REFUND, NO MEMORY OF THIS CONVERSATION' },
     { id: 'phat-ed-crate', tags: ['loot'], weight: 12, text: 'UNMARKED CRATE APPEARS NEAR PHAT ED’S PAWNSHOP; ED CALLS TIMING “PURELY ATMOSPHERIC”' },
-    { id: 'phat-ed-golden', tags: ['golden'], weight: 10, text: 'PHAT ED DENIES EVER STOCKING A GOLDEN GUN; WINDOW DISPLAY CURTAIN IMMEDIATELY CLOSED' },
-    { id: 'phat-ed-clean', tags: ['weapon'], weight: 7, text: 'LOCAL PAWNSHOP INDUSTRY DISPUTES CLAIM THAT “CLEAN” MEANS “CLEAN”' },
+    { id: 'phat-ed-rite', tags: ['rite'], weight: 10, text: 'PHAT ED DENIES EVER STOCKING A RITE OF ILLUMINATION; BACK ROOM LIGHTS IMMEDIATELY GO OUT' },
+    { id: 'phat-ed-standard', tags: ['item'], weight: 7, text: 'LOCAL PAWNSHOP INDUSTRY DISPUTES CLAIM THAT “STANDARD” MEANS “SAFE”' },
 
     { id: 'library-printer', tags: ['generic'], weight: 8, text: 'CRESTFALLEN LIBRARY PRINTER ACCEPTS DOCUMENT ON FIRST TRY; INVESTIGATION OPENED' },
     { id: 'library-overdue', tags: ['generic'], weight: 7, text: 'CRESTFALLEN LIBRARY WAIVES LATE FEE AFTER BOOK RETURNED BEFORE CIVILIZATION ENDS' },
@@ -101,13 +101,15 @@
     { id: 'city-streak', tags: ['streak'], weight: 8, text: 'LOCAL WIN STREAK NOW LONG ENOUGH TO REQUIRE ITS OWN MUNICIPAL FORM' },
     { id: 'city-victory', tags: ['victory'], weight: 8, text: 'CITY HALL CONFIRMS DARK DOPPELGÄNGER DEFEAT; CEREMONIAL RIBBON ALREADY MISSING' },
     { id: 'city-no-damage', tags: ['idle'], weight: 8, text: 'CRESTFALLEN EMERGENCY SERVICES REPORT NO ACTIVITY; DARK DOPPELGÄNGER SEEN LOOKING COMFORTABLE' },
-    { id: 'city-low-hp', tags: ['wounded'], weight: 8, text: 'LOCAL BOOKMAKERS SUSPEND ODDS AS DARK DOPPELGÄNGER ENTERS VISIBLY UNCOMFORTABLE TERRITORY' }
+    { id: 'city-low-hp', tags: ['wounded'], weight: 8, text: 'LOCAL BOOKMAKERS SUSPEND ODDS AS DARK DOPPELGÄNGER ENTERS VISIBLY UNCOMFORTABLE TERRITORY' },
+    { id: 'tenacious-paperwork', tags: ['tenacious'], weight: 12, text: 'LOCAL DARKNESS REFUSES TO REMAIN DEAD; OUTSTANDING DAILY REQUIREMENTS CITED' },
+    { id: 'tenacious-one-hp', tags: ['tenacious'], weight: 12, text: 'DARK DOPPELGÄNGER RETURNS TO ONE HP; ADMINISTRATIVE IMMORTALITY SUSPECTED' }
   ]);
 
   const CRESTFALLEN_DAILY_REFERENCES = Object.freeze({
-    weapon: [
-      ['PAWNSHOP INDUSTRY DISTANCES ITSELF FROM DAILY SHOOTING', 'Phat Ed’s Pawnshop issued a statement consisting primarily of “no receipt, no comment.”'],
-      ['CONTRABAND SOLVES PROBLEM; CREATES SEVERAL NEW ONES', 'Crestfallen officials confirmed the weapon worked and immediately regretted confirming anything.']
+    item: [
+      ['PAWNSHOP INDUSTRY DISTANCES ITSELF FROM DAILY INCIDENT', 'Phat Ed’s Pawnshop issued a statement consisting primarily of “no receipt, no comment.”'],
+      ['QUESTIONABLE ITEM SOLVES PROBLEM; CREATES SEVERAL NEW ONES', 'Crestfallen officials confirmed the thing worked and immediately regretted confirming anything.']
     ],
     work: [
       ['LOCAL PRODUCTIVITY INCIDENT DRAWS CORPORATE ATTENTION', 'mo.les.tech called the results promising. The Mogreen campaign called them inevitable.'],
@@ -237,6 +239,8 @@
     lootCrateButton: document.querySelector('#lootCrateButton'),
     lootDropMessage: document.querySelector('#lootDropMessage'),
     statusBadge: document.querySelector('#statusBadge'),
+    tenaciousBadge: document.querySelector('#tenaciousBadge'),
+    tenaciousStatus: document.querySelector('#tenaciousStatus'),
     heroMessage: document.querySelector('#heroMessage'),
     fightCard: document.querySelector('#fightCard'),
     healthPercent: document.querySelector('#healthPercent'),
@@ -292,6 +296,7 @@
     newActionCategory: document.querySelector('#newActionCategory'),
     newActionDamage: document.querySelector('#newActionDamage'),
     newActionType: document.querySelector('#newActionType'),
+    newActionRequired: document.querySelector('#newActionRequired'),
     newActionVisible: document.querySelector('#newActionVisible'),
     addActionButton: document.querySelector('#addActionButton'),
     combosEditor: document.querySelector('#combosEditor'),
@@ -1736,13 +1741,14 @@
     const tags = new Set(['generic']);
 
     if (summary.isVictory) tags.add('victory');
-    if (summary.weaponsUsed > 0) tags.add('weapon');
+    if (summary.itemsUsed > 0) tags.add('item');
     if (summary.combosLanded > 0) tags.add('combo');
     if (summary.overkill > 0) tags.add('overkill');
     if (summary.totalDamage === 0) tags.add('idle');
     if (!summary.isVictory && summary.currentHp <= summary.maxHp * 0.35) tags.add('wounded');
+    if (summary.isTenacious) tags.add('tenacious');
     if (state.current.loot?.available || state.current.loot?.claimed) tags.add('loot');
-    if (state.current.loot?.pendingWeapon?.weaponId === 'golden-gun') tags.add('golden');
+    if (state.current.loot?.pendingItem?.itemId === 'rite-of-illumination') tags.add('rite');
     if (getCurrentStreak() >= 3) tags.add('streak');
     if (dominant?.id === 'work') tags.add('work');
     if (hour >= 21) tags.add('late');
@@ -1761,7 +1767,7 @@
     return deterministicWeightedSample(
       candidates,
       3,
-      `${state.current.date}|${summary.totalDamage}|${summary.weaponsUsed}|${summary.combosLanded}|${hour >= 21 ? 'late' : 'day'}`
+      `${state.current.date}|${summary.totalDamage}|${summary.itemsUsed}|${summary.combosLanded}|${hour >= 21 ? 'late' : 'day'}`
     ).map(item => item.text);
   }
 
@@ -1775,7 +1781,7 @@
 
     return deterministicPick(
       pool,
-      `${state.current.date}|crestfallen-daily-pick|${summary.totalDamage}|${summary.weaponsUsed}`
+      `${state.current.date}|crestfallen-daily-pick|${summary.totalDamage}|${summary.itemsUsed}`
     );
   }
 
@@ -1793,8 +1799,8 @@
     const dominant = active[0] || { id: UNCATEGORIZED_ID, name: 'Uncategorized', base: 0 };
     const share = dominant.base / total;
 
-    if (summary.weaponsUsed > 0) {
-      return { key: 'weapon', type: 'ARMED & UNMOTIVATED', dominant };
+    if (summary.itemsUsed > 0) {
+      return { key: 'item', type: 'PAWNSHOP ASSISTED', dominant };
     }
     if (summary.overkill >= Math.max(10, summary.maxHp * 0.5)) {
       return { key: 'overkill', type: 'EXCESSIVE FORCE', dominant };
@@ -1820,10 +1826,10 @@
   function headlineContent(personality, summary) {
     const category = personality.dominant.name;
     const pools = {
-      weapon: [
-        ['UNREGISTERED HARDWARE RESOLVES INTERNAL DISPUTE', `${summary.weaponsUsed} weapon discharge${summary.weaponsUsed === 1 ? '' : 's'} recorded. Officials confirm this still counts as personal development.`],
-        ['CITIZEN SKIPS PERSONAL GROWTH, REACHES FOR ARSENAL', 'The Dark Doppelgänger was unavailable for comment after a brief equipment malfunction.'],
-        ['QUESTIONABLE PROCUREMENT ENDS DAILY HOSTILITIES', 'Authorities stress that the weapon was earned through previous good behavior, which somehow makes this worse.']
+      item: [
+        ['PAWNSHOP MERCHANDISE RESOLVES INTERNAL DISPUTE', `${summary.itemsUsed} questionable item${summary.itemsUsed === 1 ? '' : 's'} used. Officials confirm this still counts as personal development.`],
+        ['CITIZEN SKIPS PERSONAL GROWTH, REACHES FOR PHAT ED’S STOCK', 'The Dark Doppelgänger was unavailable for comment after a brief illumination-related incident.'],
+        ['QUESTIONABLE PROCUREMENT ENDS DAILY HOSTILITIES', 'Authorities stress that the item was earned through previous good behavior, which somehow makes this worse.']
       ],
       overkill: [
         ['DARK SELF DEFEATED; USER CONTINUES HITTING IT FOR ADMINISTRATIVE REASONS', `${summary.overkill} points of overkill were recorded. Authorities insist this was probably unnecessary.`],
@@ -2049,8 +2055,8 @@
       if (summary.combosLanded > 0) {
         messages.push(`${summary.combosLanded} COMBO ATTACK${summary.combosLanded === 1 ? '' : 'S'} LANDED; INTERNAL DARKNESS ALLEGES COLLUSION`);
       }
-      if (summary.weaponsUsed > 0) {
-        messages.push(`${summary.weaponsUsed} CONTRABAND WEAPON${summary.weaponsUsed === 1 ? '' : 'S'} USED; PERSONAL GROWTH AUTHORITIES LOOK THE OTHER WAY`);
+      if (summary.itemsUsed > 0) {
+        messages.push(`${summary.itemsUsed} PAWNSHOP ITEM${summary.itemsUsed === 1 ? '' : 'S'} USED; PERSONAL GROWTH AUTHORITIES LOOK THE OTHER WAY`);
       }
       if (streak >= 3) {
         messages.push(`${streak}-DAY VICTORY STREAK CONTINUES; SITUATION NOW TOO EXPENSIVE TO ABANDON`);
@@ -2060,9 +2066,15 @@
       }
       if (state.current.loot?.available) {
         messages.push('UNMARKED CRATE DISCOVERED AFTER HOSTILITIES; CONTENTS RATTLE WHEN SHAKEN');
-      } else if (state.current.loot?.claimed && state.current.loot.pendingWeapon) {
-        messages.push(`CONTRABAND OFFICE CONFIRMS ACQUISITION OF ${weaponDisplayName(state.current.loot.pendingWeapon).toUpperCase()}`);
+      } else if (state.current.loot?.claimed && state.current.loot.pendingItem) {
+        messages.push(`PHAT ED’S PAWNSHOP CONFIRMS ACQUISITION OF ${itemDisplayName(state.current.loot.pendingItem).toUpperCase()}`);
       }
+    } else if (summary.tenaciousHolding) {
+      messages.push(
+        `DARK DOPPELGÄNGER BACK AT 1 HP; ${summary.requiredRemainingCount} REQUIRED MOVE${summary.requiredRemainingCount === 1 ? '' : 'S'} STILL OUTSTANDING`,
+        'LOCAL DARKNESS REFUSES TO REMAIN DEAD; PAPERWORK CITED',
+        'TENACIOUS STATUS CONFIRMED; PHAT ED REPORTEDLY HAS ALTERNATIVES'
+      );
     } else if (summary.totalDamage === 0) {
       messages.push(
         'DARK DOPPELGÄNGER ENTERS DAY AT FULL HEALTH; CONFIDENCE DESCRIBED AS PREMATURE',
@@ -2629,7 +2641,7 @@
 
     renderHero(summary);
     renderProgression();
-    renderArsenal(summary, options.lootClaimed?.id || '');
+    renderPawnshop(summary, options.lootClaimed?.id || '');
     renderCategories(summary);
     renderCombos();
     renderLog();
@@ -2637,9 +2649,13 @@
 
     let specialMessage = '';
     if (options.lootClaimed) {
-      specialMessage = `CONTRABAND ACQUIRED: ${weaponDisplayName(options.lootClaimed).toUpperCase()} · ${options.lootClaimed.damage} DMG`;
-    } else if (options.weaponEvent) {
-      specialMessage = `${options.hitName.toUpperCase()} DISCHARGED; ${options.weaponEvent.damage} DAMAGE RECORDED`;
+      specialMessage = `PHAT ED ITEM ACQUIRED: ${itemDisplayName(options.lootClaimed).toUpperCase()} · ${options.lootClaimed.damage} DMG`;
+    } else if (options.itemBypassedTenacity) {
+      specialMessage = `TENACITY BROKEN; ${options.hitName.toUpperCase()} ENDS DAILY HOSTILITIES`;
+    } else if (options.itemEvent) {
+      specialMessage = `${options.hitName.toUpperCase()} USED; ${options.itemEvent.damage} DAMAGE RECORDED`;
+    } else if (options.tenaciousResisted) {
+      specialMessage = 'DARK DOPPELGÄNGER RETURNS TO 1 HP; TENACIOUS PROTOCOL REMAINS ACTIVE';
     } else if (options.comboEvent) {
       specialMessage = `${options.comboEvent.comboName.toUpperCase()} COMBO LANDS; LOCAL DARKNESS TAKES ADDITIONAL ${options.comboEvent.damage} DAMAGE`;
     } else if (options.justDefeated) {
@@ -2655,7 +2671,7 @@
     }
 
     if (options.hitDamage) {
-      showFightFeedback(options.hitDamage, options.comboEvent);
+      showFightFeedback(options.hitDamage, options.comboEvent, options.tenaciousResisted);
     }
 
     wasVictory = summary.isVictory;
@@ -2674,15 +2690,18 @@
     }
   }
 
-  function showFightFeedback(hitDamage, comboEvent = null) {
+  function showFightFeedback(hitDamage, comboEvent = null, tenaciousResisted = false) {
     if (!els.fightFeedback) return;
-    els.fightFeedback.textContent = comboEvent
-      ? `-${hitDamage} HP · COMBO +${comboEvent.damage} DMG`
-      : `-${hitDamage} HP`;
-    els.fightFeedback.classList.remove('fight-feedback-pop', 'is-combo');
+    els.fightFeedback.textContent = tenaciousResisted
+      ? `-${hitDamage} HP · TENACIOUS → 1 HP`
+      : comboEvent
+        ? `-${hitDamage} HP · COMBO +${comboEvent.damage} DMG`
+        : `-${hitDamage} HP`;
+    els.fightFeedback.classList.remove('fight-feedback-pop', 'is-combo', 'is-tenacious');
     els.fightCard?.classList.remove('fight-hit');
     void els.fightFeedback.offsetWidth;
     if (comboEvent) els.fightFeedback.classList.add('is-combo');
+    if (tenaciousResisted) els.fightFeedback.classList.add('is-tenacious');
     els.fightFeedback.classList.add('fight-feedback-pop');
     els.fightCard?.classList.add('fight-hit');
   }
@@ -2715,6 +2734,18 @@
           ? 'wounded'
           : 'active';
     els.fightCard.dataset.health = healthState;
+    els.fightCard.classList.toggle('is-tenacious', summary.isTenacious);
+
+    if (els.tenaciousBadge) {
+      els.tenaciousBadge.hidden = !summary.isTenacious;
+      els.tenaciousBadge.textContent = 'TENACIOUS';
+    }
+    if (els.tenaciousStatus) {
+      els.tenaciousStatus.hidden = !summary.isTenacious;
+      els.tenaciousStatus.textContent = summary.isTenacious
+        ? `TENACIOUS · ${summary.requiredRemainingCount} REQUIRED MOVE${summary.requiredRemainingCount === 1 ? '' : 'S'} REMAIN`
+        : '';
+    }
 
     if (!els.fightCard.classList.contains('is-hud-live')) {
       requestAnimationFrame(() => els.fightCard.classList.add('is-hud-live'));
@@ -2733,9 +2764,18 @@
         : healthRatio <= 0.60
           ? 'HOSTILE WOUNDED'
           : 'HOSTILE ACTIVE';
-      els.heroMessage.textContent = summary.totalDamage === 0
-        ? 'Target standing. Make your moves and end the fight.'
-        : `${summary.currentHp} HP left. Do enough to put Dark Doppelgänger down; the rest of the day is yours.`;
+
+      if (summary.tenaciousHolding) {
+        els.heroMessage.textContent = `Lethal damage reached, but ${summary.requiredRemainingCount} required move${summary.requiredRemainingCount === 1 ? '' : 's'} remain. Complete them or use a lethal Pawnshop item.`;
+      } else if (summary.isTenacious) {
+        els.heroMessage.textContent = summary.totalDamage === 0
+          ? `${summary.requiredRemainingCount} required move${summary.requiredRemainingCount === 1 ? '' : 's'} must be completed before normal damage can finish the fight.`
+          : `${summary.currentHp} HP left · ${summary.requiredRemainingCount} required move${summary.requiredRemainingCount === 1 ? '' : 's'} still outstanding.`;
+      } else {
+        els.heroMessage.textContent = summary.totalDamage === 0
+          ? 'Target standing. Make your moves and end the fight.'
+          : `${summary.currentHp} HP left. Do enough to put Dark Doppelgänger down; the rest of the day is yours.`;
+      }
       els.victoryBanner.hidden = true;
     }
   }
@@ -2773,45 +2813,52 @@
     return deterministicPick([
       'Suspicious package detected. Contents probably legal somewhere.',
       'Unmarked crate recovered. Phat Ed’s Pawnshop denies recognizing the handwriting.',
-      'Contraband Office delivery received. Receipt field contains only a shrug.',
+      'Pawnshop delivery received. Receipt field contains only a shrug.',
       'Mystery crate located after hostilities. Phat Ed requests everyone stop looking at him.',
-      'Questionable hardware package detected. Warranty status: spiritually complicated.'
+      'Questionable anti-darkness item detected. Warranty status: spiritually complicated.'
     ], `${state.current.date}|crate-flavor`);
   }
 
-  function renderArsenal(summary, newlyClaimedId = '') {
+  function renderPawnshop(summary, newlyClaimedId = '') {
     if (!els.arsenalPanel || !els.arsenalList) return;
 
-    const inventory = state.armory.weapons;
-    els.arsenalCount.textContent = `${inventory.length} weapon${inventory.length === 1 ? '' : 's'}`;
+    const inventory = state.inventory.items;
+    const capacityText = inventory.length > ITEM_CAPACITY
+      ? `${inventory.length} / ${ITEM_CAPACITY} ITEMS · OVER CAPACITY`
+      : `${inventory.length} / ${ITEM_CAPACITY} ITEMS`;
+    els.arsenalCount.textContent = capacityText;
 
     const loot = state.current.loot || emptyLootState();
     els.lootDrop.hidden = !loot.available;
 
-    if (loot.available && loot.pendingWeapon) {
+    if (loot.available && loot.pendingItem) {
       els.lootDropMessage.textContent = victoryCrateFlavor();
       els.lootCrateButton.disabled = false;
-      els.lootCrateButton.setAttribute('aria-label', 'Open mystery contraband crate');
-    } else if (summary.isVictory && loot.claimed && loot.pendingWeapon) {
-      els.lootDropMessage.textContent = `Acquired: ${weaponDisplayName(loot.pendingWeapon)} · ${loot.pendingWeapon.damage} DMG`;
+      els.lootCrateButton.setAttribute('aria-label', 'Open mystery Pawnshop crate');
+    } else if (summary.isVictory && loot.claimed && loot.pendingItem) {
+      els.lootDropMessage.textContent = `Acquired: ${itemDisplayName(loot.pendingItem)} · ${loot.pendingItem.damage} DMG`;
+    } else if (summary.isVictory && loot.rolled && !loot.pendingItem && inventory.length >= ITEM_CAPACITY) {
+      els.lootDropMessage.textContent = 'Pawnshop storage full. No mystery crate issued today.';
     } else if (summary.isVictory && loot.rolled) {
-      els.lootDropMessage.textContent = 'No contraband drop today. The streets remain stingy.';
+      els.lootDropMessage.textContent = 'No Pawnshop item today. Phat Ed appears unmoved.';
     } else {
-      els.lootDropMessage.textContent = 'Each victory has a 40% chance to attract questionable hardware.';
+      els.lootDropMessage.textContent = 'Each victory has a 40% chance to attract one questionable item while you have room.';
     }
 
     els.arsenalStatus.textContent = summary.isVictory
-      ? 'Target down · save your ammunition for a worse day.'
-      : inventory.length
-        ? 'Weapons ignore category resistance and are consumed when fired.'
-        : 'Empty. Win fights for a chance to find contraband.';
+      ? 'Target down · save the good stuff for a worse day.'
+      : inventory.length >= ITEM_CAPACITY
+        ? 'Storage full · use something before Phat Ed “finds” another item.'
+        : inventory.length
+          ? 'Items are consumed when used. A lethal item can punch through Tenacious.'
+          : 'Empty. Win fights for a chance to acquire questionable merchandise.';
 
     els.arsenalList.replaceChildren();
 
     if (!inventory.length) {
       const empty = document.createElement('div');
       empty.className = 'arsenal-empty';
-      empty.textContent = 'NO CONTRABAND ON FILE';
+      empty.textContent = 'NO QUESTIONABLE MERCHANDISE ON FILE';
       els.arsenalList.append(empty);
       return;
     }
@@ -2819,37 +2866,58 @@
     [...inventory]
       .sort((a, b) => b.damage - a.damage || b.acquiredAt - a.acquiredAt)
       .forEach(item => {
-        const weapon = weaponDefinition(item.weaponId);
-        if (!weapon) return;
+        const definition = itemDefinition(item.itemId);
+        if (!definition) return;
 
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = `weapon-card condition-${item.conditionId || 'golden'}${weapon.special ? ' is-golden' : ''}${item.id === newlyClaimedId ? ' is-new' : ''}`;
-        button.disabled = summary.isVictory;
-        button.dataset.weaponId = item.id;
-        button.title = weapon.flavor;
+        const card = document.createElement('article');
+        card.className = `weapon-card item-card condition-${item.conditionId || 'rite'}${definition.special ? ' is-rite' : ''}${item.id === newlyClaimedId ? ' is-new' : ''}${summary.isVictory ? ' is-locked' : ''}`;
+        card.tabIndex = 0;
+        card.dataset.itemInstanceId = item.id;
+        card.setAttribute('aria-label', `${itemDisplayName(item)}, ${item.damage} damage. Inspect item details.`);
 
         const condition = document.createElement('span');
         condition.className = 'weapon-condition';
-        condition.textContent = weapon.special
+        condition.textContent = definition.special
           ? 'LEGENDARY'
-          : (weaponCondition(item.conditionId)?.name || 'Unknown').toUpperCase();
+          : (itemCondition(item.conditionId)?.name || 'Unknown').toUpperCase();
 
         const name = document.createElement('strong');
         name.className = 'weapon-name';
-        name.textContent = weapon.name;
+        name.textContent = definition.name;
 
         const damage = document.createElement('span');
         damage.className = 'weapon-damage';
         damage.textContent = `${item.damage} DMG`;
 
-        const fire = document.createElement('span');
-        fire.className = 'weapon-fire';
-        fire.textContent = summary.isVictory ? 'SAVE AMMO' : 'FIRE';
+        const description = document.createElement('p');
+        description.className = 'item-description';
+        description.textContent = definition.flavor;
 
-        button.append(condition, name, damage, fire);
-        button.addEventListener('click', () => useWeapon(item.id));
-        els.arsenalList.append(button);
+        const use = document.createElement('button');
+        use.type = 'button';
+        use.className = 'weapon-fire item-use';
+        use.disabled = summary.isVictory;
+        use.textContent = summary.isVictory ? 'SAVE ITEM' : 'USE ITEM';
+        use.addEventListener('click', event => {
+          event.stopPropagation();
+          usePawnshopItem(item.id);
+        });
+
+        const toggleInspect = () => {
+          card.classList.toggle('is-inspected');
+        };
+        card.addEventListener('click', event => {
+          if (event.target.closest('button')) return;
+          toggleInspect();
+        });
+        card.addEventListener('keydown', event => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          toggleInspect();
+        });
+
+        card.append(condition, name, damage, description, use);
+        els.arsenalList.append(card);
       });
   }
 
@@ -2931,13 +2999,20 @@
           button.className = 'action-button';
           button.dataset.actionId = action.id;
 
-          const used = action.type === 'once' && hasCompletedOnceAction(action.id);
+          const completedToday = hasCompletedOnceAction(action.id);
+          const used = action.type === 'once' && completedToday;
+          const requiredToday = (state.current.requiredActionIds || []).includes(action.id);
           button.disabled = used;
+          button.classList.toggle('is-required', requiredToday);
+          button.classList.toggle('is-required-complete', requiredToday && completedToday);
 
           const nameWrap = document.createElement('span');
           nameWrap.className = 'action-name';
           const strong = document.createElement('strong');
           strong.textContent = action.name;
+          const requiredBadge = document.createElement('span');
+          requiredBadge.className = 'required-action-badge';
+          requiredBadge.textContent = completedToday ? 'REQUIRED ✓' : 'REQUIRED';
           const small = document.createElement('small');
 
           if (used) {
@@ -2950,7 +3025,9 @@
               : `${typeText} · full damage`;
           }
 
-          nameWrap.append(strong, small);
+          nameWrap.append(strong);
+          if (requiredToday) nameWrap.append(requiredBadge);
+          nameWrap.append(small);
 
           const damage = document.createElement('span');
           damage.className = 'action-xp';
@@ -3053,15 +3130,15 @@
 
     transactions.forEach(tx => {
       const row = document.createElement('div');
-      row.className = `log-row${tx.type === 'combo' ? ' combo-log-row' : tx.type === 'weapon' ? ' weapon-log-row' : ''}`;
+      row.className = `log-row${tx.type === 'combo' ? ' combo-log-row' : tx.type === 'item' ? ' weapon-log-row item-log-row' : ''}`;
 
       const main = document.createElement('div');
       main.className = 'log-main';
       const strong = document.createElement('strong');
       strong.textContent = tx.type === 'combo'
         ? `COMBO · ${tx.comboName}`
-        : tx.type === 'weapon'
-          ? `WEAPON · ${tx.conditionName ? `${tx.conditionName} ` : ''}${tx.weaponName}`
+        : tx.type === 'item'
+          ? `ITEM · ${tx.conditionName ? `${tx.conditionName} ` : ''}${tx.itemName}`
           : tx.actionName;
       const meta = document.createElement('span');
       const time = new Intl.DateTimeFormat(undefined, {
@@ -3070,8 +3147,8 @@
       }).format(new Date(tx.timestamp));
       meta.textContent = tx.type === 'combo'
         ? `×${tx.multiplier.toFixed(2)} · ${tx.sourceTransactionIds.length} matched actions · ${time}`
-        : tx.type === 'weapon'
-          ? `Contraband · consumed · ${time}`
+        : tx.type === 'item'
+          ? `Phat Ed’s Pawnshop · consumed · ${time}`
           : `${tx.categoryName} · ${Math.round(tx.efficiency * 100)}% · ${time}`;
       main.append(strong, meta);
 
@@ -3181,7 +3258,7 @@
     settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
     settingsDraft.combos = Array.isArray(settingsDraft.combos) ? settingsDraft.combos : [];
     els.goalInput.value = settingsDraft.fullEnemyHp;
-    els.settingsMessage.textContent = 'Changes save automatically. Enemy HP changes apply to the next fight.';
+    els.settingsMessage.textContent = 'Changes save automatically. Enemy HP and Required-for-victory changes apply to the next daily fight.';
     settingsTriggeredClear = false;
     if (els.newCategoryColor) {
       const customCount = settingsDraft.categories.filter(
@@ -3586,6 +3663,20 @@
       });
       typeLabel.append(typeSelect);
 
+      const requiredLabel = document.createElement('label');
+      requiredLabel.className = 'action-required-field';
+      const requiredTitle = document.createElement('span');
+      requiredTitle.textContent = 'Victory rule';
+      const requiredToggle = document.createElement('span');
+      requiredToggle.className = 'action-visibility-toggle action-required-toggle';
+      const requiredInput = document.createElement('input');
+      requiredInput.type = 'checkbox';
+      requiredInput.checked = Boolean(action.requiredForVictory);
+      const requiredText = document.createElement('span');
+      requiredText.textContent = 'Required';
+      requiredToggle.append(requiredInput, requiredText);
+      requiredLabel.append(requiredTitle, requiredToggle);
+
       const visibilityLabel = document.createElement('label');
       visibilityLabel.className = 'action-visibility-field';
       const visibilityTitle = document.createElement('span');
@@ -3600,9 +3691,21 @@
       visibilityToggle.append(visibilityInput, visibilityText);
       visibilityLabel.append(visibilityTitle, visibilityToggle);
 
+      const requiredToday = (state.current.requiredActionIds || []).includes(action.id);
       const syncVisibilityStyle = () => {
+        const mustStayVisible = requiredInput.checked || requiredToday;
+        if (mustStayVisible) {
+          visibilityInput.checked = true;
+          action.trackVisible = true;
+        }
+        visibilityInput.disabled = mustStayVisible;
         row.classList.toggle('is-track-hidden', !visibilityInput.checked);
+        row.classList.toggle('is-required-action', requiredInput.checked || requiredToday);
       };
+      requiredInput.addEventListener('change', () => {
+        action.requiredForVictory = requiredInput.checked;
+        syncVisibilityStyle();
+      });
       visibilityInput.addEventListener('change', () => {
         action.trackVisible = visibilityInput.checked;
         syncVisibilityStyle();
@@ -3630,7 +3733,7 @@
         commitSettingsDraft();
       });
 
-      grid.append(nameLabel, categoryLabel, damageLabel, typeLabel, visibilityLabel, remove);
+      grid.append(nameLabel, categoryLabel, damageLabel, typeLabel, requiredLabel, visibilityLabel, remove);
       row.append(dragHandle, grid);
       els.actionsEditor.append(row);
     });
@@ -3709,7 +3812,10 @@
     const categoryId = els.newActionCategory.value;
     const baseDamage = clampInt(els.newActionDamage.value, 1, 200, 10);
     const type = els.newActionType.value === 'once' ? 'once' : 'repeatable';
-    const trackVisible = els.newActionVisible ? els.newActionVisible.checked : true;
+    const requiredForVictory = Boolean(els.newActionRequired?.checked);
+    const trackVisible = requiredForVictory
+      ? true
+      : (els.newActionVisible ? els.newActionVisible.checked : true);
 
     if (!name) {
       els.settingsMessage.textContent = 'Give the action a name first.';
@@ -3728,12 +3834,14 @@
       name,
       baseDamage,
       type,
+      requiredForVictory,
       trackVisible
     });
 
     els.newActionName.value = '';
     els.newActionDamage.value = '10';
     els.newActionType.value = 'repeatable';
+    if (els.newActionRequired) els.newActionRequired.checked = false;
     if (els.newActionVisible) els.newActionVisible.checked = true;
     renderActionsEditor();
     renderCombosEditor();
@@ -4045,14 +4153,21 @@
     }
 
     const categoryIds = new Set(categories.map(category => category.id));
-    const actions = settingsDraft.actions.map(action => ({
-      ...action,
-      name: String(action.name || '').trim(),
-      categoryId: categoryIds.has(action.categoryId) ? action.categoryId : UNCATEGORIZED_ID,
-      baseDamage: clampInt(action.baseDamage, 1, 200, 10),
-      type: action.type === 'once' ? 'once' : 'repeatable',
-      trackVisible: action.trackVisible !== false
-    }));
+    const requiredTodayIds = new Set(state.current.requiredActionIds || []);
+    const actions = settingsDraft.actions.map(action => {
+      const requiredForVictory = Boolean(action.requiredForVictory);
+      return {
+        ...action,
+        name: String(action.name || '').trim(),
+        categoryId: categoryIds.has(action.categoryId) ? action.categoryId : UNCATEGORIZED_ID,
+        baseDamage: clampInt(action.baseDamage, 1, 200, 10),
+        type: action.type === 'once' ? 'once' : 'repeatable',
+        requiredForVictory,
+        trackVisible: requiredForVictory || requiredTodayIds.has(action.id)
+          ? true
+          : action.trackVisible !== false
+      };
+    });
 
     if (actions.some(action => !action.name)) {
       return { ok: false, message: 'Every action needs a name.' };
@@ -4117,6 +4232,10 @@
     const previousCombos = new Map(state.settings.combos.map(combo => [combo.id, combo]));
     state.settings = result.settings;
 
+    const nextActionIds = new Set(state.settings.actions.map(action => action.id));
+    state.current.requiredActionIds = (state.current.requiredActionIds || [])
+      .filter(actionId => nextActionIds.has(actionId));
+
     const nextComboIds = new Set(state.settings.combos.map(combo => combo.id));
     Object.keys(state.current.comboProgress).forEach(comboId => {
       const nextCombo = state.settings.combos.find(combo => combo.id === comboId);
@@ -4133,6 +4252,7 @@
       }
     });
 
+    finalizeVictoryIfNeeded();
     saveState();
     render();
 
@@ -4208,7 +4328,7 @@
     window.setTimeout(() => URL.revokeObjectURL(href), 1000);
 
     if (els.templateStatus) {
-      els.templateStatus.textContent = 'Template exported. Progress, history and arsenal were intentionally excluded.';
+      els.templateStatus.textContent = 'Template exported. Progress, history and Phat Ed’s Pawnshop inventory were intentionally excluded.';
     }
   }
 
@@ -4221,13 +4341,17 @@
       const importedName = typeof payload.name === 'string' ? payload.name.slice(0, 60) : '';
 
       const confirmed = window.confirm(
-        'Switch to this MoLife settings template?\n\nThis replaces difficulty, categories, Focus/colors, actions, ordering and combos. Your fight history, Level, Street Cred, streak, today’s recorded damage and arsenal stay untouched.'
+        'Switch to this MoLife settings template?\n\nThis replaces difficulty, categories, Focus/colors, actions, ordering, Required-for-victory flags and combos. Your fight history, Level, Street Cred, streak, today’s recorded damage and Pawnshop items stay untouched.'
       );
       if (!confirmed) return;
 
       settingsDraft = deepClone(importedSettings);
       state.settings = deepClone(importedSettings);
       state.current.comboProgress = {};
+      const importedActionIds = new Set(state.settings.actions.map(action => action.id));
+      state.current.requiredActionIds = (state.current.requiredActionIds || [])
+        .filter(actionId => importedActionIds.has(actionId));
+      finalizeVictoryIfNeeded();
       saveState();
 
       els.goalInput.value = settingsDraft.fullEnemyHp;
@@ -4277,7 +4401,7 @@
 
   function resetGameData() {
     const confirmed = window.confirm(
-      'Reset ALL MoLife game data?\n\nThis wipes categories, actions, combos, weapons, history, Level, Street Cred and streaks. Your login/account remains.\n\nThe Crestfallen Department of Records will pretend none of this ever happened.'
+      'Reset ALL MoLife game data?\n\nThis wipes categories, actions, combos, Pawnshop items, history, Level, Street Cred and streaks. Your login/account remains.\n\nThe Crestfallen Department of Records will pretend none of this ever happened.'
     );
     if (!confirmed) return;
 
@@ -4287,6 +4411,7 @@
       maxHp: getEnemyHp(),
       transactions: [],
       comboProgress: {},
+      requiredActionIds: requiredActionIdsForNextFight(),
       defeatedAt: null,
       victoryXpAwarded: 0,
       loot: emptyLootState(),
