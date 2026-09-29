@@ -551,10 +551,10 @@
     const hasTransactions = Array.isArray(candidate.current?.transactions)
       && candidate.current.transactions.length > 0;
     const hasHistory = Array.isArray(candidate.history) && candidate.history.length > 0;
-    const hasWeapons = Array.isArray(candidate.armory?.weapons) && candidate.armory.weapons.length > 0;
+    const hasItems = Array.isArray(candidate.inventory?.items) && candidate.inventory.items.length > 0;
     const customizedSettings = JSON.stringify(candidate.settings) !== JSON.stringify(fresh.settings);
 
-    return hasTransactions || hasHistory || hasWeapons || customizedSettings;
+    return hasTransactions || hasHistory || hasItems || customizedSettings;
   }
 
   async function activateSession(session, options = {}) {
@@ -585,7 +585,7 @@
       if (remoteVersion !== window.DalliApp.stateVersion) {
         try {
           await saveNow(window.DalliApp.getState());
-          setSyncStatus('MoLife v4 state migrated · synced', 'ok');
+          setSyncStatus(`MoLife v${window.DalliApp.stateVersion} state migrated · synced`, 'ok');
         } catch (error) {
           handleSaveError(error, window.DalliApp.getState());
         }
