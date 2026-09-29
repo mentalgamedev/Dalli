@@ -551,9 +551,10 @@
     const hasTransactions = Array.isArray(candidate.current?.transactions)
       && candidate.current.transactions.length > 0;
     const hasHistory = Array.isArray(candidate.history) && candidate.history.length > 0;
+    const hasWeapons = Array.isArray(candidate.armory?.weapons) && candidate.armory.weapons.length > 0;
     const customizedSettings = JSON.stringify(candidate.settings) !== JSON.stringify(fresh.settings);
 
-    return hasTransactions || hasHistory || customizedSettings;
+    return hasTransactions || hasHistory || hasWeapons || customizedSettings;
   }
 
   async function activateSession(session, options = {}) {
