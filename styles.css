@@ -1838,7 +1838,6 @@ body {
 }
 
 /* Signed-in mobile header: sync, profile, settings on one compact right-aligned row. */
-/* Signed-in mobile header: sync, profile, settings on one compact right-aligned row. */
 @media (max-width: 620px) {
   .topbar {
     display: grid;
@@ -1931,7 +1930,7 @@ body {
   width: min(980px, calc(100% - 24px));
 }
 
-.goal-ramp-preview {
+.goal-preview {
   margin-top: 5px !important;
   color: #b9b2ff !important;
 }
