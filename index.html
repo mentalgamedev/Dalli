@@ -11,7 +11,6 @@
   <link rel="stylesheet" href="styles.css?v=4.3.0">
 </head>
 <body>
-  <div class="motion-shimmer" aria-hidden="true"></div>
   <div class="city-noise" aria-hidden="true"></div>
 
   <div class="app-shell">
@@ -28,7 +27,7 @@
       <div class="brand-block">
         <h1 class="brand-title" aria-label="MoLife"><span class="brand-mo">Mo</span><span class="brand-life">Life</span><span class="brand-tm">™</span></h1>
         <div class="brand-subline">Gains for citizens with nothing to lose</div>
-        <div class="app-version" aria-label="MoLife version 4.4.0">v4.4.0 · Tenacious & Pawnshop build</div>
+        <div class="app-version" aria-label="MoLife version 4.5.0">v4.5.0 · Focus & Discipline</div>
         <div id="todayLabel" class="muted"></div>
       </div>
       <button id="settingsButton" class="icon-button" type="button" aria-label="Open settings" title="Settings">⚙</button>
@@ -236,9 +235,9 @@
         <h3>Daily challenge</h3>
         <label class="field-row">
           <span>
-            <strong>Full enemy HP</strong>
-            <small>Dark Doppelgänger starts weaker and gradually reaches this strength as you win fights. Changing this affects future fights, never today's enemy.</small>
-            <small id="goalRampPreview" class="goal-ramp-preview"></small>
+            <strong>Enemy HP</strong>
+            <small>Every new Dark Doppelgänger starts at exactly this strength. Changing it affects future fights, never today's enemy.</small>
+            <small id="goalPreview" class="goal-ramp-preview"></small>
           </span>
           <input id="goalInput" type="number" min="20" max="1000" step="5" inputmode="numeric">
         </label>
@@ -247,24 +246,11 @@
       <section class="settings-section">
         <div class="settings-section-head">
           <div>
-            <h3>Motion FX</h3>
-            <p>On supported phones, Motion FX calibrates your starting position. Tilt left or right to fast-forward the Newswire; small tilts and rotations strongly shift the background shimmer.</p>
-          </div>
-        </div>
-        <div class="motion-fx-row">
-          <div>
-            <strong>Reactive device tilt</strong>
-            <small id="motionFxStatus">Optional · orientation data stays on this device.</small>
-          </div>
-          <button id="motionFxButton" class="secondary-button" type="button">Enable Motion FX</button>
-        </div>
-      </section>
-
-      <section class="settings-section">
+            <h3>Categories & Focus</h3>      <section class="settings-section">
         <div class="settings-section-head">
           <div>
             <h3>Categories & Focus</h3>
-            <p>Higher Focus means a category deals full damage for longer before Dark Doppelgänger develops resistance. Color tints the category throughout Track-o-Tron.</p>
+            <p>Higher Focus makes each action in that category deal less damage, so the category demands more real activity. Repeating any category also builds resistance quickly. Color tints the category throughout Track-o-Tron.</p>
           </div>
         </div>
         <div id="categoriesEditor" class="categories-editor"></div>
@@ -298,7 +284,7 @@
         <div class="settings-section-head action-settings-head">
           <div>
             <h3>Actions</h3>
-            <p>Drag the handle to reorder actions. The same order is used inside each Track-o-Tron category. Mark an action Required when it must be completed once before normal damage can finish the next daily fight.</p>
+            <p>Drag the handle to set the normal action order. Required actions are automatically promoted to the top of their Track-o-Tron category. Repeatable Required actions can demand multiple completions before normal damage may finish the next daily fight.</p>
           </div>
           <label class="action-sort-control">
             <span>Sort</span>
@@ -340,6 +326,10 @@
                 <input id="newActionRequired" type="checkbox">
                 <span>Required</span>
               </span>
+            </label>
+            <label class="new-action-required-count">
+              <span>Required repetitions</span>
+              <input id="newActionRequiredCount" type="number" min="1" max="1000" step="1" value="1" inputmode="numeric" disabled>
             </label>
             <label class="new-action-visibility">
               <span>Track-o-Tron</span>
@@ -397,7 +387,7 @@
           <button id="importTemplateButton" class="secondary-button" type="button">Import template</button>
           <input id="importTemplateInput" type="file" accept=".json,application/json" hidden>
         </div>
-        <p class="category-fallback-note">Templates include enemy HP, categories, colors, Focus, actions, ordering, visibility, Required-for-victory flags, values and combo links. They do not include Level, Street Cred, streak/history, today's logged damage or Pawnshop items.</p>
+        <p class="category-fallback-note">Templates include enemy HP, categories, colors, Focus, actions, ordering, visibility, Required-for-victory flags and repetition counts, values and combo links. They do not include Level, Street Cred, streak/history, today's logged damage or Pawnshop items.</p>
         <div id="templateStatus" class="template-status" role="status" aria-live="polite"></div>
       </section>
 
@@ -439,7 +429,7 @@
       </div>
       <div class="efficiency-row">
         <div class="efficiency-copy">
-          <span class="efficiency-label">Damage efficiency</span>
+          <span class="efficiency-label">Next action damage</span>
           <strong class="efficiency-value">100%</strong>
         </div>
         <div class="category-meter"><div class="category-meter-fill"></div></div>
@@ -449,7 +439,7 @@
     </article>
   </template>
 
-  <script src="app.js?v=4.4.0" defer></script>
-  <script src="cloud.js?v=4.4.0" defer></script>
+  <script src="app.js?v=4.5.0" defer></script>
+  <script src="cloud.js?v=4.5.0" defer></script>
 </body>
 </html>
