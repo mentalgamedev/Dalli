@@ -1579,7 +1579,7 @@
 
     return deterministicWeightedSample(
       candidates,
-      4,
+      3,
       `${state.current.date}|${summary.totalDamage}|${summary.weaponsUsed}|${summary.combosLanded}|${hour >= 21 ? 'late' : 'day'}`
     ).map(item => item.text);
   }
@@ -2583,6 +2583,17 @@
   }
 
 
+
+  function victoryCrateFlavor() {
+    return deterministicPick([
+      'Suspicious package detected. Contents probably legal somewhere.',
+      'Unmarked crate recovered. Phat Ed’s Pawnshop denies recognizing the handwriting.',
+      'Contraband Office delivery received. Receipt field contains only a shrug.',
+      'Mystery crate located after hostilities. Phat Ed requests everyone stop looking at him.',
+      'Questionable hardware package detected. Warranty status: spiritually complicated.'
+    ], `${state.current.date}|crate-flavor`);
+  }
+
   function renderArsenal(summary, newlyClaimedId = '') {
     if (!els.arsenalPanel || !els.arsenalList) return;
 
@@ -2593,7 +2604,7 @@
     els.lootDrop.hidden = !loot.available;
 
     if (loot.available && loot.pendingWeapon) {
-      els.lootDropMessage.textContent = 'Suspicious package detected. Contents probably legal somewhere.';
+      els.lootDropMessage.textContent = victoryCrateFlavor();
       els.lootCrateButton.disabled = false;
       els.lootCrateButton.setAttribute('aria-label', 'Open mystery contraband crate');
     } else if (summary.isVictory && loot.claimed && loot.pendingWeapon) {
