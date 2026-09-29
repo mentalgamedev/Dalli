@@ -209,6 +209,7 @@
     newComboName: document.querySelector('#newComboName'),
     newComboMultiplier: document.querySelector('#newComboMultiplier'),
     addComboButton: document.querySelector('#addComboButton'),
+    templateName: document.querySelector('#templateName'),
     exportTemplateButton: document.querySelector('#exportTemplateButton'),
     importTemplateButton: document.querySelector('#importTemplateButton'),
     importTemplateInput: document.querySelector('#importTemplateInput'),
@@ -3816,13 +3817,24 @@
   }
 
 
-  function settingsTemplatePayload(settings) {
+  function settingsTemplatePayload(settings, name = '') {
     return {
       kind: 'molife-settings-template',
       version: TEMPLATE_VERSION,
+      name: String(name || '').trim().slice(0, 60),
       exportedAt: new Date().toISOString(),
       settings: deepClone(settings)
     };
+  }
+
+  function filenameSlug(value) {
+    return String(value || '')
+      .trim()
+      .toLocaleLowerCase()
+      .normalize('NFKD')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48);
   }
 
   function normalizeImportedTemplate(payload) {
@@ -3855,12 +3867,14 @@
       settings = result.settings;
     }
 
-    const payload = settingsTemplatePayload(settings);
+    const templateName = els.templateName?.value.trim() || '';
+    const payload = settingsTemplatePayload(settings, templateName);
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const href = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = href;
-    link.download = `molife-template-${localDateKey()}.json`;
+    const slug = filenameSlug(templateName) || localDateKey();
+    link.download = `molife-template-${slug}.json`;
     document.body.append(link);
     link.click();
     link.remove();
@@ -3877,6 +3891,7 @@
     try {
       const payload = JSON.parse(await file.text());
       const importedSettings = normalizeImportedTemplate(payload);
+      const importedName = typeof payload.name === 'string' ? payload.name.slice(0, 60) : '';
 
       const confirmed = window.confirm(
         'Switch to this MoLife settings template?\n\nThis replaces difficulty, categories, Focus/colors, actions, ordering and combos. Your fight history, Level, Street Cred, streak, today’s recorded damage and arsenal stay untouched.'
@@ -3889,6 +3904,7 @@
       saveState();
 
       els.goalInput.value = settingsDraft.fullEnemyHp;
+      if (els.templateName) els.templateName.value = importedName;
       updateGoalRampPreview();
       renderCategoriesEditor();
       renderActionsEditor();
@@ -3898,7 +3914,7 @@
 
       els.settingsMessage.textContent = 'Template imported and activated.';
       if (els.templateStatus) {
-        els.templateStatus.textContent = `${settingsDraft.categories.length - 1} categories · ${settingsDraft.actions.length} actions · ${settingsDraft.combos.length} combos`;
+        els.templateStatus.textContent = `${importedName ? importedName + ' · ' : ''}${settingsDraft.categories.length - 1} categories · ${settingsDraft.actions.length} actions · ${settingsDraft.combos.length} combos`;
       }
     } catch (error) {
       console.warn('Could not import MoLife template:', error);
