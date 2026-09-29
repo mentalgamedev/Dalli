@@ -43,30 +43,34 @@ Current ranks:
 - Head Honcho
 
 
-## Arsenal & contraband
+## Tenacious & Phat Ed's Pawnshop
 
-Victories can generate **contraband drops**. Each newly defeated day rolls once for a mystery crate; the current drop chance is 40%. The roll is persisted for that day, so undoing and re-defeating the same fight cannot be used to reroll the crate.
+Actions can be marked **Required for victory**. At the start of each daily fight, MoLife snapshots the currently required action IDs. Changing the checkbox later affects the next daily fight rather than rewriting today's rules. Deleting an action removes it from today's snapshot so a fight can never become impossible.
 
-Weapons live in a persistent Arsenal and can be fired only while today's Dark Doppelgänger is still alive. Firing consumes the weapon immediately, ignores category resistance, and records a weapon damage transaction. This provides an intentionally limited way to cash in previous successful days when the player wants to preserve a streak without doing the usual actions.
+While any required action remains unfinished, Dark Doppelgänger is **TENACIOUS**. Normal action and combo damage can still accumulate, but it cannot finish the fight: once lethal damage has been reached, the displayed HP is held at 1 until all required moves have been completed. If the last outstanding requirement is completed after lethal damage is already banked, the enemy immediately goes down.
 
-Current weapon pool:
+A lethal item from **Phat Ed's Pawnshop** can bypass Tenacious. Using an item does not switch Tenacious off globally; the item simply ignores the 1 HP survival rule for its own hit. Item use is explicit, consumes the item immediately, ignores category resistance, and records an immutable item transaction.
 
-- **Snub Nosed** — 10 base DMG
-- **Sawed Off** — 20 base DMG
-- **Tommy Gun** — 25 base DMG
-- **Grenade Launcher** — 30 base DMG
-- **Bazooka** — 35 base DMG
-- **Flamethrower** — 40 base DMG
-- **Golden Gun** — 999 DMG, always special and always an instant kill at current HP limits
+Victories can generate a mystery Pawnshop crate. Each newly defeated day rolls once at a 40% drop chance, but no new crate is issued while the player already carries 8 or more items. The roll is persisted for that day, so undoing and re-defeating cannot reroll it. Existing migrated inventories over the cap are never deleted; new drops resume after the inventory falls below 8.
 
-Normal weapons also roll a condition. Better conditions are progressively rarer:
+Current item pool, preserving the same rarity/damage ladder as the old contraband system:
 
-- **Rusty** — ×0.5
-- **Clean** — ×1.0
+- **MoLight Pro** — 10 base DMG
+- **Cosmic Laser Gun** — 20 base DMG
+- **Flash Tube** — 25 base DMG
+- **Light Rabbit Launcher** — 30 base DMG
+- **Sunflower Beam** — 35 base DMG
+- **Light Sword** — 40 base DMG
+- **Rite Of Illumination** — 999 DMG, always special and always an instant kill at current HP limits
+
+Normal items also roll a condition. Better conditions are progressively rarer:
+
+- **Questionable** — ×0.5
+- **Standard** — ×1.0
 - **Pimped** — ×1.5
 - **Over-engineered** — ×2.0
 
-Golden Gun does not roll a condition. Weapon rarity and condition rarity are weighted separately, making Rusty Snub Nosed the most common combination while high-end hardware and high-end condition combinations are increasingly scarce. Unopened victory crates are automatically moved into the Arsenal when the day rolls over so a reward is not lost merely because the player forgot to tap it.
+**Rite Of Illumination** does not roll a condition. Item rarity and condition rarity are weighted separately. Item cards reveal short Phat Ed descriptions on hover/focus or tap, while actual consumption requires a separate **USE ITEM** control. Unopened victory crates are automatically stashed at day rollover so a reward is not lost merely because the player forgot to tap it.
 
 
 ## Crestfallen connections
@@ -102,7 +106,7 @@ Reports are deterministic local content; they do not require an AI service.
 
 ## Crestfallen Newswire
 
-The header contains a reactive fake news feed that comments on the current fight: Dark Doppelgänger HP, damage, combos, overkill, yesterday's result, rank, streak, level and category resistance. It also mixes in a small deterministic sample of tagged Crestfallen-world reports so references react to context such as weapons, loot, work, combos, overkill and late-night activity without overwhelming the MoLife-specific feed. Before victory it reports on the ongoing hostilities; after defeat it becomes reluctantly congratulatory. On wider layouts the Newswire spans the full app width instead of staying inside the brand column.
+The header contains a reactive fake news feed that comments on the current fight: Dark Doppelgänger HP, damage, combos, overkill, yesterday's result, rank, streak, level and category resistance. It also mixes in a small deterministic sample of tagged Crestfallen-world reports so references react to context such as Pawnshop items, loot, Tenacious status, work, combos, overkill and late-night activity without overwhelming the MoLife-specific feed. Before victory it reports on the ongoing hostilities; after defeat it becomes reluctantly congratulatory. On wider layouts the Newswire spans the full app width instead of staying inside the brand column.
 
 
 ## Motion FX
@@ -129,7 +133,7 @@ The main action area is branded **Track-o-Tron**. Category action decks keep a c
 - action editor rows inherit the same derived category tint system as the front-page action area
 - actions have editable base Damage values
 - actions can be repeatable or once-per-day
-- every action has a **Show in Track-o-Tron** toggle; hiding it keeps the action and its configuration without showing it on the main board
+- every action has a **Show in Track-o-Tron** toggle and a **Required for victory** toggle; required actions are forced visible, and the Required change is snapshotted into the next daily fight
 - combos are user-defined ordered sequences of 2–8 action IDs with configurable ×1.05–×3.00 multipliers; unrelated actions do not break progress and repeated action IDs are allowed
 - combo bonuses use the matched actions' actual effective damage, are logged as separate damage events, and can repeat after a sequence resets
 - default action wording is intentionally qualitative rather than timed: **Quick movement / stretch**, **Walk / fresh air**, **Proper workout**, **Proper healthy meal**, **Focus session**, **Deep focus session**, **Practice / skill**, **Annoying admin task**, **Tiny chore**, **Proper chore / cleaning**, **Laundry**, **Big chore / deep clean**
@@ -139,13 +143,13 @@ The main action area is branded **Track-o-Tron**. Category action decks keep a c
 
 ## Settings templates
 
-Settings can be exported as a small JSON **template** and imported later to swap between different challenge setups. A template contains the configured enemy HP plus categories, colors, Focus values, actions, ordering, visibility, damage values, category links, combos and combo action links.
+Settings can be exported as a small JSON **template** and imported later to swap between different challenge setups. A template contains the configured enemy HP plus categories, colors, Focus values, actions, ordering, visibility, Required-for-victory flags, damage values, category links, combos and combo action links.
 
-Templates deliberately do **not** behave like save-game backups. Importing one leaves Level, Victory XP, Street Cred, streak/history, today's already-recorded damage and the Arsenal untouched. Current combo progress is reset because the imported combo definitions may differ.
+Templates deliberately do **not** behave like save-game backups. Importing one leaves Level, Victory XP, Street Cred, streak/history, today's already-recorded damage and Phat Ed's Pawnshop inventory untouched. Current combo progress is reset because the imported combo definitions may differ; today's Required snapshot only loses action IDs that no longer exist.
 
 ## History and statistics foundation
 
-Action transactions retain immutable action/category identity, base Damage, effective Damage, efficiency and timestamp. Combo bonus transactions retain the combo identity, multiplier, bonus Damage and the source transaction IDs that produced them. Weapon transactions retain the consumed inventory item and actual damage dealt. Undoing a source action therefore also removes dependent combo bonuses and can revoke today's victory, its 20 XP and any still-current victory loot.
+Action transactions retain immutable action/category identity, base Damage, effective Damage, efficiency and timestamp. Combo bonus transactions retain the combo identity, multiplier, bonus Damage and the source transaction IDs that produced them. Pawnshop item transactions retain the consumed item and actual damage dealt. Undoing a source action therefore also removes dependent combo bonuses and can revoke today's victory, its 20 XP and any still-current victory loot unless a remaining lethal item transaction independently bypasses Tenacious.
 
 Detailed events are retained for recent history while compact daily summaries can remain longer.
 
@@ -175,7 +179,7 @@ The database schema remains intentionally small:
 - `users`
 - `user_state`
 
-MoLife v4.2 uses gameplay state **v4** while deliberately retaining the existing browser storage keys. v2 still migrates through the damage/victory model, and v3 migrates in place into v4 with an empty Arsenal and no retroactive weapon drops. Existing categories, Focus, colors, actions, ordering, visibility, combos, history and progression remain intact.
+MoLife v4.4 uses gameplay state **v5** while deliberately retaining the existing browser storage keys. v2 and v3 still migrate forward, and v4 migrates one-for-one into the Pawnshop item model: existing weapon tiers become MoLight Pro → Cosmic Laser Gun → Flash Tube → Light Rabbit Launcher → Sunflower Beam → Light Sword → Rite Of Illumination, while Rusty/Clean conditions become Questionable/Standard. Existing IDs, progression, history and current-fight damage are preserved. Newly introduced Required-for-victory flags default to off for migrated saves.
 
 ## Security
 

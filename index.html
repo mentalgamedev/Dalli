@@ -28,7 +28,7 @@
       <div class="brand-block">
         <h1 class="brand-title" aria-label="MoLife"><span class="brand-mo">Mo</span><span class="brand-life">Life</span><span class="brand-tm">™</span></h1>
         <div class="brand-subline">Gains for citizens with nothing to lose</div>
-        <div class="app-version" aria-label="MoLife version 4.3.0">v4.3.0 · Crestfallen Connections build</div>
+        <div class="app-version" aria-label="MoLife version 4.4.0">v4.4.0 · Tenacious & Pawnshop build</div>
         <div id="todayLabel" class="muted"></div>
       </div>
       <button id="settingsButton" class="icon-button" type="button" aria-label="Open settings" title="Settings">⚙</button>
@@ -39,7 +39,10 @@
       <section id="fightCard" class="hero-card fight-card" aria-labelledby="fightHeading">
         <div class="fight-card-scratches" aria-hidden="true"></div>
         <div class="fight-topline">
-          <div id="statusBadge" class="status-badge">HOSTILE ACTIVE</div>
+          <div class="fight-status-cluster">
+            <div id="statusBadge" class="status-badge">HOSTILE ACTIVE</div>
+            <div id="tenaciousBadge" class="tenacious-badge" hidden>TENACIOUS</div>
+          </div>
           <div class="hero-sticker" aria-hidden="true">TODAY'S FIGHT</div>
         </div>
 
@@ -59,6 +62,7 @@
             </div>
             <div id="fightFeedback" class="fight-feedback" aria-live="polite"></div>
           </div>
+          <div id="tenaciousStatus" class="tenacious-status" hidden></div>
 
           <div class="fight-stats" aria-label="Fight statistics">
             <span><strong id="totalDamage">0</strong> DAMAGE DEALT</span>
@@ -113,30 +117,6 @@
       </section>
 
 
-      <section id="arsenalPanel" class="arsenal-panel panel">
-        <div class="arsenal-head">
-          <div>
-            <div class="eyebrow">CRESTFALLEN CONTRABAND OFFICE</div>
-            <h2>Arsenal</h2>
-            <div id="arsenalStatus" class="arsenal-status">Empty. Win fights for a chance to find contraband.</div>
-          </div>
-          <div id="arsenalCount" class="arsenal-count">0 weapons</div>
-        </div>
-
-        <div id="lootDrop" class="loot-drop" hidden>
-          <button id="lootCrateButton" class="loot-crate" type="button" aria-label="Open mystery contraband crate">
-            <span class="loot-crate-lid" aria-hidden="true">?</span>
-            <strong>MYSTERY CRATE</strong>
-            <small>Tap to inspect suspicious package</small>
-          </button>
-        </div>
-        <div id="lootDropMessage" class="loot-drop-message" role="status" aria-live="polite">Each victory has a 40% chance to attract questionable hardware.</div>
-        <div id="arsenalList" class="arsenal-list"></div>
-        <div class="arsenal-note">Better weapons are rarer. Better condition is rarer. Weapons ignore category resistance, are consumed when fired, and can absolutely be used to cheat your way through a bad day. Unopened crates are impounded into your Arsenal at day rollover.</div>
-      </section>
-
-      <section id="combosPanel" class="combos-panel panel" hidden></section>
-
       <section class="section-head">
         <div>
           <div class="eyebrow">DAILY MOVES</div>
@@ -147,6 +127,30 @@
       </section>
 
       <section id="categoriesGrid" class="categories-grid"></section>
+
+      <section id="arsenalPanel" class="arsenal-panel pawnshop-panel panel">
+        <div class="arsenal-head">
+          <div>
+            <div class="eyebrow">PHAT ED'S TOTALLY LEGITIMATE INVENTORY</div>
+            <h2>Phat Ed's Pawnshop</h2>
+            <div id="arsenalStatus" class="arsenal-status">Empty. Win fights for a chance to acquire questionable merchandise.</div>
+          </div>
+          <div id="arsenalCount" class="arsenal-count">0 / 8 ITEMS</div>
+        </div>
+
+        <div id="lootDrop" class="loot-drop" hidden>
+          <button id="lootCrateButton" class="loot-crate" type="button" aria-label="Open mystery Pawnshop crate">
+            <span class="loot-crate-lid" aria-hidden="true">?</span>
+            <strong>MYSTERY CRATE</strong>
+            <small>Tap to inspect suspicious package</small>
+          </button>
+        </div>
+        <div id="lootDropMessage" class="loot-drop-message" role="status" aria-live="polite">Each victory has a 40% chance to attract one questionable item while you have room.</div>
+        <div id="arsenalList" class="arsenal-list"></div>
+        <div class="arsenal-note">Carry up to 8 items. Better items are rarer; better condition is rarer. Items are consumed when used, and a lethal Pawnshop item can punch through Tenacious. Unopened crates are automatically stashed at day rollover.</div>
+      </section>
+
+      <section id="combosPanel" class="combos-panel panel" hidden></section>
 
       <section class="lower-grid">
         <div class="panel">
@@ -294,7 +298,7 @@
         <div class="settings-section-head action-settings-head">
           <div>
             <h3>Actions</h3>
-            <p>Drag the handle to reorder actions. The same order is used inside each Track-o-Tron category.</p>
+            <p>Drag the handle to reorder actions. The same order is used inside each Track-o-Tron category. Mark an action Required when it must be completed once before normal damage can finish the next daily fight.</p>
           </div>
           <label class="action-sort-control">
             <span>Sort</span>
@@ -329,6 +333,13 @@
                 <option value="repeatable">Repeatable</option>
                 <option value="once">Once per day</option>
               </select>
+            </label>
+            <label class="new-action-required">
+              <span>Victory rule</span>
+              <span class="checkbox-row">
+                <input id="newActionRequired" type="checkbox">
+                <span>Required</span>
+              </span>
             </label>
             <label class="new-action-visibility">
               <span>Track-o-Tron</span>
@@ -374,7 +385,7 @@
         <div class="settings-section-head">
           <div>
             <h3>Settings templates</h3>
-            <p>Export your current challenge setup as a lightweight template, then swap between different category/action/combo systems without touching your progression or arsenal.</p>
+            <p>Export your current challenge setup as a lightweight template, then swap between different category/action/combo systems without touching your progression or Phat Ed’s Pawnshop inventory.</p>
           </div>
         </div>
         <div class="template-actions">
@@ -386,7 +397,7 @@
           <button id="importTemplateButton" class="secondary-button" type="button">Import template</button>
           <input id="importTemplateInput" type="file" accept=".json,application/json" hidden>
         </div>
-        <p class="category-fallback-note">Templates include enemy HP, categories, colors, Focus, actions, ordering, visibility, values and combo links. They do not include Level, Street Cred, streak/history, today's logged damage or weapons.</p>
+        <p class="category-fallback-note">Templates include enemy HP, categories, colors, Focus, actions, ordering, visibility, Required-for-victory flags, values and combo links. They do not include Level, Street Cred, streak/history, today's logged damage or Pawnshop items.</p>
         <div id="templateStatus" class="template-status" role="status" aria-live="polite"></div>
       </section>
 
@@ -405,7 +416,7 @@
       <section class="settings-section danger-zone">
         <div>
           <h3>Fresh start</h3>
-          <p>Reset all game progress, categories, actions, combos, weapons, Level, Street Cred and history. Your account/login remains untouched.</p>
+          <p>Reset all game progress, categories, actions, combos, Pawnshop items, Level, Street Cred and history. Your account/login remains untouched.</p>
         </div>
         <button id="resetGameButton" class="danger-button" type="button">Reset game data</button>
       </section>
@@ -438,7 +449,7 @@
     </article>
   </template>
 
-  <script src="app.js?v=4.3.0" defer></script>
-  <script src="cloud.js?v=4.3.0" defer></script>
+  <script src="app.js?v=4.4.0" defer></script>
+  <script src="cloud.js?v=4.4.0" defer></script>
 </body>
 </html>
