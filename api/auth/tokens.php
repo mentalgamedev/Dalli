@@ -170,6 +170,55 @@ function dalli_verification_url(string $token): string
     return $origin . '/#verify=' . rawurlencode($token);
 }
 
+function dalli_public_security_snapshot(PDO $pdo): array
+{
+    $limits = dalli_security_limits();
+    $pendingStmt = $pdo->query("SELECT COUNT(*) FROM users WHERE status = 'pending'");
+    $pending = (int) $pendingStmt->fetchColumn();
+
+    $registrationHour = dalli_rate_status('pub_reg_hour', 'global', 3600, $limits['registrationsPerHour']);
+    $registrationDay = dalli_rate_status('pub_reg_day', 'global', 86400, $limits['registrationsPerDay']);
+    $mailHour = dalli_rate_status('pub_mail_hour', 'global', 3600, $limits['mailPerHour']);
+    $mailDay = dalli_rate_status('pub_mail_day', 'global', 86400, $limits['mailPerDay']);
+
+    $registrationOpen = $pending < $limits['maxPendingAccounts']
+        && $registrationHour['blockedUntil'] === null
+        && $registrationHour['used'] < $registrationHour['limit']
+        && $registrationDay['blockedUntil'] === null
+        && $registrationDay['used'] < $registrationDay['limit'];
+
+    $mailOpen = $mailHour['blockedUntil'] === null
+        && $mailHour['used'] < $mailHour['limit']
+        && $mailDay['blockedUntil'] === null
+        && $mailDay['used'] < $mailDay['limit'];
+
+    return [
+        'registrationOpen' => $registrationOpen,
+        'mailOpen' => $mailOpen,
+        'pendingAccounts' => $pending,
+        'maxPendingAccounts' => $limits['maxPendingAccounts'],
+        'registrationHour' => $registrationHour,
+        'registrationDay' => $registrationDay,
+        'mailHour' => $mailHour,
+        'mailDay' => $mailDay,
+    ];
+}
+
+function dalli_public_circuit_ready(?PDO $pdo = null): bool
+{
+    if (!dalli_auth_schema_ready()) {
+        return false;
+    }
+
+    try {
+        $snapshot = dalli_public_security_snapshot($pdo ?? dalli_pdo());
+        return $snapshot['registrationOpen'] && $snapshot['mailOpen'];
+    } catch (Throwable $e) {
+        error_log('MoLife public signup circuit status failed: ' . $e->getMessage());
+        return false;
+    }
+}
+
 function dalli_public_capacity_check(PDO $pdo): void
 {
     $limits = dalli_security_limits();
