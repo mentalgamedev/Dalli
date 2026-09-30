@@ -1,12 +1,13 @@
-const CACHE = 'molife-v4-5-2';
+const CACHE = 'molife-v4-5-3';
 const ASSETS = [
   './',
   './index.html',
-  './styles.css?v=4.5.2',
-  './app.js?v=4.5.2',
-  './cloud.js?v=4.5.2',
+  './styles.css?v=4.5.3',
+  './app.js?v=4.5.3',
+  './cloud.js?v=4.5.3',
   './manifest.webmanifest',
-  './icon.svg'
+  './icon.svg',
+  './fonts/PunkKid.ttf'
 ];
 
 self.addEventListener('install', event => {
