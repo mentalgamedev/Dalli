@@ -49,10 +49,7 @@ function dalli_validate_state_v2(mixed $state): array
 
     $categoryIds = [];
     foreach ($categories as $category) {
-        $allowedCategoryKeys = $isV7
-            ? ['id', 'name', 'icon', 'color']
-            : ['id', 'name', 'icon', 'focus', 'color'];
-        if (!is_array($category) || !dalli_keys_allowed($category, $allowedCategoryKeys)) {
+        if (!is_array($category) || !dalli_keys_allowed($category, ['id', 'name', 'icon', 'focus', 'color'])) {
             dalli_fail('Invalid category.', 422);
         }
 
@@ -61,13 +58,10 @@ function dalli_validate_state_v2(mixed $state): array
             dalli_fail('Invalid category id.', 422);
         }
 
-        $validFocus = true;
-        if (!$isV7) {
-            $focus = $category['focus'] ?? null;
-            $validFocus = $id === 'uncategorized'
-                ? (is_int($focus) || is_float($focus)) && (float) $focus === 0.0
-                : dalli_number_between($focus, 0.25, 10);
-        }
+        $focus = $category['focus'] ?? null;
+        $validFocus = $id === 'uncategorized'
+            ? (is_int($focus) || is_float($focus)) && (float) $focus === 0.0
+            : dalli_number_between($focus, 0.25, 10);
 
         $color = $category['color'] ?? null;
         $validColor = $color === null
@@ -81,20 +75,6 @@ function dalli_validate_state_v2(mixed $state): array
         }
 
         $categoryIds[$id] = true;
-    }
-
-    if ($isV7) {
-        $focusCategoryId = $settings['focusCategoryId'] ?? null;
-        if ($focusCategoryId !== null
-            && (!is_string($focusCategoryId)
-                || $focusCategoryId === 'uncategorized'
-                || !isset($categoryIds[$focusCategoryId]))) {
-            dalli_fail('Invalid focused category.', 422);
-        }
-        if (!dalli_number_between($settings['focusFactor'] ?? null, 1, 10)
-            || !dalli_number_between($settings['resistanceBuildup'] ?? null, 0, 2)) {
-            dalli_fail('Invalid combat tuning.', 422);
-        }
     }
 
     $actions = $settings['actions'] ?? null;
@@ -292,12 +272,8 @@ function dalli_validate_state_v3(mixed $state): array
     $current = $state['current'] ?? null;
     $history = $state['history'] ?? null;
 
-    $allowedSettings = $isV7
-        ? ['fullEnemyHp', 'focusCategoryId', 'focusFactor', 'resistanceBuildup', 'categories', 'actions', 'combos']
-        : ['fullEnemyHp', 'categories', 'actions', 'combos'];
-
     if (!is_array($settings)
-        || !dalli_keys_allowed($settings, $allowedSettings)
+        || !dalli_keys_allowed($settings, ['fullEnemyHp', 'categories', 'actions', 'combos'])
         || !is_int($settings['fullEnemyHp'] ?? null)
         || $settings['fullEnemyHp'] < 20
         || $settings['fullEnemyHp'] > 1000) {
@@ -1103,8 +1079,12 @@ function dalli_validate_state_v5_v7(mixed $state): array
     $history = $state['history'] ?? null;
     $inventory = $state['inventory'] ?? null;
 
+    $allowedSettings = $isV7
+        ? ['fullEnemyHp', 'focusCategoryId', 'focusFactor', 'resistanceBuildup', 'categories', 'actions', 'combos']
+        : ['fullEnemyHp', 'categories', 'actions', 'combos'];
+
     if (!is_array($settings)
-        || !dalli_keys_allowed($settings, ['fullEnemyHp', 'categories', 'actions', 'combos'])
+        || !dalli_keys_allowed($settings, $allowedSettings)
         || !is_int($settings['fullEnemyHp'] ?? null)
         || $settings['fullEnemyHp'] < 20
         || $settings['fullEnemyHp'] > 1000) {
@@ -1118,7 +1098,10 @@ function dalli_validate_state_v5_v7(mixed $state): array
 
     $categoryIds = [];
     foreach ($categories as $category) {
-        if (!is_array($category) || !dalli_keys_allowed($category, ['id', 'name', 'icon', 'focus', 'color'])) {
+        $allowedCategoryKeys = $isV7
+            ? ['id', 'name', 'icon', 'color']
+            : ['id', 'name', 'icon', 'focus', 'color'];
+        if (!is_array($category) || !dalli_keys_allowed($category, $allowedCategoryKeys)) {
             dalli_fail('Invalid category.', 422);
         }
 
@@ -1127,10 +1110,13 @@ function dalli_validate_state_v5_v7(mixed $state): array
             dalli_fail('Invalid category id.', 422);
         }
 
-        $focus = $category['focus'] ?? null;
-        $validFocus = $id === 'uncategorized'
-            ? (is_int($focus) || is_float($focus)) && (float) $focus === 0.0
-            : dalli_number_between($focus, 0.25, 10);
+        $validFocus = true;
+        if (!$isV7) {
+            $focus = $category['focus'] ?? null;
+            $validFocus = $id === 'uncategorized'
+                ? (is_int($focus) || is_float($focus)) && (float) $focus === 0.0
+                : dalli_number_between($focus, 0.25, 10);
+        }
 
         $color = $category['color'] ?? null;
         $validColor = $color === null
@@ -1144,6 +1130,20 @@ function dalli_validate_state_v5_v7(mixed $state): array
         }
 
         $categoryIds[$id] = true;
+    }
+
+    if ($isV7) {
+        $focusCategoryId = $settings['focusCategoryId'] ?? null;
+        if ($focusCategoryId !== null
+            && (!is_string($focusCategoryId)
+                || $focusCategoryId === 'uncategorized'
+                || !isset($categoryIds[$focusCategoryId]))) {
+            dalli_fail('Invalid focused category.', 422);
+        }
+        if (!dalli_number_between($settings['focusFactor'] ?? null, 1, 10)
+            || !dalli_number_between($settings['resistanceBuildup'] ?? null, 0, 2)) {
+            dalli_fail('Invalid combat tuning.', 422);
+        }
     }
 
     $actions = $settings['actions'] ?? null;
