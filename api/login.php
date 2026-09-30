@@ -43,11 +43,7 @@ dalli_login_rate_clear($username);
 if (dalli_password_needs_rehash($hash)) {
     try {
         $newHash = dalli_hash_password($password);
-        $update = $pdo->prepare(
-            dalli_auth_schema_ready($pdo)
-                ? 'UPDATE users SET password_hash = ?, password_changed_at = COALESCE(password_changed_at, NOW()) WHERE id = ?'
-                : 'UPDATE users SET password_hash = ? WHERE id = ?'
-        );
+        $update = $pdo->prepare('UPDATE users SET password_hash = ? WHERE id = ?');
         $update->execute([$newHash, (int) $user['id']]);
     } catch (Throwable $e) {
         error_log('MoLife password rehash failed: ' . $e->getMessage());
@@ -69,7 +65,7 @@ try {
         dalli_revoke_current_remember($pdo);
     }
 } catch (Throwable $e) {
-    error_log('Dalli persistent login setup failed: ' . $e->getMessage());
+    error_log('MoLife persistent login setup failed: ' . $e->getMessage());
     dalli_clear_remember_cookie();
 }
 
