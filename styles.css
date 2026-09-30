@@ -40,6 +40,14 @@ body {
 button, input, select { font: inherit; }
 button { color: inherit; }
 
+body.settings-open {
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
 .app-shell {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
