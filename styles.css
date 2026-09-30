@@ -906,6 +906,17 @@ body {
   font-weight: 650;
 }
 
+.brand-subline strong {
+  color: #d7dce6;
+  font-weight: 780;
+}
+
+.brand-subline span {
+  color: #8791a2;
+  font-size: .92em;
+  font-weight: 600;
+}
+
 .hero-card {
   border-width: 2px;
   border-color: rgba(255,255,255,.10);

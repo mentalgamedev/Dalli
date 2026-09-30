@@ -1,8 +1,10 @@
 <?php
 declare(strict_types=1);
 
-require __DIR__ . '/../api/bootstrap.php';
+require __DIR__ . '/../api/auth/bootstrap.php';
+require __DIR__ . '/../api/molife-state.php';
 require __DIR__ . '/../api/auth-store.php';
+require __DIR__ . '/../api/mailer.php';
 
 function test_assert(bool $condition, string $message): void
 {
@@ -11,6 +13,9 @@ function test_assert(bool $condition, string $message): void
         exit(1);
     }
 }
+
+test_assert(function_exists('dalli_validate_state'), 'MoLife state validator should load outside the shared bootstrap');
+test_assert(function_exists('dalli_send_transactional_email'), 'legacy mailer include should resolve through the auth module');
 
 $pdo = dalli_pdo();
 test_assert(dalli_auth_schema_ready($pdo), 'modern auth schema should be detected');
