@@ -27,20 +27,30 @@ function dalli_cleanup_auth_housekeeping(PDO $pdo): void
         return;
     }
 
+    // Keep opportunistic cleanup bounded so an attacker cannot turn one request
+    // into an unbounded maintenance job after a long backlog.
+    $pdo->exec(
+        "DELETE FROM auth_sessions
+         WHERE expires_at <= NOW()
+         LIMIT 200"
+    );
     $pdo->exec(
         "DELETE FROM auth_tokens
          WHERE expires_at < DATE_SUB(NOW(), INTERVAL 1 DAY)
-            OR (consumed_at IS NOT NULL AND consumed_at < DATE_SUB(NOW(), INTERVAL 1 DAY))"
+            OR (consumed_at IS NOT NULL AND consumed_at < DATE_SUB(NOW(), INTERVAL 1 DAY))
+         LIMIT 200"
     );
     $pdo->exec(
         "DELETE FROM auth_rate_limits
-         WHERE updated_at < DATE_SUB(NOW(), INTERVAL 7 DAY)"
+         WHERE updated_at < DATE_SUB(NOW(), INTERVAL 7 DAY)
+         LIMIT 200"
     );
     $pdo->exec(
         "DELETE FROM users
          WHERE status = 'pending'
            AND email_verified_at IS NULL
-           AND created_at < DATE_SUB(NOW(), INTERVAL 48 HOUR)"
+           AND created_at < DATE_SUB(NOW(), INTERVAL 48 HOUR)
+         LIMIT 100"
     );
 }
 
@@ -160,32 +170,106 @@ function dalli_verification_url(string $token): string
     return $origin . '/#verify=' . rawurlencode($token);
 }
 
-function dalli_public_registration_rate_check(string $email): void
+function dalli_public_capacity_check(PDO $pdo): void
 {
-    $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-    dalli_rate_check('public_register_ip', $ip, 3600);
-    dalli_rate_check('public_register_email', $email, 3600);
+    $limits = dalli_security_limits();
+    $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE status = 'pending'");
+    $pending = (int) $stmt->fetchColumn();
+
+    if ($pending >= $limits['maxPendingAccounts']) {
+        dalli_fail('Public account creation is temporarily unavailable.', 503);
+    }
 }
 
-function dalli_public_registration_rate_hit(string $email): void
+function dalli_public_registration_guard(string $email): void
 {
+    $limits = dalli_security_limits();
     $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-    dalli_rate_failure('public_register_ip', $ip, 5, 3600, 3600);
-    dalli_rate_failure('public_register_email', $email, 3, 3600, 3600);
+
+    try {
+        $allowed = dalli_rate_consume_strict('pub_reg_ip', $ip, 5, 3600)
+            && dalli_rate_consume_strict('pub_reg_email', $email, 3, 3600);
+
+        if (!$allowed) {
+            header('Retry-After: 3600');
+            dalli_fail('Too many account creation attempts. Try again later.', 429);
+        }
+
+        $globalAllowed = dalli_rate_consume_strict(
+            'pub_reg_hour',
+            'global',
+            $limits['registrationsPerHour'],
+            3600
+        ) && dalli_rate_consume_strict(
+            'pub_reg_day',
+            'global',
+            $limits['registrationsPerDay'],
+            86400
+        );
+
+        if (!$globalAllowed) {
+            dalli_fail('Public account creation is temporarily unavailable.', 503);
+        }
+    } catch (Throwable $e) {
+        error_log('MoLife public registration abuse control failed: ' . $e->getMessage());
+        dalli_fail('Public account creation is temporarily unavailable.', 503);
+    }
 }
 
-function dalli_verification_resend_rate_check(string $email): void
+function dalli_public_mail_budget_guard(): void
 {
-    $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-    dalli_rate_check('verify_resend_ip', $ip, 3600);
-    dalli_rate_check('verify_resend_email', $email, 3600);
+    $limits = dalli_security_limits();
+
+    try {
+        $allowed = dalli_rate_consume_strict(
+            'pub_mail_hour',
+            'global',
+            $limits['mailPerHour'],
+            3600
+        ) && dalli_rate_consume_strict(
+            'pub_mail_day',
+            'global',
+            $limits['mailPerDay'],
+            86400
+        );
+
+        if (!$allowed) {
+            dalli_fail('Account email is temporarily unavailable. Try again later.', 503);
+        }
+    } catch (Throwable $e) {
+        error_log('MoLife public mail abuse control failed: ' . $e->getMessage());
+        dalli_fail('Account email is temporarily unavailable. Try again later.', 503);
+    }
 }
 
-function dalli_verification_resend_rate_hit(string $email): void
+function dalli_existing_account_notice_allowed(string $email): bool
+{
+    try {
+        return dalli_rate_consume_strict('dup_notice', $email, 1, 86400);
+    } catch (Throwable $e) {
+        // Duplicate-account notices are optional privacy notifications. On any
+        // limiter failure, suppress mail instead of risking an email flood.
+        error_log('MoLife duplicate notice limiter failed: ' . $e->getMessage());
+        return false;
+    }
+}
+
+function dalli_verification_resend_guard(string $email): void
 {
     $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-    dalli_rate_failure('verify_resend_ip', $ip, 10, 3600, 3600);
-    dalli_rate_failure('verify_resend_email', $email, 3, 3600, 3600);
+
+    try {
+        $allowed = dalli_rate_consume_strict('verify_resend_ip', $ip, 10, 3600)
+            && dalli_rate_consume_strict('verify_resend_email', $email, 3, 3600);
+
+        if (!$allowed) {
+            header('Retry-After: 3600');
+            dalli_fail('Too many activation requests. Try again later.', 429);
+        }
+    } catch (Throwable $e) {
+        error_log('MoLife verification resend abuse control failed: ' . $e->getMessage());
+        dalli_fail('Activation email is temporarily unavailable. Try again later.', 503);
+    }
 }
 
 function dalli_verification_attempt_rate_check(): void
