@@ -640,8 +640,8 @@
       const lines = [
         `Public registration: ${registrationState}`,
         `Accounts: ${result.activeAccounts ?? 0} active · ${result.pendingAccounts ?? 0} pending / ${limits.maxPendingAccounts ?? '?'} max`,
-        `Registrations: ${limits.registrationHour?.used ?? 0}/${limits.registrationHour?.limit ?? '?'} this hour · ${limits.registrationDay?.used ?? 0}/${limits.registrationDay?.limit ?? '?'} today`,
-        `Account mail: ${limits.mailHour?.used ?? 0}/${limits.mailHour?.limit ?? '?'} this hour · ${limits.mailDay?.used ?? 0}/${limits.mailDay?.limit ?? '?'} today`
+        `Registrations: ${limits.registrationHour?.used ?? 0}/${limits.registrationHour?.limit ?? '?'} this hour · ${limits.registrationDay?.used ?? 0}/${limits.registrationDay?.limit ?? '?'} / 24h`,
+        `Account mail: ${limits.mailHour?.used ?? 0}/${limits.mailHour?.limit ?? '?'} this hour · ${limits.mailDay?.used ?? 0}/${limits.mailDay?.limit ?? '?'} / 24h`
       ];
       securityStatus.replaceChildren(...lines.map(line => makeElement('div', 'security-status-line', line)));
       securityStatus.dataset.kind = result.publicSignupReady ? 'ok' : 'warning';
