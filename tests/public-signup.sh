@@ -41,6 +41,18 @@ assert_json_true() {
   ' "$key"
 }
 
+assert_json_value() {
+  local body="$1"
+  local key="$2"
+  local expected="$3"
+  printf '%s' "$body" | php -r '
+    $data = json_decode(stream_get_contents(STDIN), true);
+    $key = $argv[1];
+    $expected = $argv[2];
+    exit(is_array($data) && (string)($data[$key] ?? "") === $expected ? 0 : 1);
+  ' "$key" "$expected"
+}
+
 last_verification_token() {
   php -r '
     $path = $argv[1];
@@ -52,6 +64,17 @@ last_verification_token() {
     echo $m[1];
   ' "$MAIL_SINK"
 }
+
+CROSS_ORIGIN="$(curl -sS \
+  -H "Origin: https://attacker.example" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -X POST \
+  --data '{"username":"crossorigin","email":"cross@example.com","password":"correct horse battery staple","website":""}' \
+  -w "\n%{http_code}" \
+  "$ORIGIN/api/register.php")"
+CROSS_ORIGIN_CODE="$(printf '%s\n' "$CROSS_ORIGIN" | tail -n1)"
+test "$CROSS_ORIGIN_CODE" = "403"
 
 REGISTER_RESULT="$(post_json register.php '{"username":"publictest","email":"PublicTest@example.com","password":"correct horse battery staple","confirmPassword":"correct horse battery staple","remember":true,"website":""}')"
 REGISTER_BODY="${REGISTER_RESULT%$'\n'*}"
@@ -169,4 +192,58 @@ php -r '
   if (($mail["subject"] ?? "") !== "MoLife SMTP test") exit(1);
 ' "$MAIL_SINK"
 
-echo "Public signup + owner SMTP test HTTP integration test passed."
+SECURITY_STATUS="$(curl -sS \
+  -c "$OWNER_COOKIES" \
+  -b "$OWNER_COOKIES" \
+  -H "Origin: $ORIGIN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "X-CSRF-Token: $OWNER_CSRF" \
+  -X POST \
+  --data '{}' \
+  -w "\n%{http_code}" \
+  "$ORIGIN/api/security-status.php")"
+SECURITY_STATUS_BODY="$(printf '%s\n' "$SECURITY_STATUS" | sed '$d')"
+SECURITY_STATUS_CODE="$(printf '%s\n' "$SECURITY_STATUS" | tail -n1)"
+test "$SECURITY_STATUS_CODE" = "200"
+assert_json_true "$SECURITY_STATUS_BODY" "hmacReady"
+
+mysql -h 127.0.0.1 -uroot -proot molife_test -e "UPDATE users SET status='disabled' WHERE username='owner';"
+
+DISABLED_STATE="$(curl -sS \
+  -c "$OWNER_COOKIES" \
+  -b "$OWNER_COOKIES" \
+  -H "Origin: $ORIGIN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -X POST \
+  --data '{"operation":"read"}' \
+  -w "\n%{http_code}" \
+  "$ORIGIN/api/state.php")"
+DISABLED_STATE_CODE="$(printf '%s\n' "$DISABLED_STATE" | tail -n1)"
+test "$DISABLED_STATE_CODE" = "401"
+
+OWNER_MISSING_SESSION="$(curl -sS \
+  -c "$OWNER_COOKIES" \
+  -b "$OWNER_COOKIES" \
+  -H "Origin: $ORIGIN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -X POST \
+  --data '{}' \
+  -w "\n%{http_code}" \
+  "$ORIGIN/api/session.php")"
+OWNER_MISSING_BODY="$(printf '%s\n' "$OWNER_MISSING_SESSION" | sed '$d')"
+OWNER_MISSING_CODE="$(printf '%s\n' "$OWNER_MISSING_SESSION" | tail -n1)"
+test "$OWNER_MISSING_CODE" = "200"
+printf '%s' "$OWNER_MISSING_BODY" | php -r '
+  $data = json_decode(stream_get_contents(STDIN), true);
+  exit(is_array($data)
+    && ($data["authenticated"] ?? true) === false
+    && (($data["registration"]["mode"] ?? "") === "closed")
+    ? 0 : 1);
+'
+
+mysql -h 127.0.0.1 -uroot -proot molife_test -e "UPDATE users SET status='active' WHERE username='owner';"
+
+echo "Public signup + abuse containment HTTP integration test passed."
