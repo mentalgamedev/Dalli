@@ -504,7 +504,9 @@
   async function openAccountDialog() {
     if (!user) return;
 
-    accountIdentity.textContent = `Signed in as ${user.username}`;
+    accountIdentity.textContent = user.email
+      ? `Signed in as ${user.username} · ${user.email}${user.emailVerified ? ' ✓' : ''}`
+      : `Signed in as ${user.username}`;
     inviteSection.hidden = !user.isOwner;
     generatedInvite.hidden = true;
     accountMessage.textContent = '';
@@ -538,7 +540,7 @@
     }
   }
 
-  async function registerAccount(username, password, confirmPassword, remember) {
+  async function registerAccount(username, email, password, confirmPassword, remember) {
     if (password !== confirmPassword) {
       authMessage.textContent = 'The passwords do not match.';
       return;
@@ -552,21 +554,55 @@
         method: 'POST',
         body: JSON.stringify({
           username,
+          email,
           password,
           remember,
+          website: websiteInput.value,
           inviteToken: pendingInvite,
           ownerSetupToken: ownerSetupInput.value
         })
       });
 
+      if (session.pending) {
+        showVerificationSent(email);
+        return;
+      }
+
       clearPendingInvite();
-      registrationMode = 'invite';
       authDialog.close();
       await activateSession(session, { newAccount: true });
     } catch (error) {
-      authMessage.textContent = error instanceof ApiError ? error.message : 'Could not create account.';
+      if (error instanceof ApiError && error.data?.pending) {
+        showVerificationSent(email, error.data?.emailDeliveryFailed === true);
+      } else {
+        authMessage.textContent = error instanceof ApiError ? error.message : 'Could not create account.';
+      }
     } finally {
       authSubmitButton.disabled = false;
+    }
+  }
+
+  async function resendVerification() {
+    const email = pendingVerificationEmail || emailInput.value.trim();
+    if (!email) return;
+
+    resendVerificationButton.disabled = true;
+    authMessage.textContent = 'Requesting a fresh activation transmission…';
+
+    try {
+      const result = await apiRequest('resend-verification.php', {
+        method: 'POST',
+        body: JSON.stringify({ email })
+      });
+      authTitle.textContent = 'TRANSMISSION SENT';
+      authText.textContent = 'If this address has a pending MoLife account, fresh activation instructions have been sent.';
+      authMessage.textContent = `Activation address: ${email}`;
+    } catch (error) {
+      authMessage.textContent = error instanceof ApiError
+        ? error.message
+        : 'Could not request another activation email.';
+    } finally {
+      resendVerificationButton.disabled = false;
     }
   }
 
@@ -834,6 +870,7 @@
   loginTab.addEventListener('click', () => setAuthMode('login'));
   registerTab.addEventListener('click', () => setAuthMode('register'));
   authCancelButton.addEventListener('click', () => authDialog.close());
+  resendVerificationButton.addEventListener('click', resendVerification);
   accountCloseButton.addEventListener('click', () => accountDialog.close());
   signOutButton.addEventListener('click', signOut);
 
@@ -841,12 +878,13 @@
     event.preventDefault();
 
     const username = usernameInput.value.trim();
+    const email = emailInput.value.trim();
     const password = passwordInput.value;
     const remember = rememberInput.checked;
 
     if (authMode === 'register') {
-      registerAccount(username, password, confirmPasswordInput.value, remember);
-    } else {
+      registerAccount(username, email, password, confirmPasswordInput.value, remember);
+    } else if (authMode === 'login') {
       signIn(username, password, remember);
     }
   });
@@ -860,6 +898,29 @@
 
   async function initialize() {
     if (!window.DalliApp) return;
+
+    let verificationError = '';
+
+    if (pendingVerification) {
+      try {
+        const activated = await apiRequest('verify-email.php', {
+          method: 'POST',
+          body: JSON.stringify({ token: pendingVerification })
+        });
+        clearPendingVerification();
+        await activateSession(activated, { newAccount: true });
+        setSyncStatus('Activated · Synced', 'ok');
+        setTimeout(() => {
+          if (user && !conflict) setSyncStatus('Synced', 'ok');
+        }, 3500);
+        return;
+      } catch (error) {
+        verificationError = error instanceof ApiError
+          ? error.message
+          : 'Could not activate this MoLife account.';
+        clearPendingVerification();
+      }
+    }
 
     try {
       const session = await apiRequest('session.php', {
@@ -875,6 +936,13 @@
       registrationMode = session.registration?.mode || 'invite';
       publicSignupReady = session.registration?.publicSignupReady === true;
       setSignedOutUi();
+
+      if (verificationError) {
+        openAuth('login');
+        authText.textContent = 'That activation transmission could not be accepted. You can log in if the account is already active, or request a fresh activation email by starting account creation again.';
+        authMessage.textContent = verificationError;
+        return;
+      }
 
       if (pendingInvite && registrationMode !== 'closed') {
         openAuth('register');
