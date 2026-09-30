@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "Punk Kid";
+  src: url("./fonts/PunkKid.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 :root {
   color-scheme: dark;
   --bg: #0b0d12;
@@ -1746,12 +1754,13 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  font-family: "Trebuchet MS", "Arial Rounded MT Bold", ui-rounded, system-ui, sans-serif;
-  font-size: clamp(2.25rem, 5.5vw, 3.2rem);
+  font-family: "Punk Kid", "Trebuchet MS", "Arial Rounded MT Bold", ui-rounded, system-ui, sans-serif;
+  font-size: clamp(2.55rem, 6.2vw, 3.65rem);
   font-style: normal;
-  font-weight: 900;
-  line-height: .92;
-  letter-spacing: -.075em;
+  font-weight: 400;
+  font-synthesis: none;
+  line-height: .86;
+  letter-spacing: .005em;
   text-shadow: 0 3px 22px rgba(122,108,255,.18);
   transform: none;
 }
@@ -1899,7 +1908,7 @@ body {
 
   .brand-title {
     margin-bottom: 12px;
-    font-size: clamp(2.3rem, 13vw, 3.15rem);
+    font-size: clamp(2.6rem, 14vw, 3.55rem);
   }
 
   .action-deck {
