@@ -227,6 +227,40 @@ function dalli_send_transactional_email(
     }
 }
 
+function dalli_build_existing_account_email(string $username): array
+{
+    $safeName = htmlspecialchars($username, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $subject = 'MoLife account request';
+    $plain = "MoLife // mo.les.tech identity transmission\n\n"
+        . "Hello {$username},\n\n"
+        . "Someone tried to create a MoLife account using this email address, but it is already attached to an active account.\n\n"
+        . "If this was you, return to MoLife and log in. If it was not you, no action is required.\n";
+
+    $html = '<!doctype html><html><body style="margin:0;background:#0d1016;color:#f3f4f7;font-family:Arial,sans-serif;">'
+        . '<div style="max-width:560px;margin:0 auto;padding:32px 24px;">'
+        . '<div style="font-size:11px;letter-spacing:.18em;color:#8b94a4;text-transform:uppercase;">mo.les.tech // identity department</div>'
+        . '<h1 style="margin:10px 0 8px;font-size:30px;">IDENTITY ALREADY ON FILE</h1>'
+        . '<p style="color:#b8bfca;line-height:1.55;">Hello ' . $safeName . '. Someone tried to create a MoLife account using this email address, but it is already attached to an active account.</p>'
+        . '<p style="color:#8f98a6;font-size:13px;line-height:1.5;">If this was you, return to MoLife and log in. If it was not you, no action is required.</p>'
+        . '<p style="margin-top:28px;color:#68717f;font-size:11px;">powered by MoThink-6.7</p>'
+        . '</div></body></html>';
+
+    return ['subject' => $subject, 'plain' => $plain, 'html' => $html];
+}
+
+function dalli_send_existing_account_email(string $email, string $username): void
+{
+    $message = dalli_build_existing_account_email($username);
+    dalli_send_transactional_email(
+        $email,
+        $username,
+        $message['subject'],
+        $message['plain'],
+        $message['html']
+    );
+}
+
+
 function dalli_send_verification_email(string $email, string $username, string $verificationUrl): void
 {
     $message = dalli_build_verification_email($username, $verificationUrl);
