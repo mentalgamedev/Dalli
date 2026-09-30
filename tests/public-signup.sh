@@ -100,8 +100,8 @@ OLD_CODE="${OLD_RESULT##*$'\n'}"
 test "$OLD_CODE" = "400"
 
 NEW_RESULT="$(post_json verify-email.php "{\"token\":\"$NEW_PENDING_TOKEN\"}")"
-NEW_BODY="${NEW_RESULT%\n'*}"
-NEW_CODE="${NEW_RESULT##*\n'}"
+NEW_BODY="$(printf '%s\n' "$NEW_RESULT" | sed '$d')"
+NEW_CODE="$(printf '%s\n' "$NEW_RESULT" | tail -n1)"
 test "$NEW_CODE" = "200"
 assert_json_true "$NEW_BODY" "activated"
 
@@ -116,10 +116,10 @@ OWNER_LOGIN="$(curl -sS \
   -H "Accept: application/json" \
   -X POST \
   --data '{"username":"owner","password":"owner password phrase","remember":false}' \
-  -w \n%{http_code}' \
+  -w "\n%{http_code}" \
   "$ORIGIN/api/login.php")"
-OWNER_LOGIN_BODY="${OWNER_LOGIN%\n'*}"
-OWNER_LOGIN_CODE="${OWNER_LOGIN##*\n'}"
+OWNER_LOGIN_BODY="$(printf '%s\n' "$OWNER_LOGIN" | sed '$d')"
+OWNER_LOGIN_CODE="$(printf '%s\n' "$OWNER_LOGIN" | tail -n1)"
 test "$OWNER_LOGIN_CODE" = "200"
 assert_json_true "$OWNER_LOGIN_BODY" "authenticated"
 
@@ -138,9 +138,9 @@ NO_CSRF_TEST="$(curl -sS \
   -H "Accept: application/json" \
   -X POST \
   --data '{"email":"smtp-test@example.com"}' \
-  -w \n%{http_code}' \
+  -w "\n%{http_code}" \
   "$ORIGIN/api/test-mail.php")"
-NO_CSRF_CODE="${NO_CSRF_TEST##*\n'}"
+NO_CSRF_CODE="$(printf '%s\n' "$NO_CSRF_TEST" | tail -n1)"
 test "$NO_CSRF_CODE" = "403"
 
 SMTP_TEST="$(curl -sS \
@@ -152,10 +152,10 @@ SMTP_TEST="$(curl -sS \
   -H "X-CSRF-Token: $OWNER_CSRF" \
   -X POST \
   --data '{"email":"smtp-test@example.com"}' \
-  -w \n%{http_code}' \
+  -w "\n%{http_code}" \
   "$ORIGIN/api/test-mail.php")"
-SMTP_TEST_BODY="${SMTP_TEST%\n'*}"
-SMTP_TEST_CODE="${SMTP_TEST##*\n'}"
+SMTP_TEST_BODY="$(printf '%s\n' "$SMTP_TEST" | sed '$d')"
+SMTP_TEST_CODE="$(printf '%s\n' "$SMTP_TEST" | tail -n1)"
 test "$SMTP_TEST_CODE" = "200"
 assert_json_true "$SMTP_TEST_BODY" "ok"
 
