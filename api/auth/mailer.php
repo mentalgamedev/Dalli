@@ -39,14 +39,12 @@ function dalli_public_mail_ready(): bool
     return dalli_auth_schema_ready()
         && dalli_registration_mode() === 'public'
         && dalli_auth_hmac_ready()
-        && dalli_mail_configured()
-        && dalli_public_mail_circuit_ready();
+        && dalli_mail_configured();
 }
 
 function dalli_public_signup_ready(): bool
 {
-    return dalli_public_mail_ready()
-        && dalli_public_circuit_ready();
+    return dalli_public_mail_ready();
 }
 
 function dalli_mail_header_text(string $value): string
