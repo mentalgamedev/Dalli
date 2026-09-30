@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const STATE_VERSION = 6;
+  const STATE_VERSION = 7;
   const TEMPLATE_VERSION = 1;
   const ITEM_DROP_CHANCE = 0.40;
   const ITEM_CAPACITY = 8;
@@ -11,6 +11,8 @@
   const UNCATEGORIZED_ID = 'uncategorized';
   const UNCATEGORIZED_EFFICIENCY = 0.50;
   const CATEGORY_RESISTANCE = Object.freeze([1, 0.65, 0.40, 0.25]);
+  const DEFAULT_FOCUS_FACTOR = 1.5;
+  const DEFAULT_RESISTANCE_BUILDUP = 0.75;
   const REQUIRED_COUNT_MAX = 1000;
   const VICTORY_XP = 20;
   const COMBO_MIN_MULTIPLIER = 1.05;
@@ -169,11 +171,14 @@
     version: STATE_VERSION,
     settings: {
       fullEnemyHp: 100,
+      focusCategoryId: 'work',
+      focusFactor: DEFAULT_FOCUS_FACTOR,
+      resistanceBuildup: DEFAULT_RESISTANCE_BUILDUP,
       categories: [
-        { id: 'wellbeing', name: 'Wellbeing', icon: '♥', focus: 1, color: '#49d89b' },
-        { id: 'work', name: 'Work', icon: '◆', focus: 1.5, color: '#818bff' },
-        { id: 'chores', name: 'Chores', icon: '⌂', focus: 0.75, color: '#ffb35f' },
-        { id: UNCATEGORIZED_ID, name: 'Uncategorized', icon: '•', focus: 0, color: '#8b93a4' }
+        { id: 'wellbeing', name: 'Wellbeing', icon: '♥', color: '#49d89b' },
+        { id: 'work', name: 'Work', icon: '◆', color: '#818bff' },
+        { id: 'chores', name: 'Chores', icon: '⌂', color: '#ffb35f' },
+        { id: UNCATEGORIZED_ID, name: 'Uncategorized', icon: '•', color: '#8b93a4' }
       ],
       actions: [
         { id: 'wellbeing-workout-30', categoryId: 'wellbeing', name: 'Proper workout', baseDamage: 20, type: 'repeatable', trackVisible: true, requiredForVictory: false, requiredCount: 1 },
@@ -282,10 +287,11 @@
     closeSettingsButton: document.querySelector('#closeSettingsButton'),
     goalInput: document.querySelector('#goalInput'),
     goalPreview: document.querySelector('#goalPreview'),
+    focusFactorInput: document.querySelector('#focusFactorInput'),
+    resistanceBuildupInput: document.querySelector('#resistanceBuildupInput'),
     categoriesEditor: document.querySelector('#categoriesEditor'),
     newCategoryName: document.querySelector('#newCategoryName'),
     newCategoryIcon: document.querySelector('#newCategoryIcon'),
-    newCategoryFocus: document.querySelector('#newCategoryFocus'),
     newCategoryColor: document.querySelector('#newCategoryColor'),
     addCategoryButton: document.querySelector('#addCategoryButton'),
     actionsEditor: document.querySelector('#actionsEditor'),
@@ -441,7 +447,6 @@
       id: UNCATEGORIZED_ID,
       name: 'Uncategorized',
       icon: '•',
-      focus: 0,
       color: DEFAULT_CATEGORY_COLORS.uncategorized
     };
   }
@@ -832,11 +837,40 @@
   }
 
 
+  function migrateV6State(candidate) {
+    const migrated = deepClone(candidate);
+    const categories = Array.isArray(candidate.settings?.categories) ? candidate.settings.categories : [];
+    const regular = categories.filter(category => category?.id !== UNCATEGORIZED_ID);
+    const focusedLegacy = regular
+      .map(category => ({
+        id: String(category?.id || ''),
+        focus: clampNumber(category?.focus, 0.25, 10, 1)
+      }))
+      .filter(category => category.id && category.focus > 1)
+      .sort((a, b) => b.focus - a.focus)[0] || null;
+
+    migrated.version = STATE_VERSION;
+    migrated.settings = {
+      ...(migrated.settings || {}),
+      focusCategoryId: focusedLegacy?.id || null,
+      focusFactor: focusedLegacy?.focus || DEFAULT_FOCUS_FACTOR,
+      resistanceBuildup: DEFAULT_RESISTANCE_BUILDUP,
+      categories: categories.map(category => {
+        const next = { ...category };
+        delete next.focus;
+        return next;
+      })
+    };
+    return migrated;
+  }
+
+
   function normalizeState(candidate) {
     if (candidate?.version === 2) candidate = migrateV2State(candidate);
     if (candidate?.version === 3) candidate = migrateV3State(candidate);
     if (candidate?.version === 4) candidate = migrateV4State(candidate);
     if (candidate?.version === 5) candidate = migrateV5State(candidate);
+    if (candidate?.version === 6) candidate = migrateV6State(candidate);
     if (!candidate || candidate.version !== STATE_VERSION) return freshState();
 
     const next = freshState();
@@ -855,13 +889,42 @@
         id,
         name: String(category?.name || `Category ${index + 1}`).slice(0, 80),
         icon: String(category?.icon || '•').slice(0, 24),
-        focus: clampNumber(category?.focus, 0.25, 10, 1),
         color: normalizeHexColor(category?.color, fallbackCategoryColor(id, index))
       });
     });
     next.settings.categories = ensureUncategorizedCategory(categories);
 
     const categoryIds = new Set(next.settings.categories.map(category => category.id));
+    const regularCategoryIds = new Set(
+      next.settings.categories
+        .filter(category => category.id !== UNCATEGORIZED_ID)
+        .map(category => category.id)
+    );
+
+    const legacyFocused = sourceCategories
+      .map(category => ({
+        id: String(category?.id || ''),
+        focus: clampNumber(category?.focus, 0.25, 10, 1)
+      }))
+      .filter(category => regularCategoryIds.has(category.id) && category.focus > 1)
+      .sort((a, b) => b.focus - a.focus)[0] || null;
+
+    const requestedFocusCategoryId = candidate.settings?.focusCategoryId;
+    next.settings.focusCategoryId = regularCategoryIds.has(String(requestedFocusCategoryId))
+      ? String(requestedFocusCategoryId)
+      : (legacyFocused?.id || null);
+    next.settings.focusFactor = clampNumber(
+      candidate.settings?.focusFactor,
+      1,
+      10,
+      legacyFocused?.focus || DEFAULT_FOCUS_FACTOR
+    );
+    next.settings.resistanceBuildup = clampNumber(
+      candidate.settings?.resistanceBuildup,
+      0,
+      2,
+      DEFAULT_RESISTANCE_BUILDUP
+    );
     const sourceActions = Array.isArray(candidate.settings?.actions)
       ? candidate.settings.actions
       : DEFAULT_STATE.settings.actions;
