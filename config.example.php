@@ -45,6 +45,20 @@ return [
         'owner_setup_token' => 'REPLACE_WITH_LONG_RANDOM_OWNER_SETUP_TOKEN',
     ],
 
+    /*
+     * Optional abuse budgets. These conservative defaults are used when the
+     * section is omitted, so existing private configs do not need changing.
+     * Public signup fails safely when a global budget or pending-account cap
+     * is reached; existing login and cloud sync remain available.
+     */
+    'security' => [
+        'registrations_per_hour' => '40',
+        'registrations_per_day' => '200',
+        'mail_per_hour' => '60',
+        'mail_per_day' => '300',
+        'max_pending_accounts' => '200',
+    ],
+
     'mail' => [
         /*
          * Transactional account email. Public signup remains fail-closed unless
