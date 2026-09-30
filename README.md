@@ -215,6 +215,12 @@ Highlights:
 - API responses excluded from the service-worker cache
 - restrictive browser security headers
 
+## Auth architecture
+
+MoLife v4.8 separates authentication from game-state validation. The reusable auth runtime now lives under `api/auth/`, while the MoLife-specific state schema validator lives in `api/molife-state.php`. The old `api/auth-store.php` and `api/mailer.php` paths remain as compatibility shims so the restructuring does not change production behavior.
+
+The auth directory contains focused modules for identity/session handling, remembered-device credentials, invitations, one-use verification tokens, housekeeping and SMTP. The only MoLife-specific piece inside that directory is `state-bridge.php`, which exists solely to migrate legacy pre-auth-schema session/invite data. See `api/auth/README.md` for the portability boundary.
+
 ## Self-hosting
 
 See [DEPLOY.md](DEPLOY.md) for the provider-neutral self-hosting guide.
