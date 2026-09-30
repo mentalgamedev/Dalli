@@ -1,8 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require __DIR__ . '/../api/bootstrap.php';
-require __DIR__ . '/../api/auth-store.php';
+require __DIR__ . '/../api/auth/bootstrap.php';
 
 function test_assert(bool $condition, string $message): void
 {
