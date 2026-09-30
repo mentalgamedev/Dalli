@@ -452,6 +452,18 @@
     mailTestMessage
   );
 
+  const securitySection = makeElement('section', 'invite-section security-status-section');
+  const securityHeading = makeElement('h3', '', 'Public registration firewall');
+  const securityHelp = makeElement(
+    'p',
+    'muted',
+    'Circuit breakers protect the database and mail account from automated signup floods.'
+  );
+  const securityStatus = makeElement('div', 'security-status');
+  const refreshSecurityButton = makeElement('button', 'secondary-button', 'Refresh status');
+  refreshSecurityButton.type = 'button';
+  securitySection.append(securityHeading, securityHelp, securityStatus, refreshSecurityButton);
+
   const accountMessage = makeElement('div', 'login-message');
   accountMessage.setAttribute('role', 'status');
   accountMessage.setAttribute('aria-live', 'polite');
@@ -468,6 +480,7 @@
     accountIdentity,
     inviteSection,
     mailTestSection,
+    securitySection,
     accountMessage,
     accountButtons
   );
@@ -538,6 +551,39 @@
     }
   }
 
+  async function loadSecurityStatus() {
+    if (!user?.isOwner) return;
+
+    securityStatus.textContent = 'Checking perimeter…';
+    refreshSecurityButton.disabled = true;
+
+    try {
+      const result = await apiRequest('security-status.php', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': csrfToken },
+        body: JSON.stringify({})
+      });
+
+      const limits = result.limits || {};
+      const registrationState = result.publicSignupReady ? 'OPEN' : 'SAFE MODE';
+      const lines = [
+        `Public registration: ${registrationState}`,
+        `Accounts: ${result.activeAccounts ?? 0} active · ${result.pendingAccounts ?? 0} pending / ${limits.maxPendingAccounts ?? '?'} max`,
+        `Registrations: ${limits.registrationHour?.used ?? 0}/${limits.registrationHour?.limit ?? '?'} this hour · ${limits.registrationDay?.used ?? 0}/${limits.registrationDay?.limit ?? '?'} today`,
+        `Account mail: ${limits.mailHour?.used ?? 0}/${limits.mailHour?.limit ?? '?'} this hour · ${limits.mailDay?.used ?? 0}/${limits.mailDay?.limit ?? '?'} today`
+      ];
+      securityStatus.replaceChildren(...lines.map(line => makeElement('div', 'security-status-line', line)));
+      securityStatus.dataset.kind = result.publicSignupReady ? 'ok' : 'warning';
+    } catch (error) {
+      securityStatus.dataset.kind = 'error';
+      securityStatus.textContent = error instanceof ApiError
+        ? error.message
+        : 'Could not read registration security status.';
+    } finally {
+      refreshSecurityButton.disabled = false;
+    }
+  }
+
   async function openAccountDialog() {
     if (!user) return;
 
@@ -546,6 +592,7 @@
       : `Signed in as ${user.username}`;
     inviteSection.hidden = !user.isOwner;
     mailTestSection.hidden = !user.isOwner;
+    securitySection.hidden = !user.isOwner;
     generatedInvite.hidden = true;
     accountMessage.textContent = '';
     mailTestMessage.textContent = '';
@@ -556,7 +603,7 @@
     accountDialog.showModal();
 
     if (user.isOwner) {
-      await loadInvites();
+      await Promise.all([loadInvites(), loadSecurityStatus()]);
     }
   }
 
@@ -723,6 +770,8 @@
       accountMessage.textContent = 'Select and copy the invite link manually.';
     }
   });
+
+  refreshSecurityButton.addEventListener('click', loadSecurityStatus);
 
   sendMailTestButton.addEventListener('click', async () => {
     if (!user?.isOwner) return;
