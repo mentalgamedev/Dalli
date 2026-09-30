@@ -4054,6 +4054,7 @@ body {
 
 .action-button.is-required {
   position: relative;
+  min-height: 64px;
   overflow: hidden;
   border-color: rgba(235, 199, 91, .68);
   background:
@@ -4102,6 +4103,7 @@ body {
 }
 
 .action-button.is-required-next {
+  min-height: 64px;
   border-color: rgba(225, 192, 99, .28);
   background:
     linear-gradient(105deg, rgba(218, 177, 70, .065), transparent 52%),
