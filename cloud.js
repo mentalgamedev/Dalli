@@ -5,6 +5,7 @@
   // Keep the legacy key so signed-in users migrate in place instead of starting over.
   const USER_STORAGE_PREFIX = 'dailyXpGame.v2.user.';
   const INVITE_SESSION_KEY = 'dalli.pendingInvite.v1';
+  const VERIFY_SESSION_KEY = 'molife.pendingVerification.v1';
   const SAVE_DELAY_MS = 450;
   const RETRY_DELAY_MS = 5000;
 
@@ -19,7 +20,9 @@
   let queuedState = null;
   let registrationMode = 'unknown';
   let publicSignupReady = false;
-  let pendingInvite = captureInviteFromHash();
+  const capturedAuthTokens = captureAuthTokens();
+  let pendingInvite = capturedAuthTokens.invite;
+  let pendingVerification = capturedAuthTokens.verify;
 
   class ApiError extends Error {
     constructor(message, status, data = null) {
@@ -37,21 +40,26 @@
     return node;
   }
 
-  function captureInviteFromHash() {
+  function captureAuthTokens() {
     try {
       const hash = location.hash.startsWith('#') ? location.hash.slice(1) : '';
       const params = new URLSearchParams(hash);
-      const fromHash = params.get('invite');
+      const invite = params.get('invite') || '';
+      const verify = params.get('verify') || '';
 
-      if (fromHash) {
-        sessionStorage.setItem(INVITE_SESSION_KEY, fromHash);
+      if (invite) sessionStorage.setItem(INVITE_SESSION_KEY, invite);
+      if (verify) sessionStorage.setItem(VERIFY_SESSION_KEY, verify);
+
+      if (invite || verify) {
         history.replaceState(null, '', location.pathname + location.search);
-        return fromHash;
       }
 
-      return sessionStorage.getItem(INVITE_SESSION_KEY) || '';
+      return {
+        invite: invite || sessionStorage.getItem(INVITE_SESSION_KEY) || '',
+        verify: verify || sessionStorage.getItem(VERIFY_SESSION_KEY) || ''
+      };
     } catch (error) {
-      return '';
+      return { invite: '', verify: '' };
     }
   }
 
@@ -59,6 +67,15 @@
     pendingInvite = '';
     try {
       sessionStorage.removeItem(INVITE_SESSION_KEY);
+    } catch (error) {
+      // Storage can be unavailable in hardened/private browser modes.
+    }
+  }
+
+  function clearPendingVerification() {
+    pendingVerification = '';
+    try {
+      sessionStorage.removeItem(VERIFY_SESSION_KEY);
     } catch (error) {
       // Storage can be unavailable in hardened/private browser modes.
     }
