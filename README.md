@@ -6,8 +6,8 @@ MoLife is a small daily XP game from the deeply questionable civic ecosystem of 
 
 1. Do actions to deal **Damage**.
 2. Each action has a base Damage value.
-3. A category's **Focus** directly scales its damage: higher Focus means less damage per action and therefore more real activity required from that category.
-4. Each completed action in a category makes the next action from that category weaker through **100% → 65% → 40% → 25%** resistance tiers.
+3. One category can be marked **FOCUSED** directly in Track-o-Tron. Its action damage is divided by the global Focus factor, so that area demands more real activity.
+4. Repeating actions from the same category builds resistance along the familiar **100% → 65% → 40% → 25%** base curve, with a global Resistance buildup setting controlling how strongly that curve is applied.
 5. Reduce today's **Dark Doppelgänger** to 0 HP.
 6. A victory awards exactly **20 Victory XP** once for that calendar day.
 7. Receive an official *Crestfallen Daily* battle report.
@@ -120,8 +120,9 @@ The main action area is branded **Track-o-Tron**. Category action decks keep a c
 - categories are fully editable
 - every regular category has a user-selectable **Color**
 - MoLife derives a safe bright accent plus darker/desaturated panel, action, border and glow variants from that one color
-- category **Focus** is an inverse damage scaler: action damage is divided by Focus before category resistance is applied
-- default Focus is **Wellbeing 1 / Work 1.5 / Chores 0.75**, so Work requires more activity per point of configured base Damage while Chores requires less
+- exactly one normal category can be marked **FOCUSED** at a time from Track-o-Tron; clicking it again clears Focus
+- the global **Focused category factor** is an inverse damage scaler applied only to that selected category before resistance; the default is **1.5×**
+- the global **Resistance buildup** setting applies an exponent to the existing category resistance curve; **1.0** reproduces the original curve, **0** disables resistance, and the default **0.75** is gentler
 - action order is editable by dragging the reorder handle; this order is reflected inside each Track-o-Tron category
 - the Actions section has one-shot sorting by **category**, **Damage (high to low)** or **name (A to Z)**
 - action editor rows inherit the same derived category tint system as the front-page action area
@@ -138,7 +139,7 @@ The main action area is branded **Track-o-Tron**. Category action decks keep a c
 
 ## Settings templates
 
-Settings can be exported as a small JSON **template** and imported later to swap between different challenge setups. A template contains the configured enemy HP plus categories, colors, Focus values, actions, ordering, visibility, Required-for-victory flags and repetition counts, damage values, category links, combos and combo action links.
+Settings can be exported as a small JSON **template** and imported later to swap between different challenge setups. A template contains the configured enemy HP plus focused-category selection/factor, Resistance buildup, categories, colors, actions, ordering, visibility, Required-for-victory flags and repetition counts, damage values, category links, combos and combo action links.
 
 Templates deliberately do **not** behave like save-game backups. Importing one leaves Level, Victory XP, Street Cred, streak/history, today's already-recorded damage and Phat Ed's Pawnshop inventory untouched. Current combo progress is reset because the imported combo definitions may differ; today's Required snapshot only loses requirements whose action IDs no longer exist.
 
@@ -242,6 +243,12 @@ Default server-side safeguards include:
 - production deployment is gated on the full MySQL/auth integration suite and followed by a live auth health check
 
 The limits can be overridden through the private `security` config section. Existing installations need no config or database migration for v4.9; the defaults apply automatically.
+
+## v4.10 — Bureau of Selective Priorities
+
+Focus is now a live Track-o-Tron choice instead of a permanent per-category property. One category can be marked **FOCUSED** at a time; its future action damage is divided by the global Focus factor. Existing v6 data migrates automatically by selecting the strongest old Focus value above 1× (the default setup therefore keeps Work focused at 1.5×). Old templates with per-category Focus values are also translated on import.
+
+Resistance keeps the same underlying 100% → 65% → 40% → 25% curve, but the global **Resistance buildup** factor controls how aggressively it applies. The default is 0.75 for a gentler curve; 1.0 is the original behavior and 0 disables resistance.
 
 ## Self-hosting
 
