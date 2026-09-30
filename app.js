@@ -324,6 +324,7 @@
   let visualFrame = null;
   let dayCardTimer = null;
   let settingsSaveTimer = null;
+  let settingsBackgroundScrollY = 0;
   let actionDrag = null;
   const categoryScrollPositions = new Map();
 
@@ -2781,6 +2782,21 @@
   }
 
 
+  function lockSettingsBackgroundScroll() {
+    if (document.body.classList.contains('settings-open')) return;
+    settingsBackgroundScrollY = window.scrollY;
+    document.body.style.top = `-${settingsBackgroundScrollY}px`;
+    document.body.classList.add('settings-open');
+  }
+
+  function unlockSettingsBackgroundScroll() {
+    if (!document.body.classList.contains('settings-open')) return;
+    document.body.classList.remove('settings-open');
+    document.body.style.top = '';
+    window.scrollTo(0, settingsBackgroundScrollY);
+  }
+
+
   function openSettings() {
     settingsDraft = deepClone(state.settings);
     settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
@@ -2804,6 +2820,7 @@
     } else {
       els.settingsDialog.setAttribute('open', '');
     }
+    lockSettingsBackgroundScroll();
   }
 
   function updateGoalPreview() {
@@ -3944,6 +3961,8 @@
     event.preventDefault();
     closeSettings();
   });
+
+  els.settingsDialog.addEventListener('close', unlockSettingsBackgroundScroll);
 
   els.settingsForm.addEventListener('submit', event => {
     event.preventDefault();
