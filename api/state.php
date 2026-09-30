@@ -6,8 +6,8 @@ require __DIR__ . '/molife-state.php';
 dalli_require_method('POST');
 dalli_require_same_origin();
 
-$userId = dalli_require_auth();
 $pdo = dalli_pdo();
+$userId = dalli_require_active_user($pdo);
 
 function dalli_state_snapshot(PDO $pdo, int $userId): array
 {
