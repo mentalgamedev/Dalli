@@ -70,16 +70,17 @@ if ($isInviteAttempt && is_array($parsedInvite)
 
 $email = null;
 if ($isPublicAttempt) {
-    if (!dalli_public_signup_ready()) {
-        dalli_fail('Public account creation is temporarily unavailable.', 503);
-    }
-
     $email = dalli_normalize_email($emailRaw);
     if ($email === null) {
         dalli_fail('Enter a valid email address.', 422);
     }
 
     dalli_cleanup_auth_housekeeping($pdo);
+
+    if (!dalli_public_signup_ready()) {
+        dalli_fail('Public account creation is temporarily unavailable.', 503);
+    }
+
     dalli_public_capacity_check($pdo);
     dalli_public_registration_guard($email);
     dalli_public_mail_budget_guard();
