@@ -204,6 +204,21 @@ function dalli_public_security_snapshot(PDO $pdo): array
     ];
 }
 
+function dalli_public_mail_circuit_ready(?PDO $pdo = null): bool
+{
+    if (!dalli_auth_schema_ready()) {
+        return false;
+    }
+
+    try {
+        $snapshot = dalli_public_security_snapshot($pdo ?? dalli_pdo());
+        return $snapshot['mailOpen'];
+    } catch (Throwable $e) {
+        error_log('MoLife public mail circuit status failed: ' . $e->getMessage());
+        return false;
+    }
+}
+
 function dalli_public_circuit_ready(?PDO $pdo = null): bool
 {
     if (!dalli_auth_schema_ready()) {
