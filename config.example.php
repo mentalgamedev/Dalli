@@ -25,9 +25,9 @@ return [
 
         /*
          * Registration safety switch.
-         * Pass 1 supports "invite" and "closed". "public" is reserved for the
-         * verified-email signup flow introduced in the next pass and currently
-         * remains fail-closed.
+         * - "invite": only owner-created invite links can register
+         * - "closed": no new accounts
+         * - "public": verified-email public signup (requires SMTP below)
          */
         'registration_mode' => 'invite',
 
@@ -43,5 +43,22 @@ return [
          * Once an owner exists, later accounts require invite links.
          */
         'owner_setup_token' => 'REPLACE_WITH_LONG_RANDOM_OWNER_SETUP_TOKEN',
+    ],
+
+    'mail' => [
+        /*
+         * Transactional account email. Public signup remains fail-closed unless
+         * every required SMTP field is configured.
+         *
+         * encryption: "tls" for STARTTLS (usually port 587), or "ssl"
+         * for implicit TLS (usually port 465).
+         */
+        'host' => 'YOUR_SMTP_HOST',
+        'port' => '587',
+        'encryption' => 'tls',
+        'username' => 'YOUR_SMTP_USERNAME',
+        'password' => 'YOUR_SMTP_PASSWORD',
+        'from_email' => 'molife@example.com',
+        'from_name' => 'MoLife',
     ],
 ];

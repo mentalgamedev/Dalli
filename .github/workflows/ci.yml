@@ -79,3 +79,33 @@ jobs:
 
       - name: Run auth foundation integration smoke test
         run: php tests/auth-foundation.php
+
+      - name: Configure isolated public-signup test mode
+        run: |
+          cat > ../molife-config.php <<'PHP'
+          <?php
+          define('MOLIFE_TESTING', true);
+          return [
+              'database' => [
+                  'host' => '127.0.0.1',
+                  'name' => 'molife_test',
+                  'user' => 'root',
+                  'password' => 'root',
+              ],
+              'app' => [
+                  'origin' => 'http://127.0.0.1:8080',
+                  'registration_mode' => 'public',
+                  'auth_hmac_key' => 'test-auth-hmac-key-0123456789abcdef',
+                  'owner_setup_token' => 'test-owner-setup-token-0123456789abcdef',
+              ],
+              'mail' => [
+                  'transport' => 'test',
+                  'test_sink' => '/tmp/molife-mail-sink.jsonl',
+                  'from_email' => 'molife@example.test',
+                  'from_name' => 'MoLife',
+              ],
+          ];
+          PHP
+
+      - name: Run public signup HTTP integration test
+        run: bash tests/public-signup.sh

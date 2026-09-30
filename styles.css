@@ -597,6 +597,25 @@ input, select {
   font-size: .78rem;
 }
 
+.login-message[data-kind="ok"] {
+  color: #69dfc6;
+}
+
+.login-message[data-kind="error"] {
+  color: #ff9da7;
+}
+
+.auth-honeypot {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
 .login-buttons {
   display: flex;
   justify-content: flex-end;
