@@ -303,6 +303,8 @@
       && publicSignupReady
       && !pendingInvite;
 
+    resendVerificationButton.hidden = !publicRegistration;
+    resendVerificationButton.textContent = 'Resend activation';
     emailField.hidden = !publicRegistration;
     confirmPasswordField.hidden = !registering;
     ownerSetupField.hidden = !(registering && registrationMode === 'owner-setup');
@@ -363,6 +365,7 @@
     rememberLabel.hidden = true;
     authSubmitButton.hidden = true;
     resendVerificationButton.hidden = false;
+    resendVerificationButton.textContent = 'Resend activation email';
     authCancelButton.textContent = 'Close';
     authMessage.dataset.kind = deliveryFailed ? 'error' : 'ok';
     authMessage.textContent = email ? `Activation address: ${email}` : '';
@@ -589,7 +592,12 @@
 
   async function resendVerification() {
     const email = pendingVerificationEmail || emailInput.value.trim();
-    if (!email) return;
+    if (!email) {
+      authMessage.dataset.kind = 'error';
+      authMessage.textContent = 'Enter your email address first.';
+      emailInput.focus();
+      return;
+    }
 
     resendVerificationButton.disabled = true;
     authMessage.dataset.kind = '';
@@ -598,7 +606,7 @@
     try {
       const result = await apiRequest('resend-verification.php', {
         method: 'POST',
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, remember: rememberInput.checked })
       });
       authTitle.textContent = 'TRANSMISSION SENT';
       authText.textContent = 'If this address has a pending MoLife account, fresh activation instructions have been sent.';
