@@ -16,6 +16,8 @@ const DALLI_MAX_INVITES = 20;
 const DALLI_EMAIL_VERIFY_SECONDS = 3600; // 60 minutes
 const DALLI_PENDING_ACCOUNT_SECONDS = 172800; // 48 hours
 
+require_once __DIR__ . '/foundation.php';
+require_once __DIR__ . '/rate-limit.php';
 require_once __DIR__ . '/state-bridge.php';
 require_once __DIR__ . '/identity.php';
 require_once __DIR__ . '/sessions.php';
