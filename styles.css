@@ -726,6 +726,22 @@ input, select {
   margin-top: 0;
 }
 
+.mail-test-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.mail-test-controls .login-field {
+  min-width: 0;
+}
+
+.mail-test-controls .secondary-button {
+  margin-top: 0;
+  white-space: nowrap;
+}
+
 .generated-invite {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -824,11 +840,13 @@ input, select {
     margin-right: auto;
   }
 
-  .generated-invite {
+  .generated-invite,
+  .mail-test-controls {
     grid-template-columns: 1fr;
   }
 
-  .generated-invite .secondary-button {
+  .generated-invite .secondary-button,
+  .mail-test-controls .secondary-button {
     width: 100%;
   }
 

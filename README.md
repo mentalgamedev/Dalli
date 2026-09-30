@@ -166,6 +166,8 @@ MoLife v4.7 adds an optional **verified-email public signup** flow on top of the
 
 Public signup is operationally fail-closed. It is exposed only when all three conditions are true: the modern auth schema is present, `registration_mode` is `public`, and authenticated SMTP is fully configured. Setting registration to `invite` or `closed` immediately removes public account creation without disabling existing accounts.
 
+MoLife v4.7.1 adds an **owner-only SMTP diagnostic** in the Account dialog. The signed-in owner can send a real test message through the configured transactional mail transport while registration remains in `invite` mode. The endpoint requires the owner role, same-origin requests and a valid CSRF token; SMTP failures are written to the server error log while the browser receives only a generic failure message.
+
 To avoid turning registration into an email-address lookup service, registration and resend use the same outward success response whether an address is new, pending, or already attached to an active account. An existing account receives a private informational email instead.
 
 Cloud state still uses optimistic revisions so stale devices cannot silently overwrite newer data, and local browser data remains available when the backend is temporarily unreachable.

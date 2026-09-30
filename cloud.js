@@ -424,6 +424,34 @@
     inviteList
   );
 
+  const mailTestSection = makeElement('section', 'invite-section mail-test-section');
+  const mailTestHeading = makeElement('h3', '', 'Email system');
+  const mailTestHelp = makeElement(
+    'p',
+    'muted',
+    'Send a real transactional email through the configured SMTP account. This does not enable public registration.'
+  );
+  const mailTestInput = document.createElement('input');
+  mailTestInput.type = 'email';
+  mailTestInput.maxLength = 254;
+  mailTestInput.autocomplete = 'email';
+  mailTestInput.placeholder = 'you@example.com';
+  const mailTestField = makeField('Test recipient', mailTestInput);
+  const sendMailTestButton = makeElement('button', 'secondary-button', 'Send test email');
+  sendMailTestButton.type = 'button';
+  const mailTestControls = makeElement('div', 'mail-test-controls');
+  mailTestControls.append(mailTestField, sendMailTestButton);
+  const mailTestMessage = makeElement('div', 'login-message');
+  mailTestMessage.setAttribute('role', 'status');
+  mailTestMessage.setAttribute('aria-live', 'polite');
+
+  mailTestSection.append(
+    mailTestHeading,
+    mailTestHelp,
+    mailTestControls,
+    mailTestMessage
+  );
+
   const accountMessage = makeElement('div', 'login-message');
   accountMessage.setAttribute('role', 'status');
   accountMessage.setAttribute('aria-live', 'polite');
@@ -439,6 +467,7 @@
     accountHeading,
     accountIdentity,
     inviteSection,
+    mailTestSection,
     accountMessage,
     accountButtons
   );
@@ -516,8 +545,14 @@
       ? `Signed in as ${user.username} · ${user.email}${user.emailVerified ? ' ✓' : ''}`
       : `Signed in as ${user.username}`;
     inviteSection.hidden = !user.isOwner;
+    mailTestSection.hidden = !user.isOwner;
     generatedInvite.hidden = true;
     accountMessage.textContent = '';
+    mailTestMessage.textContent = '';
+    mailTestMessage.dataset.kind = '';
+    if (user.isOwner && !mailTestInput.value && user.email) {
+      mailTestInput.value = user.email;
+    }
     accountDialog.showModal();
 
     if (user.isOwner) {
@@ -686,6 +721,39 @@
       generatedInviteInput.focus();
       generatedInviteInput.select();
       accountMessage.textContent = 'Select and copy the invite link manually.';
+    }
+  });
+
+  sendMailTestButton.addEventListener('click', async () => {
+    if (!user?.isOwner) return;
+
+    const email = mailTestInput.value.trim();
+    if (!email || !mailTestInput.checkValidity()) {
+      mailTestMessage.dataset.kind = 'error';
+      mailTestMessage.textContent = 'Enter a valid recipient email address.';
+      mailTestInput.focus();
+      return;
+    }
+
+    sendMailTestButton.disabled = true;
+    mailTestMessage.dataset.kind = '';
+    mailTestMessage.textContent = 'Sending SMTP test…';
+
+    try {
+      const result = await apiRequest('test-mail.php', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': csrfToken },
+        body: JSON.stringify({ email })
+      });
+      mailTestMessage.dataset.kind = 'ok';
+      mailTestMessage.textContent = result.message || 'SMTP test email sent.';
+    } catch (error) {
+      mailTestMessage.dataset.kind = 'error';
+      mailTestMessage.textContent = error instanceof ApiError
+        ? error.message
+        : 'Could not send the SMTP test email.';
+    } finally {
+      sendMailTestButton.disabled = false;
     }
   });
 

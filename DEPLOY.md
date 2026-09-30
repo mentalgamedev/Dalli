@@ -133,8 +133,8 @@ The invitee only chooses a username and password.
 Public signup remains disabled unless the auth migration is present and SMTP is configured.
 
 1. Configure authenticated SMTP in the private `molife-config.php`.
-2. Verify that the sender domain has the appropriate SPF/DKIM/DMARC setup for the mail service you use.
-3. Test delivery to an address you control while registration is still `invite`.
+2. Sign in as the MoLife owner, open **Account → Email system**, and send a test message to an address you control while registration is still `invite`.
+3. Confirm that the message arrives with the expected sender, then verify that the sender domain has the appropriate SPF/DKIM/DMARC setup for the mail service you use.
 4. Change `registration_mode` to `public`.
 
 MoLife supports STARTTLS (`tls`, commonly port 587) and implicit TLS (`ssl`, commonly port 465). TLS certificates are verified. Public activation links expire after 60 minutes and work once.
