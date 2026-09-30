@@ -371,6 +371,77 @@
     authMessage.textContent = email ? `Activation address: ${email}` : '';
   }
 
+  function showVerificationPrompt(message = '') {
+    authMode = 'verify';
+    authTitle.textContent = 'CONFIRM YOUR IDENTITY';
+    authText.textContent = 'Enter the password you chose when registering. The email link alone cannot activate the account.';
+    authTabs.hidden = true;
+    usernameField.hidden = true;
+    emailField.hidden = true;
+    passwordField.hidden = false;
+    confirmPasswordField.hidden = true;
+    ownerSetupField.hidden = true;
+    websiteField.hidden = true;
+    rememberLabel.hidden = true;
+    resendVerificationButton.hidden = true;
+    authSubmitButton.hidden = false;
+    authSubmitButton.disabled = false;
+    authSubmitButton.textContent = 'Activate account';
+    authCancelButton.textContent = 'Close';
+    passwordInput.value = '';
+    passwordInput.autocomplete = 'current-password';
+    passwordInput.minLength = 1;
+    authMessage.dataset.kind = message ? 'error' : '';
+    authMessage.textContent = message;
+
+    if (!authDialog.open) authDialog.showModal();
+    requestAnimationFrame(() => passwordInput.focus());
+  }
+
+  async function activatePendingVerification(password) {
+    if (!pendingVerification) {
+      clearPendingVerification();
+      setAuthMode('login');
+      authMessage.dataset.kind = 'error';
+      authMessage.textContent = 'Activation link is missing or expired.';
+      return;
+    }
+
+    authSubmitButton.disabled = true;
+    authMessage.dataset.kind = '';
+    authMessage.textContent = 'Verifying identity…';
+
+    try {
+      const activated = await apiRequest('verify-email.php', {
+        method: 'POST',
+        body: JSON.stringify({ token: pendingVerification, password })
+      });
+      clearPendingVerification();
+      authDialog.close();
+      registrationMode = 'public';
+      publicSignupReady = true;
+      await activateSession(activated, { newAccount: true });
+      setSyncStatus('Activated · Synced', 'ok');
+      setTimeout(() => {
+        if (user && !conflict) setSyncStatus('Synced', 'ok');
+      }, 3500);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        showVerificationPrompt(error.message);
+        return;
+      }
+
+      clearPendingVerification();
+      setAuthMode('login');
+      authMessage.dataset.kind = 'error';
+      authMessage.textContent = error instanceof ApiError
+        ? error.message
+        : 'Could not activate this MoLife account.';
+    } finally {
+      authSubmitButton.disabled = false;
+    }
+  }
+
   function openAuth(mode) {
     setAuthMode(mode);
     if (!authDialog.open) authDialog.showModal();
@@ -1017,6 +1088,8 @@
 
     if (authMode === 'register') {
       registerAccount(username, email, password, confirmPasswordInput.value, remember);
+    } else if (authMode === 'verify') {
+      activatePendingVerification(password);
     } else if (authMode === 'login') {
       signIn(username, password, remember);
     }
@@ -1032,29 +1105,10 @@
   async function initialize() {
     if (!window.DalliApp) return;
 
-    let verificationError = '';
-
     if (pendingVerification) {
-      try {
-        const activated = await apiRequest('verify-email.php', {
-          method: 'POST',
-          body: JSON.stringify({ token: pendingVerification })
-        });
-        clearPendingVerification();
-        registrationMode = 'public';
-        publicSignupReady = true;
-        await activateSession(activated, { newAccount: true });
-        setSyncStatus('Activated · Synced', 'ok');
-        setTimeout(() => {
-          if (user && !conflict) setSyncStatus('Synced', 'ok');
-        }, 3500);
-        return;
-      } catch (error) {
-        verificationError = error instanceof ApiError
-          ? error.message
-          : 'Could not activate this MoLife account.';
-        clearPendingVerification();
-      }
+      setSignedOutUi();
+      showVerificationPrompt();
+      return;
     }
 
     try {
@@ -1071,13 +1125,6 @@
       registrationMode = session.registration?.mode || 'invite';
       publicSignupReady = session.registration?.publicSignupReady === true;
       setSignedOutUi();
-
-      if (verificationError) {
-        openAuth('login');
-        authText.textContent = 'That activation transmission could not be accepted. You can log in if the account is already active, or request a fresh activation email by starting account creation again.';
-        authMessage.textContent = verificationError;
-        return;
-      }
 
       if (pendingInvite && registrationMode !== 'closed') {
         openAuth('register');
