@@ -33,7 +33,6 @@ $active = !dalli_auth_schema_ready($pdo)
 
 if (!$valid || !is_array($user) || !$active) {
     dalli_login_rate_failure($username);
-    usleep(150000);
     dalli_fail('Invalid username or password.', 401);
 }
 

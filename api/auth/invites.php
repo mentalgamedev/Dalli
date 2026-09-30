@@ -62,6 +62,39 @@ function dalli_invite_matches(array $invite, array $token): bool
         && (int) ($invite['expires'] ?? 0) > time();
 }
 
+function dalli_invite_is_valid(PDO $pdo, int $ownerId, array $token): bool
+{
+    if (dalli_auth_schema_ready($pdo)) {
+        $stmt = $pdo->prepare(
+            "SELECT secret_hash, UNIX_TIMESTAMP(expires_at) AS expires_at
+             FROM auth_tokens
+             WHERE purpose = 'invite' AND user_id = ? AND selector = ? AND consumed_at IS NULL
+             LIMIT 1"
+        );
+        $stmt->execute([$ownerId, $token['id'] ?? '']);
+        $row = $stmt->fetch();
+
+        if (is_array($row)
+            && (int) ($row['expires_at'] ?? 0) > time()
+            && hash_equals(
+                (string) ($row['secret_hash'] ?? ''),
+                hash('sha256', (string) ($token['secret'] ?? ''))
+            )) {
+            return true;
+        }
+    }
+
+    $ownerRow = dalli_user_state_row($pdo, $ownerId, false);
+    $ownerEnvelope = dalli_envelope_from_row($ownerRow);
+    foreach (dalli_clean_invites($ownerEnvelope['auth']['invites'] ?? []) as $invite) {
+        if (dalli_invite_matches($invite, $token)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function dalli_create_invite(PDO $pdo, int $ownerId): array
 {
     $id = bin2hex(random_bytes(8));

@@ -34,11 +34,17 @@ function dalli_mail_configured(): bool
         && filter_var($from, FILTER_VALIDATE_EMAIL) !== false;
 }
 
-function dalli_public_signup_ready(): bool
+function dalli_public_mail_ready(): bool
 {
     return dalli_auth_schema_ready()
         && dalli_registration_mode() === 'public'
+        && dalli_auth_hmac_ready()
         && dalli_mail_configured();
+}
+
+function dalli_public_signup_ready(): bool
+{
+    return dalli_public_mail_ready();
 }
 
 function dalli_mail_header_text(string $value): string
@@ -105,7 +111,7 @@ function dalli_build_verification_email(string $username, string $verificationUr
     $plain = "MoLife // mo.les.tech identity transmission\n\n"
         . "Hello {$username},\n\n"
         . "Activate your MoLife account using this link:\n{$verificationUrl}\n\n"
-        . "The link expires in 60 minutes and works once.\n\n"
+        . "The link expires in 60 minutes and works once. MoLife will also ask for the password you chose when registering.\n\n"
         . "If you did not request this account, you can ignore this message.\n";
 
     $html = '<!doctype html><html><body style="margin:0;background:#0d1016;color:#f3f4f7;font-family:Arial,sans-serif;">'
@@ -114,7 +120,7 @@ function dalli_build_verification_email(string $username, string $verificationUr
         . '<h1 style="margin:10px 0 8px;font-size:30px;">TRANSMISSION RECEIVED</h1>'
         . '<p style="color:#b8bfca;line-height:1.55;">Hello ' . $safeName . '. Your MoLife cloud identity is waiting for activation.</p>'
         . '<p style="margin:28px 0;"><a href="' . $safeUrl . '" style="display:inline-block;padding:13px 18px;border-radius:10px;background:#d8b95e;color:#101217;text-decoration:none;font-weight:800;">ACTIVATE MOLIFE ACCOUNT</a></p>'
-        . '<p style="color:#8f98a6;font-size:13px;line-height:1.5;">This one-use link expires in 60 minutes. If you did not request a MoLife account, ignore this message.</p>'
+        . '<p style="color:#8f98a6;font-size:13px;line-height:1.5;">This one-use link expires in 60 minutes. MoLife will also ask for the password you chose when registering. If you did not request a MoLife account, ignore this message.</p>'
         . '<p style="margin-top:28px;color:#68717f;font-size:11px;">powered by MoThink-6.7</p>'
         . '</div></body></html>';
 

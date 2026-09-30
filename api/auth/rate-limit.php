@@ -169,6 +169,113 @@ function dalli_rate_failure(
     @file_put_contents($path, json_encode($next), LOCK_EX);
 }
 
+function dalli_rate_consume_strict(
+    string $action,
+    string $subject,
+    int $limit,
+    int $windowSeconds
+): bool {
+    if (!dalli_auth_schema_ready()) {
+        throw new RuntimeException('Authentication rate-limit storage is unavailable.');
+    }
+
+    $pdo = dalli_pdo();
+    $bucket = dalli_rate_bucket_hash($action, $subject);
+    $now = time();
+    $pdo->beginTransaction();
+
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT UNIX_TIMESTAMP(window_started_at) AS window_started,
+                    hit_count,
+                    UNIX_TIMESTAMP(blocked_until) AS blocked_until
+             FROM auth_rate_limits
+             WHERE action = ? AND bucket_hash = ?
+             FOR UPDATE'
+        );
+        $stmt->execute([$action, $bucket]);
+        $row = $stmt->fetch();
+
+        $windowStarted = $now;
+        $count = 0;
+        $blockedUntil = 0;
+
+        if (is_array($row)) {
+            $storedWindow = (int) ($row['window_started'] ?? 0);
+            if ($storedWindow >= $now - $windowSeconds) {
+                $windowStarted = $storedWindow;
+                $count = (int) ($row['hit_count'] ?? 0);
+                $blockedUntil = (int) ($row['blocked_until'] ?? 0);
+            }
+        }
+
+        if ($blockedUntil > $now || $count >= $limit) {
+            $pdo->rollBack();
+            return false;
+        }
+
+        $count++;
+        $blockAt = $count >= $limit
+            ? max($now + 1, $windowStarted + $windowSeconds)
+            : null;
+
+        $upsert = $pdo->prepare(
+            'INSERT INTO auth_rate_limits
+                (action, bucket_hash, window_started_at, hit_count, blocked_until)
+             VALUES (?, ?, FROM_UNIXTIME(?), ?, ?)
+             ON DUPLICATE KEY UPDATE
+                window_started_at = VALUES(window_started_at),
+                hit_count = VALUES(hit_count),
+                blocked_until = VALUES(blocked_until)'
+        );
+        $upsert->execute([
+            $action,
+            $bucket,
+            $windowStarted,
+            $count,
+            $blockAt === null ? null : date('Y-m-d H:i:s', $blockAt),
+        ]);
+        $pdo->commit();
+        return true;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw new RuntimeException('Authentication abuse control is unavailable.', 0, $e);
+    }
+}
+
+function dalli_rate_status(string $action, string $subject, int $windowSeconds, int $limit): array
+{
+    if (!dalli_auth_schema_ready()) {
+        throw new RuntimeException('Authentication rate-limit storage is unavailable.');
+    }
+
+    $stmt = dalli_pdo()->prepare(
+        'SELECT UNIX_TIMESTAMP(window_started_at) AS window_started,
+                hit_count,
+                UNIX_TIMESTAMP(blocked_until) AS blocked_until
+         FROM auth_rate_limits
+         WHERE action = ? AND bucket_hash = ?
+         LIMIT 1'
+    );
+    $stmt->execute([$action, dalli_rate_bucket_hash($action, $subject)]);
+    $row = $stmt->fetch();
+    $now = time();
+
+    if (!is_array($row) || (int) ($row['window_started'] ?? 0) < $now - $windowSeconds) {
+        return ['used' => 0, 'limit' => $limit, 'blockedUntil' => null];
+    }
+
+    return [
+        'used' => min($limit, max(0, (int) ($row['hit_count'] ?? 0))),
+        'limit' => $limit,
+        'blockedUntil' => (int) ($row['blocked_until'] ?? 0) > $now
+            ? (int) $row['blocked_until']
+            : null,
+    ];
+}
+
 function dalli_rate_clear(string $action, string $subject): void
 {
     if (dalli_auth_schema_ready()) {

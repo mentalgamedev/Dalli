@@ -33,4 +33,6 @@ The historical `dalli_*` function and cookie names are retained in v4.8 delibera
 
 `../auth-store.php` and `../mailer.php` are compatibility shims. New MoLife endpoint code should include `auth/bootstrap.php` and, when mail is required, `auth/mailer.php`.
 
-This refactor does not change the database schema, cookies, API payloads, token formats, account lifecycle, or registration modes.
+v4.9 adds public-facing availability controls around this boundary: fail-closed registration and mail budgets, a pending-account circuit breaker, fixed-lifetime remembered-device credentials, permanent owner-setup lockout after initialization, and active-account checks on protected application data.
+
+The default budgets are intentionally conservative and can be overridden in the private `security` config section. Exhausting a public-signup budget closes new registration temporarily; it does not disable login or cloud sync for existing users.

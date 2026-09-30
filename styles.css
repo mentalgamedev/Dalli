@@ -742,6 +742,32 @@ input, select {
   white-space: nowrap;
 }
 
+.security-status {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255,255,255,.025);
+  color: var(--muted);
+  font-size: .78rem;
+  line-height: 1.4;
+}
+
+.security-status[data-kind="ok"] {
+  border-color: rgba(72,217,154,.24);
+}
+
+.security-status[data-kind="warning"],
+.security-status[data-kind="error"] {
+  border-color: rgba(255,109,122,.24);
+}
+
+.security-status-section > .secondary-button {
+  width: fit-content;
+  margin-top: 0;
+}
+
 .generated-invite {
   display: grid;
   grid-template-columns: 1fr auto;

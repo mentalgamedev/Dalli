@@ -221,6 +221,28 @@ MoLife v4.8 separates authentication from game-state validation. The reusable au
 
 The auth directory contains focused modules for identity/session handling, remembered-device credentials, invitations, one-use verification tokens, housekeeping and SMTP. The only MoLife-specific piece inside that directory is `state-bridge.php`, which exists solely to migrate legacy pre-auth-schema session/invite data. See `api/auth/README.md` for the portability boundary.
 
+## v4.9 — Department of Uninvited Citizens
+
+Public registration is treated as expendable infrastructure: if signup traffic becomes abusive, MoLife closes new registration before it risks the rest of the application.
+
+Default server-side safeguards include:
+
+- global registration budgets of 40/hour and 200/24h, in addition to existing per-IP/per-email limits
+- global account-email budgets of 60/hour and 300/24h
+- a maximum of 200 pending unverified accounts
+- fail-closed abuse controls for public registration and verification resend
+- bounded housekeeping for expired sessions/tokens/pending accounts
+- one duplicate-account notification per address per 24h
+- fixed 30-day lifetime for remembered-device credentials (secret rotation no longer extends expiry)
+- permanent owner-setup lockout once any account exists
+- active-account validation before protected cloud-state access
+- activation requires both the one-use email token and the password chosen during registration
+- an owner-only **Public registration firewall** status panel
+- conservative host-only HSTS (`max-age=604800`, no preload or subdomain inheritance)
+- production deployment is gated on the full MySQL/auth integration suite and followed by a live auth health check
+
+The limits can be overridden through the private `security` config section. Existing installations need no config or database migration for v4.9; the defaults apply automatically.
+
 ## Self-hosting
 
 See [DEPLOY.md](DEPLOY.md) for the provider-neutral self-hosting guide.

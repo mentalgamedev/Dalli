@@ -371,6 +371,77 @@
     authMessage.textContent = email ? `Activation address: ${email}` : '';
   }
 
+  function showVerificationPrompt(message = '') {
+    authMode = 'verify';
+    authTitle.textContent = 'CONFIRM YOUR IDENTITY';
+    authText.textContent = 'Enter the password you chose when registering. The email link alone cannot activate the account.';
+    authTabs.hidden = true;
+    usernameField.hidden = true;
+    emailField.hidden = true;
+    passwordField.hidden = false;
+    confirmPasswordField.hidden = true;
+    ownerSetupField.hidden = true;
+    websiteField.hidden = true;
+    rememberLabel.hidden = true;
+    resendVerificationButton.hidden = true;
+    authSubmitButton.hidden = false;
+    authSubmitButton.disabled = false;
+    authSubmitButton.textContent = 'Activate account';
+    authCancelButton.textContent = 'Close';
+    passwordInput.value = '';
+    passwordInput.autocomplete = 'current-password';
+    passwordInput.minLength = 1;
+    authMessage.dataset.kind = message ? 'error' : '';
+    authMessage.textContent = message;
+
+    if (!authDialog.open) authDialog.showModal();
+    requestAnimationFrame(() => passwordInput.focus());
+  }
+
+  async function activatePendingVerification(password) {
+    if (!pendingVerification) {
+      clearPendingVerification();
+      setAuthMode('login');
+      authMessage.dataset.kind = 'error';
+      authMessage.textContent = 'Activation link is missing or expired.';
+      return;
+    }
+
+    authSubmitButton.disabled = true;
+    authMessage.dataset.kind = '';
+    authMessage.textContent = 'Verifying identity…';
+
+    try {
+      const activated = await apiRequest('verify-email.php', {
+        method: 'POST',
+        body: JSON.stringify({ token: pendingVerification, password })
+      });
+      clearPendingVerification();
+      authDialog.close();
+      registrationMode = 'public';
+      publicSignupReady = true;
+      await activateSession(activated, { newAccount: true });
+      setSyncStatus('Activated · Synced', 'ok');
+      setTimeout(() => {
+        if (user && !conflict) setSyncStatus('Synced', 'ok');
+      }, 3500);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        showVerificationPrompt(error.message);
+        return;
+      }
+
+      clearPendingVerification();
+      setAuthMode('login');
+      authMessage.dataset.kind = 'error';
+      authMessage.textContent = error instanceof ApiError
+        ? error.message
+        : 'Could not activate this MoLife account.';
+    } finally {
+      authSubmitButton.disabled = false;
+    }
+  }
+
   function openAuth(mode) {
     setAuthMode(mode);
     if (!authDialog.open) authDialog.showModal();
@@ -452,6 +523,18 @@
     mailTestMessage
   );
 
+  const securitySection = makeElement('section', 'invite-section security-status-section');
+  const securityHeading = makeElement('h3', '', 'Public registration firewall');
+  const securityHelp = makeElement(
+    'p',
+    'muted',
+    'Circuit breakers protect the database and mail account from automated signup floods.'
+  );
+  const securityStatus = makeElement('div', 'security-status');
+  const refreshSecurityButton = makeElement('button', 'secondary-button', 'Refresh status');
+  refreshSecurityButton.type = 'button';
+  securitySection.append(securityHeading, securityHelp, securityStatus, refreshSecurityButton);
+
   const accountMessage = makeElement('div', 'login-message');
   accountMessage.setAttribute('role', 'status');
   accountMessage.setAttribute('aria-live', 'polite');
@@ -468,6 +551,7 @@
     accountIdentity,
     inviteSection,
     mailTestSection,
+    securitySection,
     accountMessage,
     accountButtons
   );
@@ -538,6 +622,39 @@
     }
   }
 
+  async function loadSecurityStatus() {
+    if (!user?.isOwner) return;
+
+    securityStatus.textContent = 'Checking perimeter…';
+    refreshSecurityButton.disabled = true;
+
+    try {
+      const result = await apiRequest('security-status.php', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': csrfToken },
+        body: JSON.stringify({})
+      });
+
+      const limits = result.limits || {};
+      const registrationState = result.publicSignupReady ? 'OPEN' : 'SAFE MODE';
+      const lines = [
+        `Public registration: ${registrationState}`,
+        `Accounts: ${result.activeAccounts ?? 0} active · ${result.pendingAccounts ?? 0} pending / ${limits.maxPendingAccounts ?? '?'} max`,
+        `Registrations: ${limits.registrationHour?.used ?? 0}/${limits.registrationHour?.limit ?? '?'} this hour · ${limits.registrationDay?.used ?? 0}/${limits.registrationDay?.limit ?? '?'} / 24h`,
+        `Account mail: ${limits.mailHour?.used ?? 0}/${limits.mailHour?.limit ?? '?'} this hour · ${limits.mailDay?.used ?? 0}/${limits.mailDay?.limit ?? '?'} / 24h`
+      ];
+      securityStatus.replaceChildren(...lines.map(line => makeElement('div', 'security-status-line', line)));
+      securityStatus.dataset.kind = result.publicSignupReady ? 'ok' : 'warning';
+    } catch (error) {
+      securityStatus.dataset.kind = 'error';
+      securityStatus.textContent = error instanceof ApiError
+        ? error.message
+        : 'Could not read registration security status.';
+    } finally {
+      refreshSecurityButton.disabled = false;
+    }
+  }
+
   async function openAccountDialog() {
     if (!user) return;
 
@@ -546,6 +663,7 @@
       : `Signed in as ${user.username}`;
     inviteSection.hidden = !user.isOwner;
     mailTestSection.hidden = !user.isOwner;
+    securitySection.hidden = !user.isOwner;
     generatedInvite.hidden = true;
     accountMessage.textContent = '';
     mailTestMessage.textContent = '';
@@ -556,7 +674,7 @@
     accountDialog.showModal();
 
     if (user.isOwner) {
-      await loadInvites();
+      await Promise.all([loadInvites(), loadSecurityStatus()]);
     }
   }
 
@@ -723,6 +841,8 @@
       accountMessage.textContent = 'Select and copy the invite link manually.';
     }
   });
+
+  refreshSecurityButton.addEventListener('click', loadSecurityStatus);
 
   sendMailTestButton.addEventListener('click', async () => {
     if (!user?.isOwner) return;
@@ -968,6 +1088,8 @@
 
     if (authMode === 'register') {
       registerAccount(username, email, password, confirmPasswordInput.value, remember);
+    } else if (authMode === 'verify') {
+      activatePendingVerification(password);
     } else if (authMode === 'login') {
       signIn(username, password, remember);
     }
@@ -983,29 +1105,10 @@
   async function initialize() {
     if (!window.DalliApp) return;
 
-    let verificationError = '';
-
     if (pendingVerification) {
-      try {
-        const activated = await apiRequest('verify-email.php', {
-          method: 'POST',
-          body: JSON.stringify({ token: pendingVerification })
-        });
-        clearPendingVerification();
-        registrationMode = 'public';
-        publicSignupReady = true;
-        await activateSession(activated, { newAccount: true });
-        setSyncStatus('Activated · Synced', 'ok');
-        setTimeout(() => {
-          if (user && !conflict) setSyncStatus('Synced', 'ok');
-        }, 3500);
-        return;
-      } catch (error) {
-        verificationError = error instanceof ApiError
-          ? error.message
-          : 'Could not activate this MoLife account.';
-        clearPendingVerification();
-      }
+      setSignedOutUi();
+      showVerificationPrompt();
+      return;
     }
 
     try {
@@ -1022,13 +1125,6 @@
       registrationMode = session.registration?.mode || 'invite';
       publicSignupReady = session.registration?.publicSignupReady === true;
       setSignedOutUi();
-
-      if (verificationError) {
-        openAuth('login');
-        authText.textContent = 'That activation transmission could not be accepted. You can log in if the account is already active, or request a fresh activation email by starting account creation again.';
-        authMessage.textContent = verificationError;
-        return;
-      }
 
       if (pendingInvite && registrationMode !== 'closed') {
         openAuth('register');

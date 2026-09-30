@@ -12,10 +12,10 @@ if (!dalli_auth_schema_ready()) {
 
 $body = dalli_read_json_body();
 $token = dalli_parse_auth_token((string) ($body['token'] ?? ''));
+$password = (string) ($body['password'] ?? '');
 
-if ($token === null) {
+if ($token === null || strlen($password) < 1 || strlen($password) > 200) {
     dalli_verification_attempt_rate_failure();
-    usleep(100000);
     dalli_fail('Activation link is invalid or expired.', 400);
 }
 
@@ -28,13 +28,12 @@ try {
     if ($consumed === null) {
         $pdo->rollBack();
         dalli_verification_attempt_rate_failure();
-        usleep(100000);
         dalli_fail('Activation link is invalid or expired.', 400);
     }
 
     $userId = (int) $consumed['userId'];
     $stmt = $pdo->prepare(
-        'SELECT id, username, email, status FROM users WHERE id = ? LIMIT 1 FOR UPDATE'
+        'SELECT id, username, email, status, password_hash FROM users WHERE id = ? LIMIT 1 FOR UPDATE'
     );
     $stmt->execute([$userId]);
     $user = $stmt->fetch();
@@ -43,6 +42,17 @@ try {
         $pdo->rollBack();
         dalli_verification_attempt_rate_failure();
         dalli_fail('Activation link is invalid or expired.', 400);
+    }
+
+    if (!password_verify($password, (string) ($user['password_hash'] ?? ''))) {
+        $pdo->rollBack();
+        dalli_verification_attempt_rate_failure();
+        dalli_fail('Activation link or password is invalid.', 401);
+    }
+
+    if (dalli_password_needs_rehash((string) $user['password_hash'])) {
+        $rehash = $pdo->prepare('UPDATE users SET password_hash = ?, password_changed_at = NOW() WHERE id = ?');
+        $rehash->execute([dalli_hash_password($password), $userId]);
     }
 
     $update = $pdo->prepare(

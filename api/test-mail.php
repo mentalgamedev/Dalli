@@ -27,6 +27,16 @@ if (!dalli_mail_configured()) {
 }
 
 try {
+    if (!dalli_rate_consume_strict('owner_mail_test', (string) $userId, 10, 3600)) {
+        header('Retry-After: 3600');
+        dalli_fail('Too many SMTP test messages. Try again later.', 429);
+    }
+} catch (Throwable $e) {
+    error_log('MoLife SMTP test limiter failed: ' . $e->getMessage());
+    dalli_fail('SMTP diagnostics are temporarily unavailable.', 503);
+}
+
+try {
     dalli_send_test_email($email);
 } catch (Throwable $e) {
     error_log('MoLife SMTP test failed: ' . $e->getMessage());

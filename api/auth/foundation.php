@@ -37,6 +37,34 @@ function dalli_registration_mode(): string
     return $mode;
 }
 
+function dalli_security_int(string $key, int $default, int $min, int $max): int
+{
+    $raw = trim(dalli_config('security', $key));
+    if ($raw === '' || preg_match('/^\d+$/', $raw) !== 1) {
+        return $default;
+    }
+
+    $value = (int) $raw;
+    return max($min, min($max, $value));
+}
+
+function dalli_auth_hmac_ready(): bool
+{
+    $key = dalli_config('app', 'auth_hmac_key');
+    return strlen($key) >= 32;
+}
+
+function dalli_security_limits(): array
+{
+    return [
+        'registrationsPerHour' => dalli_security_int('registrations_per_hour', 40, 5, 1000),
+        'registrationsPerDay' => dalli_security_int('registrations_per_day', 200, 20, 10000),
+        'mailPerHour' => dalli_security_int('mail_per_hour', 60, 5, 2000),
+        'mailPerDay' => dalli_security_int('mail_per_day', 300, 20, 20000),
+        'maxPendingAccounts' => dalli_security_int('max_pending_accounts', 200, 10, 10000),
+    ];
+}
+
 function dalli_password_algorithm(): string|int|null
 {
     return defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_DEFAULT;

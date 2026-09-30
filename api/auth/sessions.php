@@ -296,7 +296,9 @@ function dalli_try_remember_login(PDO $pdo): ?array
 
     if (dalli_auth_schema_ready($pdo)) {
         $stmt = $pdo->prepare(
-            "SELECT s.id AS session_id, s.validator_hash, UNIX_TIMESTAMP(s.expires_at) AS expires_at,
+            "SELECT s.id AS session_id, s.validator_hash,
+                    UNIX_TIMESTAMP(s.created_at) AS created_at,
+                    UNIX_TIMESTAMP(s.expires_at) AS expires_at,
                     u.id, u.username, u.status
              FROM auth_sessions s
              JOIN users u ON u.id = s.user_id
@@ -319,16 +321,17 @@ function dalli_try_remember_login(PDO $pdo): ?array
 
             $newValidator = bin2hex(random_bytes(32));
             $now = time();
-            $newExpires = $now + DALLI_REMEMBER_SECONDS;
+            // Rotate the secret on every use, but never extend the original
+            // remember-me expiry. A stolen token therefore has a hard lifetime.
+            $newExpires = (int) $row['expires_at'];
             $update = $pdo->prepare(
                 'UPDATE auth_sessions
-                 SET validator_hash = ?, last_used_at = FROM_UNIXTIME(?), expires_at = FROM_UNIXTIME(?)
+                 SET validator_hash = ?, last_used_at = FROM_UNIXTIME(?)
                  WHERE id = ?'
             );
             $update->execute([
                 hash('sha256', $newValidator),
                 $now,
-                $newExpires,
                 (int) $row['session_id'],
             ]);
             dalli_set_remember_cookie(

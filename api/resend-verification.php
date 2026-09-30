@@ -6,7 +6,7 @@ require __DIR__ . '/auth/mailer.php';
 dalli_require_method('POST');
 dalli_require_same_origin();
 
-if (!dalli_public_signup_ready()) {
+if (!dalli_public_mail_ready()) {
     dalli_fail('Public account activation is temporarily unavailable.', 503);
 }
 
@@ -18,8 +18,8 @@ if ($email === null) {
     dalli_fail('Enter a valid email address.', 422);
 }
 
-dalli_verification_resend_rate_check($email);
-dalli_verification_resend_rate_hit($email);
+dalli_verification_resend_guard($email);
+dalli_public_mail_budget_guard();
 
 $pdo = dalli_pdo();
 dalli_cleanup_auth_housekeeping($pdo);
@@ -65,7 +65,7 @@ try {
 try {
     if (is_string($verificationUrl) && is_string($username)) {
         dalli_send_verification_email($email, $username, $verificationUrl);
-    } elseif ($existingActive && is_string($username)) {
+    } elseif ($existingActive && is_string($username) && dalli_existing_account_notice_allowed($email)) {
         dalli_send_existing_account_email($email, $username);
     }
 } catch (Throwable $e) {
