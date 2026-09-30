@@ -289,6 +289,17 @@
     passwordField.hidden = false;
     websiteField.hidden = false;
     rememberLabel.hidden = false;
+
+    // Restore normal form participation after special auth screens such as
+    // email verification. Hidden required controls must never be allowed to
+    // block native form submission.
+    usernameInput.disabled = false;
+    usernameInput.required = true;
+    passwordInput.disabled = false;
+    passwordInput.required = true;
+    websiteInput.disabled = false;
+    rememberInput.disabled = false;
+
     passwordInput.value = '';
     confirmPasswordInput.value = '';
     ownerSetupInput.value = '';
@@ -310,11 +321,14 @@
     ownerSetupField.hidden = !(registering && registrationMode === 'owner-setup');
 
     emailInput.required = publicRegistration;
+    emailInput.disabled = !publicRegistration;
     passwordInput.autocomplete = registering ? 'new-password' : 'current-password';
     passwordInput.minLength = registering ? 12 : 1;
     confirmPasswordInput.required = registering;
+    confirmPasswordInput.disabled = !registering;
     confirmPasswordInput.minLength = registering ? 12 : 0;
     ownerSetupInput.required = registering && registrationMode === 'owner-setup';
+    ownerSetupInput.disabled = !(registering && registrationMode === 'owner-setup');
 
     if (!registering) {
       authText.textContent = 'Log in once and MoLife can keep you signed in on this device.';
@@ -388,6 +402,22 @@
     authSubmitButton.disabled = false;
     authSubmitButton.textContent = 'Activate account';
     authCancelButton.textContent = 'Close';
+
+    // Verification needs only the password. Disable every hidden control so
+    // browser constraint validation cannot silently reject the submit before
+    // our submit handler runs (notably the normally-required username field).
+    usernameInput.required = false;
+    usernameInput.disabled = true;
+    emailInput.required = false;
+    emailInput.disabled = true;
+    confirmPasswordInput.required = false;
+    confirmPasswordInput.disabled = true;
+    ownerSetupInput.required = false;
+    ownerSetupInput.disabled = true;
+    websiteInput.disabled = true;
+    rememberInput.disabled = true;
+    passwordInput.disabled = false;
+    passwordInput.required = true;
     passwordInput.value = '';
     passwordInput.autocomplete = 'current-password';
     passwordInput.minLength = 1;

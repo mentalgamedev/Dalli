@@ -258,6 +258,12 @@ Each report also generates deterministic Crestfallen incident copy tailored to t
 
 This pass is presentation-only: it does not change the state schema, damage calculation, Required-action rules, combo math, undo behavior or cloud validation.
 
+## v4.11.1 — Department of Invisible Bureaucracy
+
+Fix public-account activation on browsers that enforce native form constraint validation before dispatching the submit event. The verification screen now disables and un-requires every hidden registration/login control, so the password-only activation request cannot be silently blocked by the hidden required username field.
+
+The auth dialog also explicitly enforces `display: none` for elements carrying `hidden`, preventing authored flex/grid rules from making the login/register tabs or remembered-device row reappear on the activation screen.
+
 ## Self-hosting
 
 See [DEPLOY.md](DEPLOY.md) for the provider-neutral self-hosting guide.

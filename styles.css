@@ -658,6 +658,10 @@ input, select {
   cursor: default;
 }
 
+.login-dialog [hidden] {
+  display: none !important;
+}
+
 .auth-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
