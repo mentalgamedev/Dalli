@@ -19,6 +19,7 @@ if (!is_int($userId) && !ctype_digit((string) $userId)) {
             'user' => $rememberedUser,
             'csrfToken' => dalli_csrf_token(),
             'remembered' => true,
+            'authFoundationReady' => dalli_auth_schema_ready($pdo),
         ]);
     }
 
@@ -70,4 +71,5 @@ dalli_json_response([
     'user' => dalli_session_user_payload($pdo, $userId, $username),
     'csrfToken' => dalli_csrf_token(),
     'remembered' => dalli_parse_remember_cookie() !== null,
+    'authFoundationReady' => dalli_auth_schema_ready($pdo),
 ]);
