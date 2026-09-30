@@ -150,50 +150,62 @@ Detailed events are retained for recent history while compact daily summaries ca
 
 ## Accounts and sync
 
-MoLife has a deliberately small private account system:
+MoLife is local-first: the app works without an account, while signed-in users can sync their state across devices.
 
-- the **first account becomes the owner**
-- the owner creates one-use invite links from the Account screen
-- invited people choose their own username and password
-- each user has separate game state
-- users can stay signed in for 30 days on each device
-- remembered devices have independent revocable tokens
-- cloud state uses optimistic revisions so stale devices cannot silently overwrite newer data
-- local browser data remains available when the backend is temporarily unreachable
+The current production registration flow remains invite-only while the public-account system is built in staged passes. The **public auth foundation** introduces:
 
-Invite secrets live in the URL fragment (`#invite=...`), so the secret is not sent in the initial HTTP request or normal access logs. Invite links are single-use and expire after 7 days.
+- explicit account roles and statuses (`owner` / `user`, `active` / future pending states)
+- nullable email identity fields for the verified-email signup pass
+- dedicated `auth_sessions`, `auth_tokens` and `auth_rate_limits` tables
+- a private registration-mode switch: **invite**, **closed**, or reserved **public**
+- Argon2id password hashing when the PHP runtime supports it, with safe fallback to PHP's default adaptive password algorithm
+- independent login throttles for account identity and source IP
+- HMAC-pseudonymized rate-limit buckets when an auth HMAC key is configured
+- backward-compatible lazy migration of existing remembered-device cookies into `auth_sessions`
+- backward-compatible handling of already-issued legacy invite links
+
+`public` registration deliberately remains fail-closed in this pass. Verified-email signup is the next implementation pass.
+
+Cloud state still uses optimistic revisions so stale devices cannot silently overwrite newer data, and local browser data remains available when the backend is temporarily unreachable.
+
+Invite secrets remain in the URL fragment (`#invite=...`), so the secret is not sent in the initial HTTP request or normal access logs. Invite links are single-use and expire after 7 days.
 
 ## Storage
 
 Guest/local mode uses browser `localStorage`.
 
-Signed-in users store their validated MoLife state in MySQL/MariaDB-compatible storage. Server-owned authentication metadata is kept in a protected envelope in `user_state.state_json` and is never accepted from, or returned to, the browser as app state.
+Signed-in users store validated MoLife game state in MySQL/MariaDB-compatible storage. Authentication data is moving out of the game-state envelope and into dedicated server-owned auth tables. Existing legacy remember tokens and invites remain readable only for migration compatibility and are not exposed as browser app state.
 
-The database schema remains intentionally small:
+The modern database foundation uses:
 
 - `users`
 - `user_state`
+- `auth_sessions`
+- `auth_tokens`
+- `auth_rate_limits`
 
-MoLife v4.5 uses gameplay state **v6** while deliberately retaining the existing browser storage keys. v2 and v3 still migrate forward, v4 migrates through the Pawnshop item model, and v5 required-action ID snapshots migrate to v6 requirement records with a count of 1. Existing IDs, progression, history, current-fight HP and current-fight damage are preserved; the fixed configured HP rule applies from the next daily fight onward.
+MoLife v4.5 uses gameplay state **v6** while deliberately retaining the existing browser storage keys. v2 and v3 still migrate forward, v4 migrates through the Pawnshop item model, and v5 required-action ID snapshots migrate to v6 requirement records with a count of 1. Existing IDs, progression, history, current-fight HP and current-fight damage are preserved.
 
 ## Security
 
 Highlights:
 
 - database credentials kept outside the public document root and outside Git
-- restricted application database user
-- PHP `password_hash()` / `password_verify()`
+- restricted runtime database user
+- Argon2id where available, otherwise PHP's adaptive default password hashing
+- automatic password rehashing after successful login when parameters improve
 - Secure + HttpOnly + SameSite=Strict cookies
 - persistent-login cookies use random selectors/validators; only validator hashes are stored server-side
-- remembered devices use separate tokens and logout revokes the current device token
+- modern remembered-device credentials live in `auth_sessions`, independent of gameplay state
 - persistent tokens rotate when they restore a session
-- one-use, expiring invite links; only invite hashes are stored
+- one-use, expiring invite links; only secret hashes are stored
+- explicit owner role in the modern schema rather than permanently inferring ownership from the lowest user ID
+- registration kill switch that can close account creation without disabling existing accounts
+- independent account/IP login throttling and DB-backed rate-limit storage after the auth migration
 - first-owner creation protected by a private high-entropy setup code
 - CSRF protection plus same-origin checks
 - PDO prepared statements
-- login and registration throttling
 - strict server-side state validation and payload limits
-- no uploads, email, password-reset service or third-party PHP dependencies
 - API responses excluded from the service-worker cache
 - restrictive browser security headers
 
