@@ -250,6 +250,14 @@ Focus is now a live Track-o-Tron choice instead of a permanent per-category prop
 
 Resistance keeps the same underlying 100% → 65% → 40% → 25% curve, but the global **Resistance buildup** factor controls how aggressively it applies. The default is 0.75 for a gentler curve; 1.0 is the original behavior and 0 disables resistance.
 
+## v4.11 — Bureau of Unnecessary Force
+
+Track-o-Tron action clicks now open an **Internal Hostility Report** so every registered attack gets unmistakable feedback. The report shows direct damage, base damage, effective damage percentage, remaining enemy HP, combo bonus damage when applicable, and outstanding Required-action status.
+
+Each report also generates deterministic Crestfallen incident copy tailored to the hit. If lethal normal damage is blocked by Tenacious, the report explicitly records the Dark Doppelgänger's administrative return to 1 HP and the number of Required moves still outstanding. A successful finishing attack hands off to the existing *Crestfallen Daily* victory report after the attack report is dismissed.
+
+This pass is presentation-only: it does not change the state schema, damage calculation, Required-action rules, combo math, undo behavior or cloud validation.
+
 ## Self-hosting
 
 See [DEPLOY.md](DEPLOY.md) for the provider-neutral self-hosting guide.

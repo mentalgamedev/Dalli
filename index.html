@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="preload" href="fonts/PunkKid.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=4.10.0">
+  <link rel="stylesheet" href="styles.css?v=4.11.0">
 </head>
 <body>
   <div class="city-noise" aria-hidden="true"></div>
@@ -28,7 +28,7 @@
       <div class="brand-block">
         <h1 class="brand-title" aria-label="MoLife"><span class="brand-mo">Mo</span><span class="brand-life">Life</span><span class="brand-tm">™</span></h1>
         <div class="brand-subline"><strong>Daily Struggle Assistant</strong><span> · powered by MoThink-6.7</span></div>
-        <div class="app-version" aria-label="MoLife version 4.10.0">v4.10.0 · Bureau of Selective Priorities</div>
+        <div class="app-version" aria-label="MoLife version 4.11.0">v4.11.0 · Bureau of Unnecessary Force</div>
         <div id="todayLabel" class="muted"></div>
       </div>
       <button id="settingsButton" class="icon-button" type="button" aria-label="Open settings" title="Settings">⚙</button>
@@ -218,6 +218,59 @@
           <strong id="dayCardStreak"></strong>
         </div>
         <button id="closeDayCardButton" class="newspaper-button" type="button">Case closed</button>
+      </div>
+    </article>
+  </dialog>
+
+  <dialog id="attackReportDialog" class="attack-report-dialog" aria-labelledby="attackReportAction" aria-describedby="attackReportMessage">
+    <article id="attackReportCard" class="attack-report-card">
+      <div class="attack-report-topline">
+        <span>MO.LIFE // INTERNAL HOSTILITY REPORT</span>
+        <strong id="attackReportStatus">TARGET ACTIVE</strong>
+      </div>
+
+      <div class="attack-report-main">
+        <div class="attack-report-copy">
+          <div class="attack-report-kicker">ATTACK REGISTERED</div>
+          <h2 id="attackReportAction">Action</h2>
+          <div id="attackReportCategory" class="attack-report-category">CATEGORY DIVISION</div>
+        </div>
+        <div class="attack-report-impact" aria-label="Direct attack damage">
+          <span>DIRECT HIT</span>
+          <strong id="attackReportDamage">-0 HP</strong>
+        </div>
+      </div>
+
+      <div class="attack-report-grid" aria-label="Attack data">
+        <div>
+          <span>Base damage</span>
+          <strong id="attackReportBaseDamage">0 DMG</strong>
+        </div>
+        <div>
+          <span>Efficiency</span>
+          <strong id="attackReportEfficiency">100%</strong>
+        </div>
+        <div>
+          <span>Target HP</span>
+          <strong id="attackReportHp">0 / 0</strong>
+        </div>
+      </div>
+
+      <div id="attackReportComboRow" class="attack-report-extra is-combo" hidden>
+        <span>COMBO FOLLOW-UP</span>
+        <strong id="attackReportCombo"></strong>
+      </div>
+
+      <div id="attackReportRequiredRow" class="attack-report-extra is-required" hidden>
+        <span>TENACIOUS PAPERWORK</span>
+        <strong id="attackReportRequired"></strong>
+      </div>
+
+      <p id="attackReportMessage" class="attack-report-message"></p>
+
+      <div class="attack-report-footer">
+        <span>Incident automatically filed with nobody important.</span>
+        <button id="closeAttackReportButton" class="attack-report-button" type="button">Continue hostilities</button>
       </div>
     </article>
   </dialog>
@@ -450,7 +503,7 @@
     </article>
   </template>
 
-  <script src="app.js?v=4.10.0" defer></script>
-  <script src="cloud.js?v=4.10.0" defer></script>
+  <script src="app.js?v=4.11.0" defer></script>
+  <script src="cloud.js?v=4.11.0" defer></script>
 </body>
 </html>

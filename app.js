@@ -281,6 +281,22 @@
     dayCardStreak: document.querySelector('#dayCardStreak'),
     closeDayCardButton: document.querySelector('#closeDayCardButton'),
 
+    attackReportDialog: document.querySelector('#attackReportDialog'),
+    attackReportCard: document.querySelector('#attackReportCard'),
+    attackReportStatus: document.querySelector('#attackReportStatus'),
+    attackReportAction: document.querySelector('#attackReportAction'),
+    attackReportCategory: document.querySelector('#attackReportCategory'),
+    attackReportDamage: document.querySelector('#attackReportDamage'),
+    attackReportBaseDamage: document.querySelector('#attackReportBaseDamage'),
+    attackReportEfficiency: document.querySelector('#attackReportEfficiency'),
+    attackReportHp: document.querySelector('#attackReportHp'),
+    attackReportComboRow: document.querySelector('#attackReportComboRow'),
+    attackReportCombo: document.querySelector('#attackReportCombo'),
+    attackReportRequiredRow: document.querySelector('#attackReportRequiredRow'),
+    attackReportRequired: document.querySelector('#attackReportRequired'),
+    attackReportMessage: document.querySelector('#attackReportMessage'),
+    closeAttackReportButton: document.querySelector('#closeAttackReportButton'),
+
     settingsButton: document.querySelector('#settingsButton'),
     settingsDialog: document.querySelector('#settingsDialog'),
     settingsForm: document.querySelector('#settingsForm'),
@@ -329,6 +345,7 @@
   let newswireSpecialUntil = 0;
   let visualFrame = null;
   let dayCardTimer = null;
+  let pendingVictoryReport = false;
   let settingsSaveTimer = null;
   let settingsBackgroundScrollY = 0;
   let actionDrag = null;
@@ -1954,6 +1971,25 @@
     const justDefeated = finalizeVictoryIfNeeded();
     const afterSummary = getSummary();
     const tenaciousResisted = !beforeSummary.tenaciousHolding && afterSummary.tenaciousHolding;
+    const attackReport = {
+      transactionId: actionTx.id,
+      actionName: actionTx.actionName,
+      categoryName: actionTx.categoryName,
+      baseDamage: actionTx.baseDamage,
+      damage: actionTx.damage,
+      efficiency: actionTx.efficiency,
+      currentHp: afterSummary.currentHp,
+      maxHp: afterSummary.maxHp,
+      comboName: comboEvent?.comboName || '',
+      comboDamage: comboEvent?.damage || 0,
+      requiredRemainingCount: afterSummary.requiredRemainingCount,
+      tenaciousHolding: afterSummary.tenaciousHolding,
+      isTenacious: afterSummary.isTenacious,
+      isVictory: afterSummary.isVictory,
+      justDefeated,
+      overkill: afterSummary.overkill
+    };
+
     saveState();
     render({
       showDayCard: justDefeated,
@@ -1961,7 +1997,8 @@
       hitDamage: actionTx.damage,
       hitName: actionTx.actionName,
       comboEvent,
-      tenaciousResisted
+      tenaciousResisted,
+      attackReport
     });
   }
 
@@ -2268,19 +2305,131 @@
       showFightFeedback(options.hitDamage, options.comboEvent, options.tenaciousResisted);
     }
 
+    if (options.attackReport) {
+      openAttackReport(options.attackReport);
+    }
+
     wasVictory = summary.isVictory;
 
     if (options.showDayCard && state.current.dayCard) {
-      window.clearTimeout(dayCardTimer);
-      document.body.classList.remove('day-cleared-flash');
-      void document.body.offsetWidth;
-      document.body.classList.add('day-cleared-flash');
+      if (options.attackReport) {
+        pendingVictoryReport = true;
+      } else {
+        queueVictoryDayCard();
+      }
+    }
+  }
 
-      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      dayCardTimer = window.setTimeout(() => {
-        document.body.classList.remove('day-cleared-flash');
-        openDayCard(state.current.dayCard, { celebrate: true });
-      }, reducedMotion ? 0 : 850);
+  function queueVictoryDayCard() {
+    if (!state.current.dayCard) return;
+    pendingVictoryReport = false;
+    window.clearTimeout(dayCardTimer);
+    document.body.classList.remove('day-cleared-flash');
+    void document.body.offsetWidth;
+    document.body.classList.add('day-cleared-flash');
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    dayCardTimer = window.setTimeout(() => {
+      document.body.classList.remove('day-cleared-flash');
+      openDayCard(state.current.dayCard, { celebrate: true });
+    }, reducedMotion ? 0 : 850);
+  }
+
+  function attackReportFlavor(report) {
+    const baseLines = [
+      () => `${report.actionName} made contact. A nearby excuse was seen leaving Crestfallen without forwarding information.`,
+      () => `The attack was filed as “routine ${report.categoryName} activity” until investigators noticed ${report.damage} points of darkness missing.`,
+      () => `Witnesses describe ${report.actionName} as “surprisingly violent for something from a productivity app.”`,
+      () => `MoLife telemetry confirms ${report.actionName} connected with the hostile internal entity. The entity has requested less telemetry.`,
+      () => `The Department of Internal Hostilities has approved ${report.actionName} retroactively and denied doing so.`,
+      () => `Impact confirmed. Dark Doppelgänger attempted to absorb the hit emotionally; accounting still recorded ${report.damage} DMG.`,
+      () => `${report.categoryName} activity entered the scene and immediately made the situation less metaphorical.`,
+      () => `No weapon was recovered. Investigators are currently treating ${report.actionName} as the weapon.`
+    ];
+    const base = deterministicPick(
+      baseLines,
+      `${state.current.date}|${report.transactionId}|attack-report`
+    )();
+
+    const combo = report.comboDamage > 0
+      ? ` ${report.comboName} then added ${report.comboDamage} bonus DMG, which investigators are calling “needlessly coordinated.”`
+      : '';
+
+    let status;
+    if (report.tenaciousHolding) {
+      status = ` Target reached lethal damage. The Required Actions Office overruled medical staff and restored it to 1 HP; ${report.requiredRemainingCount} required move${report.requiredRemainingCount === 1 ? '' : 's'} remain.`;
+    } else if (report.isVictory) {
+      status = report.overkill > 0
+        ? ` Hostile internal entity has ceased operations with ${report.overkill} points of unnecessary additional paperwork.`
+        : ' Hostile internal entity has ceased operations. Victory paperwork is being generated against its wishes.';
+    } else if (report.requiredRemainingCount > 0) {
+      status = ` Darkness remains operational under the Tenacious clause: ${report.requiredRemainingCount} required move${report.requiredRemainingCount === 1 ? '' : 's'} still outstanding.`;
+    } else if (report.currentHp <= Math.max(1, Math.floor(report.maxHp * 0.25))) {
+      status = ` Target remains active at ${report.currentHp} HP and is now officially described as “administratively concerned.”`;
+    } else {
+      status = ` Target remains active at ${report.currentHp} HP. Further hostilities are authorized.`;
+    }
+
+    return `${base}${combo}${status}`;
+  }
+
+  function openAttackReport(report) {
+    if (!els.attackReportDialog || !report) return;
+
+    const efficiencyPercent = Math.round(report.efficiency * 100);
+    const healthRatio = report.currentHp / Math.max(1, report.maxHp);
+    const status = report.isVictory
+      ? 'HOSTILE DOWN'
+      : report.tenaciousHolding
+        ? 'TENACIOUS HOLD'
+        : healthRatio <= 0.25
+          ? 'TARGET CRITICAL'
+          : healthRatio <= 0.60
+            ? 'TARGET WOUNDED'
+            : 'TARGET ACTIVE';
+
+    els.attackReportDialog.classList.toggle('is-victory', report.isVictory);
+    els.attackReportDialog.classList.toggle('is-tenacious', report.tenaciousHolding);
+    els.attackReportCard?.classList.remove('attack-report-enter');
+    els.attackReportStatus.textContent = status;
+    els.attackReportAction.textContent = report.actionName;
+    els.attackReportCategory.textContent = `${report.categoryName.toUpperCase()} DIVISION`;
+    els.attackReportDamage.textContent = `-${report.damage} HP`;
+    els.attackReportBaseDamage.textContent = `${report.baseDamage} DMG`;
+    els.attackReportEfficiency.textContent = `${efficiencyPercent}%`;
+    els.attackReportHp.textContent = `${report.currentHp} / ${report.maxHp}`;
+
+    els.attackReportComboRow.hidden = report.comboDamage <= 0;
+    els.attackReportCombo.textContent = report.comboDamage > 0
+      ? `${report.comboName} · +${report.comboDamage} DMG`
+      : '';
+
+    els.attackReportRequiredRow.hidden = report.requiredRemainingCount <= 0;
+    els.attackReportRequired.textContent = report.requiredRemainingCount > 0
+      ? `${report.requiredRemainingCount} required move${report.requiredRemainingCount === 1 ? '' : 's'} remain`
+      : '';
+
+    els.attackReportMessage.textContent = attackReportFlavor(report);
+    els.closeAttackReportButton.textContent = report.justDefeated
+      ? 'File victory report'
+      : 'Continue hostilities';
+
+    if (typeof els.attackReportDialog.showModal === 'function') {
+      els.attackReportDialog.showModal();
+    } else {
+      els.attackReportDialog.setAttribute('open', '');
+    }
+
+    requestAnimationFrame(() => els.attackReportCard?.classList.add('attack-report-enter'));
+  }
+
+  function closeAttackReport() {
+    if (!els.attackReportDialog?.open) return;
+    if (typeof els.attackReportDialog.close === 'function') {
+      els.attackReportDialog.close();
+    } else {
+      els.attackReportDialog.removeAttribute('open');
+      if (pendingVictoryReport && state.current.dayCard) queueVictoryDayCard();
     }
   }
 
@@ -4078,9 +4227,20 @@
   els.resetGameButton.addEventListener('click', resetGameData);
   els.viewDayCardButton.addEventListener('click', () => openDayCard(state.current.dayCard));
   els.closeDayCardButton.addEventListener('click', () => els.dayCardDialog.close());
+  els.closeAttackReportButton?.addEventListener('click', closeAttackReport);
 
   els.dayCardDialog.addEventListener('click', event => {
     if (event.target === els.dayCardDialog) els.dayCardDialog.close();
+  });
+
+  els.attackReportDialog?.addEventListener('click', event => {
+    if (event.target === els.attackReportDialog) closeAttackReport();
+  });
+
+  els.attackReportDialog?.addEventListener('close', () => {
+    if (pendingVictoryReport && state.current.dayCard) {
+      queueVictoryDayCard();
+    }
   });
 
   window.addEventListener('focus', () => {
