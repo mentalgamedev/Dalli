@@ -19,20 +19,43 @@ if (!is_int($userId) && !ctype_digit((string) $userId)) {
             'user' => $rememberedUser,
             'csrfToken' => dalli_csrf_token(),
             'remembered' => true,
+            'authFoundationReady' => dalli_auth_schema_ready($pdo),
         ]);
     }
 
     $ownerId = dalli_owner_id($pdo);
+    $mode = $ownerId === null ? 'owner-setup' : dalli_registration_mode();
     dalli_json_response([
         'ok' => true,
         'authenticated' => false,
         'registration' => [
-            'mode' => $ownerId === null ? 'owner-setup' : 'invite-only',
+            'mode' => $mode,
+            'authFoundationReady' => dalli_auth_schema_ready($pdo),
+            'publicSignupReady' => false,
         ],
     ]);
 }
 
 $userId = (int) $userId;
+
+if (dalli_auth_schema_ready($pdo)) {
+    $statusStmt = $pdo->prepare('SELECT status FROM users WHERE id = ? LIMIT 1');
+    $statusStmt->execute([$userId]);
+    if ((string) ($statusStmt->fetchColumn() ?: '') !== 'active') {
+        $_SESSION = [];
+        session_regenerate_id(true);
+        dalli_json_response([
+            'ok' => true,
+            'authenticated' => false,
+            'registration' => [
+                'mode' => dalli_registration_mode(),
+                'authFoundationReady' => true,
+                'publicSignupReady' => false,
+            ],
+        ]);
+    }
+}
+
 $username = (string) ($_SESSION['username'] ?? '');
 
 if ($username === '') {
@@ -48,4 +71,5 @@ dalli_json_response([
     'user' => dalli_session_user_payload($pdo, $userId, $username),
     'csrfToken' => dalli_csrf_token(),
     'remembered' => dalli_parse_remember_cookie() !== null,
+    'authFoundationReady' => dalli_auth_schema_ready($pdo),
 ]);

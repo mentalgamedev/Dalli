@@ -18,6 +18,7 @@
   let saving = false;
   let queuedState = null;
   let registrationMode = 'unknown';
+  let publicSignupReady = false;
   let pendingInvite = captureInviteFromHash();
 
   class ApiError extends Error {
@@ -129,6 +130,10 @@
   function setSignedOutUi() {
     signInButton.hidden = false;
     createAccountButton.hidden = false;
+    createAccountButton.disabled = registrationMode === 'closed';
+    createAccountButton.title = registrationMode === 'closed'
+      ? 'New account creation is currently closed'
+      : '';
     accountButton.hidden = true;
     accountButton.textContent = '';
     setSyncStatus('Local');
@@ -263,9 +268,15 @@
     if (registrationMode === 'owner-setup') {
       authText.textContent = 'This is the first MoLife account. Enter the one-time owner setup code from your private server configuration.';
       authSubmitButton.disabled = false;
+    } else if (registrationMode === 'closed') {
+      authText.textContent = 'New account creation is currently closed. Local-only MoLife still works normally.';
+      authSubmitButton.disabled = true;
     } else if (pendingInvite) {
       authText.textContent = 'You have a MoLife invite. Choose a username and password to create your account.';
       authSubmitButton.disabled = false;
+    } else if (registrationMode === 'public' && !publicSignupReady) {
+      authText.textContent = 'Public account creation is being prepared. For now, new accounts still require an invite.';
+      authSubmitButton.disabled = true;
     } else {
       authText.textContent = 'New accounts require an invite link from the MoLife owner.';
       authSubmitButton.disabled = true;
@@ -463,7 +474,7 @@
       });
 
       clearPendingInvite();
-      registrationMode = 'invite-only';
+      registrationMode = 'invite';
       authDialog.close();
       await activateSession(session, { newAccount: true });
     } catch (error) {
@@ -775,10 +786,11 @@
         return;
       }
 
-      registrationMode = session.registration?.mode || 'invite-only';
+      registrationMode = session.registration?.mode || 'invite';
+      publicSignupReady = session.registration?.publicSignupReady === true;
       setSignedOutUi();
 
-      if (pendingInvite) {
+      if (pendingInvite && registrationMode !== 'closed') {
         openAuth('register');
       }
     } catch (error) {

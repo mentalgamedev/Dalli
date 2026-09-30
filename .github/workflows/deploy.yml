@@ -40,7 +40,7 @@ jobs:
 
           mkdir -p _deploy
 
-          rsync -a ./ _deploy/             --exclude '.git/'             --exclude '.github/'             --exclude '_deploy/'             --exclude 'README.md'             --exclude 'DEPLOY.md'             --exclude 'docs/'             --exclude 'schema.sql'             --exclude 'config.example.php'             --exclude 'molife-config.php'             --exclude 'dalli-config.php'             --exclude '.env'             --exclude '.env.*'
+          rsync -a ./ _deploy/             --exclude '.git/'             --exclude '.github/'             --exclude '_deploy/'             --exclude 'README.md'             --exclude 'DEPLOY.md'             --exclude 'docs/'             --exclude 'tests/'             --exclude 'migrations/'             --exclude 'schema.sql'             --exclude 'config.example.php'             --exclude 'molife-config.php'             --exclude 'dalli-config.php'             --exclude '.env'             --exclude '.env.*'
 
           echo "Files prepared for deployment:"
           find _deploy -maxdepth 3 -type f -printf '%P\n' | sort

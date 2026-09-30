@@ -19,7 +19,7 @@ Keep the real configuration **outside** that public directory. The backend expec
 
 ```
 parent-of-public-root/
-├── dalli-config.php
+├── molife-config.php
 └── public-root/
     ├── index.html
     ├── api/
@@ -31,20 +31,26 @@ Do not commit the real config file.
 
 ## 2. Database
 
-Create the schema in [schema.sql](schema.sql).
+For a fresh installation, create the schema in [schema.sql](schema.sql).
 
-Use a dedicated application database user with only the permissions Dalli needs at runtime:
+For an existing pre-public-auth installation, run the one-time migration:
+
+    migrations/2026-09-30-public-auth-foundation.sql
+
+The deployed PHP detects whether the modern auth schema exists and remains compatible with the legacy schema until the migration is applied. This means deploying the code first is safe; public signup still remains disabled.
+
+Use a dedicated application database user with only the permissions MoLife needs at runtime:
 
 - SELECT
 - INSERT
 - UPDATE
 - DELETE
 
-Schema-changing and administrative permissions are not required for normal operation.
+Use a separate administrative database account to run schema migrations. The normal application account does not need ALTER or CREATE privileges.
 
 ## 3. Private configuration
 
-Use [config.example.php](config.example.php) as the template for the private `dalli-config.php`.
+Use [config.example.php](config.example.php) as the template for the private `molife-config.php`.
 
 Fill in:
 
@@ -53,6 +59,8 @@ Fill in:
 - restricted database username
 - database password
 - the public HTTPS origin of your MoLife installation
+- registration_mode: keep **invite** during the foundation pass; **closed** is an emergency kill switch
+- one long random auth HMAC key for pseudonymizing rate-limit buckets
 - one long random owner setup token
 
 Example:
@@ -74,7 +82,9 @@ return [
         'password' => 'YOUR_DATABASE_PASSWORD',
     ],
     'app' => [
-        'origin' => 'https://dalli.example.com',
+        'origin' => 'https://molife.example.com',
+        'registration_mode' => 'invite',
+        'auth_hmac_key' => 'A_DIFFERENT_LONG_RANDOM_SECRET',
         'owner_setup_token' => 'A_LONG_RANDOM_SECRET',
     ],
 ];
@@ -82,7 +92,7 @@ return [
 
 ## 4. First account
 
-Open Dalli normally.
+Open MoLife normally.
 
 If the database has no users yet, **Create account** becomes the owner-account flow. Enter:
 
@@ -90,7 +100,7 @@ If the database has no users yet, **Create account** becomes the owner-account f
 - password
 - the private owner setup code
 
-The first account automatically becomes the MoLife owner. Once an owner exists, later registrations require owner-created invite links instead of the setup code.
+The first account automatically becomes the MoLife owner. In the modern schema this is an explicit owner role. Keep registration_mode set to invite until the verified-email public-signup pass is complete. Setting it to closed disables all new-account creation immediately.
 
 ## 5. Invite another person
 
@@ -124,9 +134,9 @@ Passwords are never stored in browser storage.
 
 ## 7. Existing local data
 
-When an account has no cloud state yet, MoLife checks whether the current browser has meaningful local Dalli data.
+When an account has no cloud state yet, MoLife checks whether the current browser has meaningful local MoLife data.
 
-- If it does, Dalli asks whether to import it.
+- If it does, MoLife asks whether to import it.
 - Otherwise the account starts with the default setup.
 
 ## 8. Security headers and PHP settings
@@ -177,7 +187,8 @@ The workflow:
 - excludes repository documentation, schema/config examples and secret-file patterns
 - deploys with explicit TLS (FTPS)
 - mirrors deletions as well as additions
-- never commits or uploads the private `dalli-config.php`
+- excludes database migrations from the public web deployment
+- never commits or uploads the private `molife-config.php`
 
 Adapt the workflow if your hosting provider uses SSH/SFTP, rsync, a platform CLI, containers or another deployment mechanism.
 
@@ -196,9 +207,10 @@ Authenticated `/api/` traffic must never enter the service-worker cache.
 
 After deployment:
 
-1. confirm the expected visible Dalli version
+1. confirm the expected visible MoLife version
 2. load the app over HTTPS
 3. verify `/api/session.php` returns JSON
-4. create/login to a test account if appropriate
-5. confirm the private config is not web-addressable
-6. confirm no credential file exists inside the public document root
+4. after applying the auth migration, confirm login still works for an existing account
+5. confirm owner invite creation/list/revoke still works
+6. confirm the private config is not web-addressable
+7. confirm no credential file or migration SQL exists inside the public document root

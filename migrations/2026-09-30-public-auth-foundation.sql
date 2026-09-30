@@ -1,35 +1,21 @@
-CREATE TABLE users (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    username VARCHAR(64) NOT NULL,
-    email VARCHAR(254) NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(16) NOT NULL DEFAULT 'user',
-    status VARCHAR(16) NOT NULL DEFAULT 'active',
-    email_verified_at TIMESTAMP NULL DEFAULT NULL,
-    password_changed_at TIMESTAMP NULL DEFAULT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    UNIQUE KEY uq_users_username (username),
-    UNIQUE KEY uq_users_email (email)
-) ENGINE=InnoDB
-  DEFAULT CHARSET=utf8mb4
-  COLLATE=utf8mb4_general_ci;
+-- MoLife public-auth foundation migration
+-- Run once against an existing MoLife database before enabling the modern auth backend.
+-- Existing accounts remain active. The oldest existing account becomes the explicit owner.
 
-CREATE TABLE user_state (
-    user_id BIGINT UNSIGNED NOT NULL,
-    state_json JSON NOT NULL,
-    revision INT UNSIGNED NOT NULL DEFAULT 1,
-    updated_at TIMESTAMP NOT NULL
-        DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_id),
-    CONSTRAINT fk_user_state_user
-        FOREIGN KEY (user_id)
-        REFERENCES users(id)
-        ON DELETE CASCADE
-) ENGINE=InnoDB
-  DEFAULT CHARSET=utf8mb4
-  COLLATE=utf8mb4_general_ci;
+ALTER TABLE users
+    ADD COLUMN email VARCHAR(254) NULL AFTER username,
+    ADD COLUMN role VARCHAR(16) NOT NULL DEFAULT 'user' AFTER password_hash,
+    ADD COLUMN status VARCHAR(16) NOT NULL DEFAULT 'active' AFTER role,
+    ADD COLUMN email_verified_at TIMESTAMP NULL DEFAULT NULL AFTER status,
+    ADD COLUMN password_changed_at TIMESTAMP NULL DEFAULT NULL AFTER email_verified_at,
+    ADD UNIQUE KEY uq_users_email (email);
+
+UPDATE users
+SET role = 'owner'
+WHERE id = (
+    SELECT owner_id
+    FROM (SELECT MIN(id) AS owner_id FROM users) AS existing_owner
+);
 
 CREATE TABLE auth_sessions (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
