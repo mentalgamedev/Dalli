@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/bootstrap.php';
 require __DIR__ . '/auth-store.php';
+require __DIR__ . '/mailer.php';
 
 dalli_require_method('POST');
 dalli_require_same_origin();
@@ -31,7 +32,7 @@ if (!is_int($userId) && !ctype_digit((string) $userId)) {
         'registration' => [
             'mode' => $mode,
             'authFoundationReady' => dalli_auth_schema_ready($pdo),
-            'publicSignupReady' => false,
+            'publicSignupReady' => dalli_public_signup_ready(),
         ],
     ]);
 }
@@ -50,7 +51,7 @@ if (dalli_auth_schema_ready($pdo)) {
             'registration' => [
                 'mode' => dalli_registration_mode(),
                 'authFoundationReady' => true,
-                'publicSignupReady' => false,
+                'publicSignupReady' => dalli_public_signup_ready(),
             ],
         ]);
     }
