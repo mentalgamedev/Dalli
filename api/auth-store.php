@@ -425,10 +425,15 @@ function dalli_issue_remember(PDO $pdo, int $userId): void
 
 function dalli_try_legacy_remember(PDO $pdo, array $cookie): ?array
 {
-    $stmt = $pdo->prepare('SELECT id, username FROM users WHERE id = ? LIMIT 1');
+    $stmt = $pdo->prepare(
+        dalli_auth_schema_ready($pdo)
+            ? "SELECT id, username, status FROM users WHERE id = ? LIMIT 1"
+            : "SELECT id, username FROM users WHERE id = ? LIMIT 1"
+    );
     $stmt->execute([$cookie['userId']]);
     $user = $stmt->fetch();
-    if (!is_array($user)) {
+    if (!is_array($user)
+        || (dalli_auth_schema_ready($pdo) && (string) ($user['status'] ?? '') !== 'active')) {
         return null;
     }
 
