@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const STATE_VERSION = 6;
+  const STATE_VERSION = 7;
   const TEMPLATE_VERSION = 1;
   const ITEM_DROP_CHANCE = 0.40;
   const ITEM_CAPACITY = 8;
@@ -11,6 +11,8 @@
   const UNCATEGORIZED_ID = 'uncategorized';
   const UNCATEGORIZED_EFFICIENCY = 0.50;
   const CATEGORY_RESISTANCE = Object.freeze([1, 0.65, 0.40, 0.25]);
+  const DEFAULT_FOCUS_FACTOR = 1.5;
+  const DEFAULT_RESISTANCE_BUILDUP = 0.75;
   const REQUIRED_COUNT_MAX = 1000;
   const VICTORY_XP = 20;
   const COMBO_MIN_MULTIPLIER = 1.05;
@@ -169,11 +171,14 @@
     version: STATE_VERSION,
     settings: {
       fullEnemyHp: 100,
+      focusCategoryId: 'work',
+      focusFactor: DEFAULT_FOCUS_FACTOR,
+      resistanceBuildup: DEFAULT_RESISTANCE_BUILDUP,
       categories: [
-        { id: 'wellbeing', name: 'Wellbeing', icon: '♥', focus: 1, color: '#49d89b' },
-        { id: 'work', name: 'Work', icon: '◆', focus: 1.5, color: '#818bff' },
-        { id: 'chores', name: 'Chores', icon: '⌂', focus: 0.75, color: '#ffb35f' },
-        { id: UNCATEGORIZED_ID, name: 'Uncategorized', icon: '•', focus: 0, color: '#8b93a4' }
+        { id: 'wellbeing', name: 'Wellbeing', icon: '♥', color: '#49d89b' },
+        { id: 'work', name: 'Work', icon: '◆', color: '#818bff' },
+        { id: 'chores', name: 'Chores', icon: '⌂', color: '#ffb35f' },
+        { id: UNCATEGORIZED_ID, name: 'Uncategorized', icon: '•', color: '#8b93a4' }
       ],
       actions: [
         { id: 'wellbeing-workout-30', categoryId: 'wellbeing', name: 'Proper workout', baseDamage: 20, type: 'repeatable', trackVisible: true, requiredForVictory: false, requiredCount: 1 },
@@ -282,10 +287,11 @@
     closeSettingsButton: document.querySelector('#closeSettingsButton'),
     goalInput: document.querySelector('#goalInput'),
     goalPreview: document.querySelector('#goalPreview'),
+    focusFactorInput: document.querySelector('#focusFactorInput'),
+    resistanceBuildupInput: document.querySelector('#resistanceBuildupInput'),
     categoriesEditor: document.querySelector('#categoriesEditor'),
     newCategoryName: document.querySelector('#newCategoryName'),
     newCategoryIcon: document.querySelector('#newCategoryIcon'),
-    newCategoryFocus: document.querySelector('#newCategoryFocus'),
     newCategoryColor: document.querySelector('#newCategoryColor'),
     addCategoryButton: document.querySelector('#addCategoryButton'),
     actionsEditor: document.querySelector('#actionsEditor'),
@@ -441,7 +447,6 @@
       id: UNCATEGORIZED_ID,
       name: 'Uncategorized',
       icon: '•',
-      focus: 0,
       color: DEFAULT_CATEGORY_COLORS.uncategorized
     };
   }
@@ -832,11 +837,40 @@
   }
 
 
+  function migrateV6State(candidate) {
+    const migrated = deepClone(candidate);
+    const categories = Array.isArray(candidate.settings?.categories) ? candidate.settings.categories : [];
+    const regular = categories.filter(category => category?.id !== UNCATEGORIZED_ID);
+    const focusedLegacy = regular
+      .map(category => ({
+        id: String(category?.id || ''),
+        focus: clampNumber(category?.focus, 0.25, 10, 1)
+      }))
+      .filter(category => category.id && category.focus > 1)
+      .sort((a, b) => b.focus - a.focus)[0] || null;
+
+    migrated.version = STATE_VERSION;
+    migrated.settings = {
+      ...(migrated.settings || {}),
+      focusCategoryId: focusedLegacy?.id || null,
+      focusFactor: focusedLegacy?.focus || DEFAULT_FOCUS_FACTOR,
+      resistanceBuildup: DEFAULT_RESISTANCE_BUILDUP,
+      categories: categories.map(category => {
+        const next = { ...category };
+        delete next.focus;
+        return next;
+      })
+    };
+    return migrated;
+  }
+
+
   function normalizeState(candidate) {
     if (candidate?.version === 2) candidate = migrateV2State(candidate);
     if (candidate?.version === 3) candidate = migrateV3State(candidate);
     if (candidate?.version === 4) candidate = migrateV4State(candidate);
     if (candidate?.version === 5) candidate = migrateV5State(candidate);
+    if (candidate?.version === 6) candidate = migrateV6State(candidate);
     if (!candidate || candidate.version !== STATE_VERSION) return freshState();
 
     const next = freshState();
@@ -855,13 +889,42 @@
         id,
         name: String(category?.name || `Category ${index + 1}`).slice(0, 80),
         icon: String(category?.icon || '•').slice(0, 24),
-        focus: clampNumber(category?.focus, 0.25, 10, 1),
         color: normalizeHexColor(category?.color, fallbackCategoryColor(id, index))
       });
     });
     next.settings.categories = ensureUncategorizedCategory(categories);
 
     const categoryIds = new Set(next.settings.categories.map(category => category.id));
+    const regularCategoryIds = new Set(
+      next.settings.categories
+        .filter(category => category.id !== UNCATEGORIZED_ID)
+        .map(category => category.id)
+    );
+
+    const legacyFocused = sourceCategories
+      .map(category => ({
+        id: String(category?.id || ''),
+        focus: clampNumber(category?.focus, 0.25, 10, 1)
+      }))
+      .filter(category => regularCategoryIds.has(category.id) && category.focus > 1)
+      .sort((a, b) => b.focus - a.focus)[0] || null;
+
+    const requestedFocusCategoryId = candidate.settings?.focusCategoryId;
+    next.settings.focusCategoryId = regularCategoryIds.has(String(requestedFocusCategoryId))
+      ? String(requestedFocusCategoryId)
+      : (legacyFocused?.id || null);
+    next.settings.focusFactor = clampNumber(
+      candidate.settings?.focusFactor,
+      1,
+      10,
+      legacyFocused?.focus || DEFAULT_FOCUS_FACTOR
+    );
+    next.settings.resistanceBuildup = clampNumber(
+      candidate.settings?.resistanceBuildup,
+      0,
+      2,
+      DEFAULT_RESISTANCE_BUILDUP
+    );
     const sourceActions = Array.isArray(candidate.settings?.actions)
       ? candidate.settings.actions
       : DEFAULT_STATE.settings.actions;
@@ -1112,7 +1175,7 @@
       const raw = localStorage.getItem(storageKey);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      if (!parsed || ![2, 3, 4, 5, STATE_VERSION].includes(parsed.version)) return null;
+      if (!parsed || ![2, 3, 4, 5, 6, STATE_VERSION].includes(parsed.version)) return null;
       return normalizeState(parsed);
     } catch (error) {
       console.warn('Could not read cached MoLife data:', error);
@@ -1157,24 +1220,40 @@
     return clampInt(settings.fullEnemyHp, 20, 1000, 100);
   }
 
-  function categoryResistanceForCount(actionCount) {
+  function categoryResistanceForCount(actionCount, settings = state.settings) {
     const index = Math.min(CATEGORY_RESISTANCE.length - 1, Math.max(0, clampInt(actionCount, 0, 100000, 0)));
-    return CATEGORY_RESISTANCE[index];
+    const base = CATEGORY_RESISTANCE[index];
+    const buildup = clampNumber(settings.resistanceBuildup, 0, 2, DEFAULT_RESISTANCE_BUILDUP);
+    return Math.pow(base, buildup);
   }
 
   function getCategoryEfficiency(categoryId, actionCount = 0, settings = state.settings) {
     if (categoryId === UNCATEGORIZED_ID) {
-      return { focus: 0, resistance: 1, multiplier: UNCATEGORIZED_EFFICIENCY, tier: 0, nextResistance: null };
+      return { focused: false, focus: 0, resistance: 1, multiplier: UNCATEGORIZED_EFFICIENCY, tier: 0, nextResistance: null };
     }
     const category = settings.categories.find(item => item.id === categoryId);
-    if (!category) return { focus: 1, resistance: 1, multiplier: 1, tier: 0, nextResistance: null };
+    if (!category) return { focused: false, focus: 1, resistance: 1, multiplier: 1, tier: 0, nextResistance: null };
 
-    const focus = clampNumber(category.focus, 0.25, 10, 1);
+    const focused = settings.focusCategoryId === categoryId;
+    const focus = focused
+      ? clampNumber(settings.focusFactor, 1, 10, DEFAULT_FOCUS_FACTOR)
+      : 1;
     const count = Math.max(0, clampInt(actionCount, 0, 100000, 0));
     const tier = Math.min(CATEGORY_RESISTANCE.length - 1, count);
-    const resistance = categoryResistanceForCount(count);
-    const nextResistance = count + 1 < CATEGORY_RESISTANCE.length ? CATEGORY_RESISTANCE[count + 1] : null;
-    return { focus, resistance, multiplier: resistance / focus, tier, nextResistance };
+    const resistance = categoryResistanceForCount(count, settings);
+    const nextResistance = count + 1 < CATEGORY_RESISTANCE.length
+      ? categoryResistanceForCount(count + 1, settings)
+      : null;
+    return { focused, focus, resistance, multiplier: resistance / focus, tier, nextResistance };
+  }
+
+  function toggleFocusedCategory(categoryId) {
+    if (categoryId === UNCATEGORIZED_ID) return;
+    if (!state.settings.categories.some(category => category.id === categoryId)) return;
+
+    state.settings.focusCategoryId = state.settings.focusCategoryId === categoryId ? null : categoryId;
+    saveState();
+    render();
   }
 
   function currentCategoryIdForTransaction(tx) {
@@ -2457,6 +2536,7 @@
       const title = fragment.querySelector('.category-title');
       const subtitle = fragment.querySelector('.category-subtitle');
       const score = fragment.querySelector('.category-score');
+      const focusToggle = fragment.querySelector('.category-focus-toggle');
       const efficiencyValue = fragment.querySelector('.efficiency-value');
       const fill = fragment.querySelector('.category-meter-fill');
       const next = fragment.querySelector('.efficiency-next');
@@ -2469,12 +2549,14 @@
       applyCategoryPaletteVars(card, category, index);
       card.dataset.categoryId = category.id;
       if (category.id === UNCATEGORIZED_ID) card.classList.add('is-fallback-category');
+      card.classList.toggle('is-focused-category', efficiency.focused);
 
       icon.textContent = category.icon;
       title.textContent = category.name;
       score.textContent = `${dealtDamage} DMG`;
 
       if (category.id === UNCATEGORIZED_ID) {
+        focusToggle.hidden = true;
         subtitle.textContent = 'Fallback · fixed 50% damage';
         efficiencyValue.textContent = '50%';
         fill.style.width = '100%';
@@ -2482,12 +2564,24 @@
       } else {
         const overallPercent = Math.round(efficiency.multiplier * 100);
         const resistancePercent = Math.round(efficiency.resistance * 100);
-        subtitle.textContent = `Focus ${category.focus}× · higher Focus = less damage`;
+        const focusFactor = clampNumber(state.settings.focusFactor, 1, 10, DEFAULT_FOCUS_FACTOR);
+        focusToggle.hidden = false;
+        focusToggle.classList.toggle('is-active', efficiency.focused);
+        focusToggle.setAttribute('aria-pressed', efficiency.focused ? 'true' : 'false');
+        focusToggle.textContent = efficiency.focused ? 'FOCUSED' : 'FOCUS';
+        focusToggle.title = efficiency.focused
+          ? 'Remove Focus from this category'
+          : `Focus ${category.name}; only one category can be focused`;
+        focusToggle.addEventListener('click', () => toggleFocusedCategory(category.id));
+
+        subtitle.textContent = efficiency.focused
+          ? `Focused · ${focusFactor.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}× workload`
+          : 'Standard priority';
         efficiencyValue.textContent = `${overallPercent}%`;
         fill.style.width = `${resistancePercent}%`;
         next.textContent = efficiency.nextResistance === null
-          ? `Resistance floor reached · category stays at ${resistancePercent}% before Focus`
-          : `Category resistance ${resistancePercent}% · next action drops to ${Math.round(efficiency.nextResistance * 100)}% before Focus`;
+          ? `Resistance floor reached · category stays at ${resistancePercent}%${efficiency.focused ? ' before Focus' : ''}`
+          : `Category resistance ${resistancePercent}% · next action drops to ${Math.round(efficiency.nextResistance * 100)}%${efficiency.focused ? ' before Focus' : ''}`;
       }
 
       const originalOrder = new Map(state.settings.actions.map((action, actionIndex) => [action.id, actionIndex]));
@@ -2802,6 +2896,8 @@
     settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
     settingsDraft.combos = Array.isArray(settingsDraft.combos) ? settingsDraft.combos : [];
     els.goalInput.value = settingsDraft.fullEnemyHp;
+    els.focusFactorInput.value = clampNumber(settingsDraft.focusFactor, 1, 10, DEFAULT_FOCUS_FACTOR);
+    els.resistanceBuildupInput.value = clampNumber(settingsDraft.resistanceBuildup, 0, 2, DEFAULT_RESISTANCE_BUILDUP);
     els.settingsMessage.textContent = 'Changes save automatically. Enemy HP and Required-for-victory changes apply to the next daily fight.';
     if (els.newCategoryColor) {
       const customCount = settingsDraft.categories.filter(
@@ -2827,12 +2923,6 @@
     if (!els.goalPreview || !settingsDraft) return;
     const nextHp = clampInt(els.goalInput.value, 20, 1000, settingsDraft.fullEnemyHp);
     els.goalPreview.textContent = `Every new fight starts at ${nextHp} HP. Today's ${state.current.maxHp} HP is already locked.`;
-  }
-
-  function previewFocusText(category) {
-    if (category.id === UNCATEGORIZED_ID) return 'Fixed 50% damage';
-    const focus = clampNumber(category.focus, 0.25, 10, 1);
-    return `First action ≈ ${Math.round(100 / focus)}% of base DMG before resistance`;
   }
 
   function renderCategoriesEditor() {
@@ -2887,20 +2977,6 @@
       });
       iconLabel.append(iconInput);
 
-      const focusLabel = document.createElement('label');
-      focusLabel.innerHTML = '<span>Focus</span>';
-      const focusInput = document.createElement('input');
-      focusInput.type = 'number';
-      focusInput.min = '0.25';
-      focusInput.max = '10';
-      focusInput.step = '0.25';
-      focusInput.value = category.focus;
-      focusInput.addEventListener('input', () => {
-        category.focus = clampNumber(focusInput.value, 0.25, 10, category.focus);
-        band.textContent = previewFocusText(category);
-      });
-      focusLabel.append(focusInput);
-
       const colorLabel = document.createElement('label');
       colorLabel.className = 'category-color-field';
       colorLabel.innerHTML = '<span>Color</span>';
@@ -2915,10 +2991,6 @@
       });
       colorLabel.append(colorInput);
 
-      const band = document.createElement('div');
-      band.className = 'category-band-preview';
-      band.textContent = previewFocusText(category);
-
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'delete-action';
@@ -2931,6 +3003,7 @@
         });
         settingsDraft.categories = settingsDraft.categories.filter(item => item.id !== category.id);
         settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
+        if (settingsDraft.focusCategoryId === category.id) settingsDraft.focusCategoryId = null;
         renderCategoriesEditor();
         renderActionsEditor();
         populateCategorySelect();
@@ -2941,7 +3014,7 @@
       });
 
       row.style.setProperty('--editor-category-color', categoryColor(category));
-      grid.append(nameLabel, iconLabel, focusLabel, colorLabel, band, remove);
+      grid.append(nameLabel, iconLabel, colorLabel, remove);
       row.append(grid);
       els.categoriesEditor.append(row);
     });
@@ -3268,7 +3341,6 @@
   function addCategoryFromForm() {
     const name = els.newCategoryName.value.trim();
     const icon = els.newCategoryIcon.value.trim() || '•';
-    const focus = clampNumber(els.newCategoryFocus.value, 0.25, 10, 1);
     const color = normalizeHexColor(
       els.newCategoryColor?.value,
       CUSTOM_CATEGORY_COLORS[settingsDraft.categories.length % CUSTOM_CATEGORY_COLORS.length]
@@ -3291,13 +3363,12 @@
       return;
     }
 
-    const category = { id: makeId('category'), name, icon, focus, color };
+    const category = { id: makeId('category'), name, icon, color };
     const fallbackIndex = settingsDraft.categories.findIndex(item => item.id === UNCATEGORIZED_ID);
     settingsDraft.categories.splice(fallbackIndex < 0 ? settingsDraft.categories.length : fallbackIndex, 0, category);
 
     els.newCategoryName.value = '';
     els.newCategoryIcon.value = '';
-    els.newCategoryFocus.value = '1';
     if (els.newCategoryColor) {
       const customCount = settingsDraft.categories.filter(
         item => item.id !== UNCATEGORIZED_ID && !DEFAULT_CATEGORY_COLORS[item.id]
@@ -3625,9 +3696,6 @@
         ...category,
         name: String(category.name || '').trim(),
         icon: String(category.icon || '•').trim() || '•',
-        focus: category.id === UNCATEGORIZED_ID
-          ? 0
-          : clampNumber(category.focus, 0.25, 10, 1),
         color: category.id === UNCATEGORIZED_ID
           ? DEFAULT_CATEGORY_COLORS.uncategorized
           : normalizeHexColor(category.color, fallbackCategoryColor(category.id))
@@ -3708,6 +3776,21 @@
       ok: true,
       settings: {
         fullEnemyHp: clampInt(els.goalInput.value, 20, 1000, settingsDraft.fullEnemyHp || 100),
+        focusCategoryId: categories.some(category =>
+          category.id !== UNCATEGORIZED_ID && category.id === settingsDraft.focusCategoryId
+        ) ? settingsDraft.focusCategoryId : null,
+        focusFactor: Number(clampNumber(
+          els.focusFactorInput.value,
+          1,
+          10,
+          settingsDraft.focusFactor || DEFAULT_FOCUS_FACTOR
+        ).toFixed(2)),
+        resistanceBuildup: Number(clampNumber(
+          els.resistanceBuildupInput.value,
+          0,
+          2,
+          settingsDraft.resistanceBuildup ?? DEFAULT_RESISTANCE_BUILDUP
+        ).toFixed(2)),
         categories,
         actions,
         combos
@@ -3837,7 +3920,7 @@
       const importedName = typeof payload.name === 'string' ? payload.name.slice(0, 60) : '';
 
       const confirmed = window.confirm(
-        'Switch to this MoLife settings template?\n\nThis replaces difficulty, categories, Focus/colors, actions, ordering, Required-for-victory flags and combos. Your fight history, Level, Street Cred, streak, today’s recorded damage and Pawnshop items stay untouched.'
+        'Switch to this MoLife settings template?\n\nThis replaces difficulty, focused-category tuning, resistance buildup, categories/colors, actions, ordering, Required-for-victory flags and combos. Your fight history, Level, Street Cred, streak, today’s recorded damage and Pawnshop items stay untouched.'
       );
       if (!confirmed) return;
 
@@ -3851,6 +3934,8 @@
       saveState();
 
       els.goalInput.value = settingsDraft.fullEnemyHp;
+      els.focusFactorInput.value = settingsDraft.focusFactor;
+      els.resistanceBuildupInput.value = settingsDraft.resistanceBuildup;
       if (els.templateName) els.templateName.value = importedName;
       updateGoalPreview();
       renderCategoriesEditor();
@@ -3942,6 +4027,8 @@
     if (!settingsDraft) return;
     const target = event.target;
     const editsExistingSetting = target === els.goalInput
+      || target === els.focusFactorInput
+      || target === els.resistanceBuildupInput
       || target.closest?.('.category-direct-editor, .action-direct-editor, .combo-direct-editor');
 
     if (editsExistingSetting) {
@@ -3952,7 +4039,10 @@
   els.settingsDialog.addEventListener('change', event => {
     if (!settingsDraft) return;
     const target = event.target;
-    if (target === els.goalInput || target.closest?.('.category-direct-editor, .action-direct-editor, .combo-direct-editor')) {
+    if (target === els.goalInput
+      || target === els.focusFactorInput
+      || target === els.resistanceBuildupInput
+      || target.closest?.('.category-direct-editor, .action-direct-editor, .combo-direct-editor')) {
       scheduleSettingsSave(0);
     }
   });

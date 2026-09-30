@@ -17,6 +17,50 @@ function test_assert(bool $condition, string $message): void
 test_assert(function_exists('dalli_validate_state'), 'MoLife state validator should load outside the shared bootstrap');
 test_assert(function_exists('dalli_send_transactional_email'), 'legacy mailer include should resolve through the auth module');
 
+$v7State = [
+    'version' => 7,
+    'settings' => [
+        'fullEnemyHp' => 100,
+        'focusCategoryId' => 'work',
+        'focusFactor' => 1.5,
+        'resistanceBuildup' => 0.75,
+        'categories' => [
+            ['id' => 'work', 'name' => 'Work', 'icon' => '◆', 'color' => '#818bff'],
+            ['id' => 'uncategorized', 'name' => 'Uncategorized', 'icon' => '•', 'color' => '#8b93a4'],
+        ],
+        'actions' => [],
+        'combos' => [],
+    ],
+    'progression' => [
+        'victoryXp' => 0,
+        'bestStreak' => 0,
+        'archivedStreak' => 0,
+        'streakThrough' => '',
+    ],
+    'inventory' => ['items' => []],
+    'current' => [
+        'date' => '',
+        'maxHp' => 0,
+        'transactions' => [],
+        'comboProgress' => [],
+        'requiredActions' => [],
+        'defeatedAt' => null,
+        'victoryXpAwarded' => 0,
+        'loot' => [
+            'rolled' => false,
+            'available' => false,
+            'claimed' => false,
+            'pendingItem' => null,
+        ],
+        'dayCard' => null,
+    ],
+    'history' => [],
+];
+$validatedV7 = dalli_validate_state($v7State);
+test_assert(($validatedV7['version'] ?? null) === 7, 'v7 selected-focus state should validate');
+test_assert(($validatedV7['settings']['focusCategoryId'] ?? null) === 'work', 'v7 focused category should survive validation');
+test_assert(($validatedV7['settings']['resistanceBuildup'] ?? null) === 0.75, 'v7 resistance tuning should survive validation');
+
 $pdo = dalli_pdo();
 test_assert(dalli_auth_schema_ready($pdo), 'modern auth schema should be detected');
 test_assert(dalli_registration_mode() === 'invite', 'registration mode should default from test config');
