@@ -77,7 +77,7 @@ if ($isPublicAttempt) {
 
     dalli_cleanup_auth_housekeeping($pdo);
 
-    if (!dalli_public_signup_ready()) {
+    if (!dalli_public_signup_ready() || !dalli_public_circuit_ready($pdo)) {
         dalli_fail('Public account creation is temporarily unavailable.', 503);
     }
 
