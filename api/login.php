@@ -18,15 +18,21 @@ if (strlen($username) < 1 || strlen($username) > 64 || strlen($password) < 1 || 
 dalli_login_rate_check($username);
 
 $pdo = dalli_pdo();
-$stmt = $pdo->prepare('SELECT id, username, password_hash FROM users WHERE username = ? LIMIT 1');
+$stmt = $pdo->prepare(
+    dalli_auth_schema_ready($pdo)
+        ? "SELECT id, username, password_hash, status FROM users WHERE username = ? LIMIT 1"
+        : "SELECT id, username, password_hash FROM users WHERE username = ? LIMIT 1"
+);
 $stmt->execute([$username]);
 $user = $stmt->fetch();
 
 $dummyHash = '$2y$12$4Umg0rCJwMswRw/l.SwHvuQV01coP0eWmGzd61QH2RvAOMANUBGC.';
 $hash = is_array($user) ? (string) $user['password_hash'] : $dummyHash;
 $valid = password_verify($password, $hash);
+$active = !dalli_auth_schema_ready($pdo)
+    || (is_array($user) && (string) ($user['status'] ?? '') === 'active');
 
-if (!$valid || !is_array($user)) {
+if (!$valid || !is_array($user) || !$active) {
     dalli_login_rate_failure($username);
     usleep(150000);
     dalli_fail('Invalid username or password.', 401);
@@ -34,11 +40,17 @@ if (!$valid || !is_array($user)) {
 
 dalli_login_rate_clear($username);
 
-if (password_needs_rehash($hash, PASSWORD_DEFAULT)) {
-    $newHash = password_hash($password, PASSWORD_DEFAULT);
-    if (is_string($newHash)) {
-        $update = $pdo->prepare('UPDATE users SET password_hash = ? WHERE id = ?');
+if (dalli_password_needs_rehash($hash)) {
+    try {
+        $newHash = dalli_hash_password($password);
+        $update = $pdo->prepare(
+            dalli_auth_schema_ready($pdo)
+                ? 'UPDATE users SET password_hash = ?, password_changed_at = COALESCE(password_changed_at, NOW()) WHERE id = ?'
+                : 'UPDATE users SET password_hash = ? WHERE id = ?'
+        );
         $update->execute([$newHash, (int) $user['id']]);
+    } catch (Throwable $e) {
+        error_log('MoLife password rehash failed: ' . $e->getMessage());
     }
 }
 
