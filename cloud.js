@@ -280,10 +280,14 @@
     authTitle.textContent = 'MoLife account';
     authTabs.hidden = false;
     authMessage.textContent = '';
+    authMessage.dataset.kind = '';
+    pendingVerificationEmail = '';
     authCancelButton.textContent = 'Cancel';
     resendVerificationButton.hidden = true;
     authSubmitButton.hidden = false;
     usernameField.hidden = false;
+    passwordField.hidden = false;
+    websiteField.hidden = false;
     rememberLabel.hidden = false;
     passwordInput.value = '';
     confirmPasswordInput.value = '';
@@ -360,6 +364,7 @@
     authSubmitButton.hidden = true;
     resendVerificationButton.hidden = false;
     authCancelButton.textContent = 'Close';
+    authMessage.dataset.kind = deliveryFailed ? 'error' : 'ok';
     authMessage.textContent = email ? `Activation address: ${email}` : '';
   }
 
@@ -587,6 +592,7 @@
     if (!email) return;
 
     resendVerificationButton.disabled = true;
+    authMessage.dataset.kind = '';
     authMessage.textContent = 'Requesting a fresh activation transmission…';
 
     try {
@@ -596,8 +602,10 @@
       });
       authTitle.textContent = 'TRANSMISSION SENT';
       authText.textContent = 'If this address has a pending MoLife account, fresh activation instructions have been sent.';
+      authMessage.dataset.kind = 'ok';
       authMessage.textContent = `Activation address: ${email}`;
     } catch (error) {
+      authMessage.dataset.kind = 'error';
       authMessage.textContent = error instanceof ApiError
         ? error.message
         : 'Could not request another activation email.';
@@ -908,6 +916,8 @@
           body: JSON.stringify({ token: pendingVerification })
         });
         clearPendingVerification();
+        registrationMode = 'public';
+        publicSignupReady = true;
         await activateSession(activated, { newAccount: true });
         setSyncStatus('Activated · Synced', 'ok');
         setTimeout(() => {
