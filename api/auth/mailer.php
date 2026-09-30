@@ -34,12 +34,18 @@ function dalli_mail_configured(): bool
         && filter_var($from, FILTER_VALIDATE_EMAIL) !== false;
 }
 
-function dalli_public_signup_ready(): bool
+function dalli_public_mail_ready(): bool
 {
     return dalli_auth_schema_ready()
         && dalli_registration_mode() === 'public'
         && dalli_auth_hmac_ready()
         && dalli_mail_configured()
+        && dalli_public_mail_circuit_ready();
+}
+
+function dalli_public_signup_ready(): bool
+{
+    return dalli_public_mail_ready()
         && dalli_public_circuit_ready();
 }
 
