@@ -197,6 +197,13 @@
   usernameInput.required = true;
   const usernameField = makeField('Username', usernameInput);
 
+  const emailInput = document.createElement('input');
+  emailInput.type = 'email';
+  emailInput.name = 'email';
+  emailInput.autocomplete = 'email';
+  emailInput.maxLength = 254;
+  const emailField = makeField('Email', emailInput);
+
   const passwordInput = document.createElement('input');
   passwordInput.type = 'password';
   passwordInput.name = 'password';
@@ -219,6 +226,15 @@
   ownerSetupInput.maxLength = 200;
   const ownerSetupField = makeField('Owner setup code', ownerSetupInput);
 
+  const websiteInput = document.createElement('input');
+  websiteInput.type = 'text';
+  websiteInput.name = 'website';
+  websiteInput.tabIndex = -1;
+  websiteInput.autocomplete = 'off';
+  websiteInput.setAttribute('aria-hidden', 'true');
+  const websiteField = makeField('Website', websiteInput);
+  websiteField.classList.add('auth-honeypot');
+
   const rememberLabel = makeElement('label', 'remember-row');
   const rememberInput = document.createElement('input');
   rememberInput.type = 'checkbox';
@@ -232,18 +248,23 @@
   const authButtons = makeElement('div', 'login-buttons');
   const authCancelButton = makeElement('button', 'secondary-button', 'Cancel');
   authCancelButton.type = 'button';
+  const resendVerificationButton = makeElement('button', 'secondary-button', 'Resend activation email');
+  resendVerificationButton.type = 'button';
+  resendVerificationButton.hidden = true;
   const authSubmitButton = makeElement('button', 'primary-button', 'Log in');
   authSubmitButton.type = 'submit';
-  authButtons.append(authCancelButton, authSubmitButton);
+  authButtons.append(authCancelButton, resendVerificationButton, authSubmitButton);
 
   authForm.append(
     authTitle,
     authText,
     authTabs,
     usernameField,
+    emailField,
     passwordField,
     confirmPasswordField,
     ownerSetupField,
+    websiteField,
     rememberLabel,
     authMessage,
     authButtons
@@ -252,23 +273,41 @@
   document.body.append(authDialog);
 
   let authMode = 'login';
+  let pendingVerificationEmail = '';
 
   function setAuthMode(mode) {
     authMode = mode === 'register' ? 'register' : 'login';
+    authTitle.textContent = 'MoLife account';
+    authTabs.hidden = false;
     authMessage.textContent = '';
+    authCancelButton.textContent = 'Cancel';
+    resendVerificationButton.hidden = true;
+    authSubmitButton.hidden = false;
+    usernameField.hidden = false;
+    rememberLabel.hidden = false;
     passwordInput.value = '';
     confirmPasswordInput.value = '';
     ownerSetupInput.value = '';
+    websiteInput.value = '';
 
     loginTab.classList.toggle('is-active', authMode === 'login');
     registerTab.classList.toggle('is-active', authMode === 'register');
 
     const registering = authMode === 'register';
+    const publicRegistration = registering
+      && registrationMode === 'public'
+      && publicSignupReady
+      && !pendingInvite;
+
+    emailField.hidden = !publicRegistration;
     confirmPasswordField.hidden = !registering;
     ownerSetupField.hidden = !(registering && registrationMode === 'owner-setup');
 
+    emailInput.required = publicRegistration;
     passwordInput.autocomplete = registering ? 'new-password' : 'current-password';
+    passwordInput.minLength = registering ? 12 : 1;
     confirmPasswordInput.required = registering;
+    confirmPasswordInput.minLength = registering ? 12 : 0;
     ownerSetupInput.required = registering && registrationMode === 'owner-setup';
 
     if (!registering) {
@@ -291,8 +330,11 @@
     } else if (pendingInvite) {
       authText.textContent = 'You have a MoLife invite. Choose a username and password to create your account.';
       authSubmitButton.disabled = false;
-    } else if (registrationMode === 'public' && !publicSignupReady) {
-      authText.textContent = 'Public account creation is being prepared. For now, new accounts still require an invite.';
+    } else if (registrationMode === 'public' && publicSignupReady) {
+      authText.textContent = 'Create a cloud identity for cross-device sync. We will send a one-use activation link to your email.';
+      authSubmitButton.disabled = false;
+    } else if (registrationMode === 'public') {
+      authText.textContent = 'Public account creation is temporarily unavailable. Local-only MoLife still works normally.';
       authSubmitButton.disabled = true;
     } else {
       authText.textContent = 'New accounts require an invite link from the MoLife owner.';
@@ -300,10 +342,37 @@
     }
   }
 
+  function showVerificationSent(email, deliveryFailed = false) {
+    authMode = 'verification-sent';
+    pendingVerificationEmail = email;
+    authTitle.textContent = deliveryFailed ? 'TRANSMISSION INTERRUPTED' : 'TRANSMISSION SENT';
+    authText.textContent = deliveryFailed
+      ? 'Your pending account exists, but the activation email could not be delivered. You can try sending it again.'
+      : 'Check your email for a one-use MoLife activation link. It expires after 60 minutes.';
+    authTabs.hidden = true;
+    usernameField.hidden = true;
+    emailField.hidden = true;
+    passwordField.hidden = true;
+    confirmPasswordField.hidden = true;
+    ownerSetupField.hidden = true;
+    websiteField.hidden = true;
+    rememberLabel.hidden = true;
+    authSubmitButton.hidden = true;
+    resendVerificationButton.hidden = false;
+    authCancelButton.textContent = 'Close';
+    authMessage.textContent = email ? `Activation address: ${email}` : '';
+  }
+
   function openAuth(mode) {
     setAuthMode(mode);
-    authDialog.showModal();
-    requestAnimationFrame(() => usernameInput.focus());
+    if (!authDialog.open) authDialog.showModal();
+    requestAnimationFrame(() => {
+      if (mode === 'register' && !emailField.hidden) {
+        usernameInput.focus();
+      } else {
+        usernameInput.focus();
+      }
+    });
   }
 
   // ---------------------------------------------------------------------------
