@@ -26,6 +26,7 @@ if (strlen($password) < 12 || strlen($password) > 200) {
 
 $pdo = dalli_pdo();
 $initialOwnerId = dalli_owner_id($pdo);
+$registrationMode = dalli_registration_mode();
 
 if ($initialOwnerId === null) {
     $expectedSetupToken = dalli_owner_setup_token();
@@ -38,14 +39,25 @@ if ($initialOwnerId === null) {
         usleep(150000);
         dalli_fail('Invalid owner setup code.', 403);
     }
-} elseif (dalli_parse_invite_token($inviteRaw) === null) {
-    dalli_registration_rate_failure();
-    usleep(100000);
-    dalli_fail('A valid invite link is required to create an account.', 403);
+} else {
+    if ($registrationMode === 'closed') {
+        dalli_registration_rate_failure();
+        dalli_fail('Account creation is currently closed.', 403);
+    }
+
+    // Pass 1 deliberately fails closed. "public" becomes usable only when
+    // verified-email registration is implemented in the next pass.
+    if (dalli_parse_invite_token($inviteRaw) === null) {
+        dalli_registration_rate_failure();
+        usleep(100000);
+        dalli_fail('A valid invite link is required to create an account.', 403);
+    }
 }
 
-$passwordHash = password_hash($password, PASSWORD_DEFAULT);
-if (!is_string($passwordHash)) {
+try {
+    $passwordHash = dalli_hash_password($password);
+} catch (Throwable $e) {
+    error_log('MoLife password hashing failed during registration: ' . $e->getMessage());
     dalli_fail('Could not create account.', 500);
 }
 
@@ -54,52 +66,47 @@ try {
 
     // Re-check inside the transaction in case the first account was created moments ago.
     $ownerId = dalli_owner_id($pdo);
-    $ownerEnvelope = null;
-    $inviteToken = null;
+    $role = 'user';
 
-    if ($ownerId !== null) {
-        $inviteToken = dalli_parse_invite_token($inviteRaw);
-        if ($inviteToken === null) {
+    if ($ownerId === null) {
+        $expectedSetupToken = dalli_owner_setup_token();
+        if ($ownerSetupRaw === '' || $expectedSetupToken === '' || !hash_equals($expectedSetupToken, $ownerSetupRaw)) {
             $pdo->rollBack();
             dalli_registration_rate_failure();
-            dalli_fail('A valid invite link is required to create an account.', 403);
+            dalli_fail('Invalid owner setup code.', 403);
+        }
+        $role = 'owner';
+    } else {
+        if (dalli_registration_mode() === 'closed') {
+            $pdo->rollBack();
+            dalli_registration_rate_failure();
+            dalli_fail('Account creation is currently closed.', 403);
         }
 
-        $ownerRow = dalli_user_state_row($pdo, $ownerId, true);
-        $ownerEnvelope = dalli_envelope_from_row($ownerRow);
-        $invites = dalli_clean_invites($ownerEnvelope['auth']['invites'] ?? []);
-
-        $matchedIndex = null;
-        foreach ($invites as $index => $invite) {
-            if (dalli_invite_matches($invite, $inviteToken)) {
-                $matchedIndex = $index;
-                break;
-            }
-        }
-
-        if ($matchedIndex === null) {
+        $inviteToken = dalli_parse_invite_token($inviteRaw);
+        if ($inviteToken === null || !dalli_consume_invite($pdo, $ownerId, $inviteToken)) {
             $pdo->rollBack();
             dalli_registration_rate_failure();
             usleep(100000);
             dalli_fail('Invite link is invalid or expired.', 403);
         }
-
-        array_splice($invites, $matchedIndex, 1);
-        $ownerEnvelope['auth']['invites'] = array_values($invites);
     }
 
-    $insert = $pdo->prepare(
-        'INSERT INTO users (username, password_hash) VALUES (?, ?)'
-    );
-    $insert->execute([$username, $passwordHash]);
+    if (dalli_auth_schema_ready($pdo)) {
+        $insert = $pdo->prepare(
+            'INSERT INTO users (username, password_hash, role, status, password_changed_at)
+             VALUES (?, ?, ?, \'active\', NOW())'
+        );
+        $insert->execute([$username, $passwordHash, $role]);
+    } else {
+        $insert = $pdo->prepare(
+            'INSERT INTO users (username, password_hash) VALUES (?, ?)'
+        );
+        $insert->execute([$username, $passwordHash]);
+    }
+
     $userId = (int) $pdo->lastInsertId();
-
     dalli_store_envelope($pdo, $userId, dalli_empty_envelope(), 0);
-
-    if ($ownerId !== null && is_array($ownerEnvelope)) {
-        dalli_update_envelope_only($pdo, $ownerId, $ownerEnvelope);
-    }
-
     $pdo->commit();
 } catch (PDOException $e) {
     if ($pdo->inTransaction()) {
@@ -112,13 +119,13 @@ try {
         dalli_fail('That username is already taken.', 409);
     }
 
-    error_log('Dalli registration failed: ' . $e->getMessage());
+    error_log('MoLife registration failed: ' . $e->getMessage());
     dalli_fail('Could not create account.', 500);
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    error_log('Dalli registration failed: ' . $e->getMessage());
+    error_log('MoLife registration failed: ' . $e->getMessage());
     dalli_fail('Could not create account.', 500);
 }
 
@@ -135,7 +142,7 @@ try {
         dalli_revoke_current_remember($pdo);
     }
 } catch (Throwable $e) {
-    error_log('Dalli persistent login setup failed after registration: ' . $e->getMessage());
+    error_log('MoLife persistent login setup failed after registration: ' . $e->getMessage());
     dalli_clear_remember_cookie();
 }
 
