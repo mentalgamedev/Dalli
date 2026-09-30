@@ -1,8 +1,7 @@
 <?php
 declare(strict_types=1);
-require __DIR__ . '/bootstrap.php';
-require __DIR__ . '/auth-store.php';
-require __DIR__ . '/mailer.php';
+require __DIR__ . '/auth/bootstrap.php';
+require __DIR__ . '/auth/mailer.php';
 
 dalli_require_method('POST');
 dalli_require_same_origin();
