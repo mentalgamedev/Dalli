@@ -13,6 +13,7 @@ if (!dalli_public_signup_ready()) {
 
 $body = dalli_read_json_body();
 $email = dalli_normalize_email((string) ($body['email'] ?? ''));
+$remember = ($body['remember'] ?? true) !== false;
 
 if ($email === null) {
     dalli_fail('Enter a valid email address.', 422);
@@ -45,7 +46,7 @@ try {
             $userId,
             'email_verify',
             DALLI_EMAIL_VERIFY_SECONDS,
-            ['remember' => true]
+            ['remember' => $remember]
         );
         $verificationUrl = dalli_verification_url($issued['token']);
     } elseif (is_array($user) && (string) ($user['status'] ?? '') === 'active') {
