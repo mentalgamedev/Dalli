@@ -2536,6 +2536,7 @@
       const title = fragment.querySelector('.category-title');
       const subtitle = fragment.querySelector('.category-subtitle');
       const score = fragment.querySelector('.category-score');
+      const focusToggle = fragment.querySelector('.category-focus-toggle');
       const efficiencyValue = fragment.querySelector('.efficiency-value');
       const fill = fragment.querySelector('.category-meter-fill');
       const next = fragment.querySelector('.efficiency-next');
@@ -2548,12 +2549,14 @@
       applyCategoryPaletteVars(card, category, index);
       card.dataset.categoryId = category.id;
       if (category.id === UNCATEGORIZED_ID) card.classList.add('is-fallback-category');
+      card.classList.toggle('is-focused-category', efficiency.focused);
 
       icon.textContent = category.icon;
       title.textContent = category.name;
       score.textContent = `${dealtDamage} DMG`;
 
       if (category.id === UNCATEGORIZED_ID) {
+        focusToggle.hidden = true;
         subtitle.textContent = 'Fallback · fixed 50% damage';
         efficiencyValue.textContent = '50%';
         fill.style.width = '100%';
@@ -2561,12 +2564,24 @@
       } else {
         const overallPercent = Math.round(efficiency.multiplier * 100);
         const resistancePercent = Math.round(efficiency.resistance * 100);
-        subtitle.textContent = `Focus ${category.focus}× · higher Focus = less damage`;
+        const focusFactor = clampNumber(state.settings.focusFactor, 1, 10, DEFAULT_FOCUS_FACTOR);
+        focusToggle.hidden = false;
+        focusToggle.classList.toggle('is-active', efficiency.focused);
+        focusToggle.setAttribute('aria-pressed', efficiency.focused ? 'true' : 'false');
+        focusToggle.textContent = efficiency.focused ? 'FOCUSED' : 'FOCUS';
+        focusToggle.title = efficiency.focused
+          ? 'Remove Focus from this category'
+          : `Focus ${category.name}; only one category can be focused`;
+        focusToggle.addEventListener('click', () => toggleFocusedCategory(category.id));
+
+        subtitle.textContent = efficiency.focused
+          ? `Focused · ${focusFactor.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}× workload`
+          : 'Standard priority';
         efficiencyValue.textContent = `${overallPercent}%`;
         fill.style.width = `${resistancePercent}%`;
         next.textContent = efficiency.nextResistance === null
-          ? `Resistance floor reached · category stays at ${resistancePercent}% before Focus`
-          : `Category resistance ${resistancePercent}% · next action drops to ${Math.round(efficiency.nextResistance * 100)}% before Focus`;
+          ? `Resistance floor reached · category stays at ${resistancePercent}%${efficiency.focused ? ' before Focus' : ''}`
+          : `Category resistance ${resistancePercent}% · next action drops to ${Math.round(efficiency.nextResistance * 100)}%${efficiency.focused ? ' before Focus' : ''}`;
       }
 
       const originalOrder = new Map(state.settings.actions.map((action, actionIndex) => [action.id, actionIndex]));
@@ -3681,9 +3696,6 @@
         ...category,
         name: String(category.name || '').trim(),
         icon: String(category.icon || '•').trim() || '•',
-        focus: category.id === UNCATEGORIZED_ID
-          ? 0
-          : clampNumber(category.focus, 0.25, 10, 1),
         color: category.id === UNCATEGORIZED_ID
           ? DEFAULT_CATEGORY_COLORS.uncategorized
           : normalizeHexColor(category.color, fallbackCategoryColor(category.id))
@@ -3764,6 +3776,21 @@
       ok: true,
       settings: {
         fullEnemyHp: clampInt(els.goalInput.value, 20, 1000, settingsDraft.fullEnemyHp || 100),
+        focusCategoryId: categories.some(category =>
+          category.id !== UNCATEGORIZED_ID && category.id === settingsDraft.focusCategoryId
+        ) ? settingsDraft.focusCategoryId : null,
+        focusFactor: Number(clampNumber(
+          els.focusFactorInput.value,
+          1,
+          10,
+          settingsDraft.focusFactor || DEFAULT_FOCUS_FACTOR
+        ).toFixed(2)),
+        resistanceBuildup: Number(clampNumber(
+          els.resistanceBuildupInput.value,
+          0,
+          2,
+          settingsDraft.resistanceBuildup ?? DEFAULT_RESISTANCE_BUILDUP
+        ).toFixed(2)),
         categories,
         actions,
         combos
@@ -3893,7 +3920,7 @@
       const importedName = typeof payload.name === 'string' ? payload.name.slice(0, 60) : '';
 
       const confirmed = window.confirm(
-        'Switch to this MoLife settings template?\n\nThis replaces difficulty, categories, Focus/colors, actions, ordering, Required-for-victory flags and combos. Your fight history, Level, Street Cred, streak, today’s recorded damage and Pawnshop items stay untouched.'
+        'Switch to this MoLife settings template?\n\nThis replaces difficulty, focused-category tuning, resistance buildup, categories/colors, actions, ordering, Required-for-victory flags and combos. Your fight history, Level, Street Cred, streak, today’s recorded damage and Pawnshop items stay untouched.'
       );
       if (!confirmed) return;
 
@@ -3907,6 +3934,8 @@
       saveState();
 
       els.goalInput.value = settingsDraft.fullEnemyHp;
+      els.focusFactorInput.value = settingsDraft.focusFactor;
+      els.resistanceBuildupInput.value = settingsDraft.resistanceBuildup;
       if (els.templateName) els.templateName.value = importedName;
       updateGoalPreview();
       renderCategoriesEditor();
@@ -3998,6 +4027,8 @@
     if (!settingsDraft) return;
     const target = event.target;
     const editsExistingSetting = target === els.goalInput
+      || target === els.focusFactorInput
+      || target === els.resistanceBuildupInput
       || target.closest?.('.category-direct-editor, .action-direct-editor, .combo-direct-editor');
 
     if (editsExistingSetting) {
@@ -4008,7 +4039,10 @@
   els.settingsDialog.addEventListener('change', event => {
     if (!settingsDraft) return;
     const target = event.target;
-    if (target === els.goalInput || target.closest?.('.category-direct-editor, .action-direct-editor, .combo-direct-editor')) {
+    if (target === els.goalInput
+      || target === els.focusFactorInput
+      || target === els.resistanceBuildupInput
+      || target.closest?.('.category-direct-editor, .action-direct-editor, .combo-direct-editor')) {
       scheduleSettingsSave(0);
     }
   });
