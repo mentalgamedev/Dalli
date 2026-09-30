@@ -59,9 +59,10 @@ Fill in:
 - restricted database username
 - database password
 - the public HTTPS origin of your MoLife installation
-- registration_mode: keep **invite** during the foundation pass; **closed** is an emergency kill switch
+- `registration_mode`: **invite**, **closed**, or **public**
 - one long random auth HMAC key for pseudonymizing rate-limit buckets
 - one long random owner setup token
+- authenticated SMTP host, port, encryption mode, username/password and sender identity
 
 Example:
 
@@ -87,6 +88,15 @@ return [
         'auth_hmac_key' => 'A_DIFFERENT_LONG_RANDOM_SECRET',
         'owner_setup_token' => 'A_LONG_RANDOM_SECRET',
     ],
+    'mail' => [
+        'host' => 'smtp.example.com',
+        'port' => '587',
+        'encryption' => 'tls',
+        'username' => 'SMTP_USERNAME',
+        'password' => 'SMTP_PASSWORD',
+        'from_email' => 'molife@example.com',
+        'from_name' => 'MoLife',
+    ],
 ];
 ```
 
@@ -100,7 +110,7 @@ If the database has no users yet, **Create account** becomes the owner-account f
 - password
 - the private owner setup code
 
-The first account automatically becomes the MoLife owner. In the modern schema this is an explicit owner role. Keep registration_mode set to invite until the verified-email public-signup pass is complete. Setting it to closed disables all new-account creation immediately.
+The first account automatically becomes the MoLife owner. In the modern schema this is an explicit owner role. Keep `registration_mode` on `invite` while configuring and testing SMTP. Setting it to `closed` disables all new-account creation immediately.
 
 ## 5. Invite another person
 
@@ -118,7 +128,20 @@ Invite links:
 
 The invitee only chooses a username and password.
 
-## 6. Staying signed in
+## 6. Enable verified-email public signup
+
+Public signup remains disabled unless the auth migration is present and SMTP is configured.
+
+1. Configure authenticated SMTP in the private `molife-config.php`.
+2. Verify that the sender domain has the appropriate SPF/DKIM/DMARC setup for the mail service you use.
+3. Test delivery to an address you control while registration is still `invite`.
+4. Change `registration_mode` to `public`.
+
+MoLife supports STARTTLS (`tls`, commonly port 587) and implicit TLS (`ssl`, commonly port 465). TLS certificates are verified. Public activation links expire after 60 minutes and work once.
+
+If mail delivery or abuse becomes a problem, change the mode back to `invite` or `closed` without redeploying.
+
+## 7. Staying signed in
 
 **Stay signed in on this device** is enabled by default.
 
@@ -132,14 +155,14 @@ Persistent device tokens:
 
 Passwords are never stored in browser storage.
 
-## 7. Existing local data
+## 8. Existing local data
 
 When an account has no cloud state yet, MoLife checks whether the current browser has meaningful local MoLife data.
 
 - If it does, MoLife asks whether to import it.
 - Otherwise the account starts with the default setup.
 
-## 8. Security headers and PHP settings
+## 9. Security headers and PHP settings
 
 The repository includes:
 
@@ -148,7 +171,7 @@ The repository includes:
 
 Hosts that do not support these files should configure equivalent settings at the web-server/PHP level.
 
-## 9. Optional GitHub Actions deployment
+## 10. Optional GitHub Actions deployment
 
 The repository includes a generic FTPS deployment workflow at:
 
@@ -192,7 +215,7 @@ The workflow:
 
 Adapt the workflow if your hosting provider uses SSH/SFTP, rsync, a platform CLI, containers or another deployment mechanism.
 
-## 10. PWA cache/versioning
+## 11. PWA cache/versioning
 
 A successful deployment can still appear stale if an older service worker controls the page.
 
@@ -203,7 +226,7 @@ For frontend releases, update both:
 
 Authenticated `/api/` traffic must never enter the service-worker cache.
 
-## 11. Production checks
+## 12. Production checks
 
 After deployment:
 
