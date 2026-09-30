@@ -29,3 +29,53 @@ jobs:
           test ! -e molife-config.php
           test ! -e dalli-config.php
           test ! -e .env
+
+
+  auth-foundation:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: molife_test
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MySQL PHP extension and client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq php-mysql mysql-client
+
+      - name: Create test database schema
+        run: mysql -h 127.0.0.1 -uroot -proot molife_test < schema.sql
+
+      - name: Create isolated test config
+        run: |
+          cat > ../molife-config.php <<'PHP'
+          <?php
+          return [
+              'database' => [
+                  'host' => '127.0.0.1',
+                  'name' => 'molife_test',
+                  'user' => 'root',
+                  'password' => 'root',
+              ],
+              'app' => [
+                  'origin' => 'https://molife.test',
+                  'registration_mode' => 'invite',
+                  'auth_hmac_key' => 'test-auth-hmac-key-0123456789abcdef',
+                  'owner_setup_token' => 'test-owner-setup-token-0123456789abcdef',
+              ],
+          ];
+          PHP
+
+      - name: Run auth foundation integration smoke test
+        run: php tests/auth-foundation.php
