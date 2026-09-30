@@ -28,7 +28,9 @@ try {
     dalli_json_response([
         'ok' => true,
         'registrationMode' => dalli_registration_mode(),
-        'publicSignupReady' => dalli_public_signup_ready(),
+        'publicSignupReady' => dalli_public_signup_ready()
+            && $snapshot['registrationOpen']
+            && $snapshot['mailOpen'],
         'hmacReady' => dalli_auth_hmac_ready(),
         'mailConfigured' => dalli_mail_configured(),
         'activeAccounts' => (int) ($counts['active_accounts'] ?? 0),
