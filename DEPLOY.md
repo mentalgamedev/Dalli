@@ -137,7 +137,7 @@ Public signup remains disabled unless the auth migration is present and SMTP is 
 3. Confirm that the message arrives with the expected sender, then verify that the sender domain has the appropriate SPF/DKIM/DMARC setup for the mail service you use.
 4. Change `registration_mode` to `public`.
 
-MoLife supports STARTTLS (`tls`, commonly port 587) and implicit TLS (`ssl`, commonly port 465). TLS certificates are verified. Public activation links expire after 60 minutes and work once.
+MoLife supports STARTTLS (`tls`, commonly port 587) and implicit TLS (`ssl`, commonly port 465). TLS certificates are verified. Public activation links expire after 60 minutes, work once, and require the password chosen during registration before the account is activated.
 
 If mail delivery or abuse becomes a problem, change the mode back to `invite` or `closed` without redeploying.
 
@@ -162,11 +162,27 @@ When an account has no cloud state yet, MoLife checks whether the current browse
 - If it does, MoLife asks whether to import it.
 - Otherwise the account starts with the default setup.
 
+## 8a. Public-registration abuse budgets
+
+v4.9 applies conservative defaults automatically, so the private config does not need to change:
+
+```php
+'security' => [
+    'registrations_per_hour' => '40',
+    'registrations_per_day' => '200',
+    'mail_per_hour' => '60',
+    'mail_per_day' => '300',
+    'max_pending_accounts' => '200',
+],
+```
+
+These values may be overridden in the private config. Hitting a public budget temporarily closes registration or account email; it does **not** disable existing-user login or cloud sync. The owner can inspect current usage under **Account → Public registration firewall**.
+
 ## 9. Security headers and PHP settings
 
 The repository includes:
 
-- `.htaccess` for browser/security headers where supported
+- `.htaccess` for browser/security headers where supported, including a conservative host-only HSTS policy
 - `.user.ini` for hardened PHP/session defaults where supported
 
 Hosts that do not support these files should configure equivalent settings at the web-server/PHP level.
