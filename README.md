@@ -152,56 +152,60 @@ Detailed events are retained for recent history while compact daily summaries ca
 
 MoLife is local-first: the app works without an account, while signed-in users can sync their state across devices.
 
-The current production registration flow remains invite-only while the public-account system is built in staged passes. The **public auth foundation** introduces:
+MoLife v4.7 adds an optional **verified-email public signup** flow on top of the v4.6 auth foundation:
 
-- explicit account roles and statuses (`owner` / `user`, `active` / future pending states)
-- nullable email identity fields for the verified-email signup pass
-- dedicated `auth_sessions`, `auth_tokens` and `auth_rate_limits` tables
-- a private registration-mode switch: **invite**, **closed**, or reserved **public**
-- Argon2id password hashing when the PHP runtime supports it, with safe fallback to PHP's default adaptive password algorithm
-- independent login throttles for account identity and source IP
-- HMAC-pseudonymized rate-limit buckets when an auth HMAC key is configured
-- backward-compatible lazy migration of existing remembered-device cookies into `auth_sessions`
-- backward-compatible handling of already-issued legacy invite links
+- public signup collects username, email and password
+- new public accounts remain `pending` until the email address is verified
+- activation uses a cryptographically random, one-use token that expires after 60 minutes
+- the usable activation secret lives in the URL fragment (`#verify=...`), so it is not sent in the initial HTTP request or normal access logs
+- only a SHA-256 hash of the activation secret is stored server-side
+- activation signs the user in and then uses the existing local-to-cloud import flow
+- activation emails can be resent; issuing a replacement invalidates the previous token
+- abandoned unverified accounts are eligible for automatic cleanup after 48 hours
+- existing owner-created invite links still work and remain an immediate trusted registration path
 
-`public` registration deliberately remains fail-closed in this pass. Verified-email signup is the next implementation pass.
+Public signup is operationally fail-closed. It is exposed only when all three conditions are true: the modern auth schema is present, `registration_mode` is `public`, and authenticated SMTP is fully configured. Setting registration to `invite` or `closed` immediately removes public account creation without disabling existing accounts.
+
+To avoid turning registration into an email-address lookup service, registration and resend use the same outward success response whether an address is new, pending, or already attached to an active account. An existing account receives a private informational email instead.
 
 Cloud state still uses optimistic revisions so stale devices cannot silently overwrite newer data, and local browser data remains available when the backend is temporarily unreachable.
-
-Invite secrets remain in the URL fragment (`#invite=...`), so the secret is not sent in the initial HTTP request or normal access logs. Invite links are single-use and expire after 7 days.
 
 ## Storage
 
 Guest/local mode uses browser `localStorage`.
 
-Signed-in users store validated MoLife game state in MySQL/MariaDB-compatible storage. Authentication data is moving out of the game-state envelope and into dedicated server-owned auth tables. Existing legacy remember tokens and invites remain readable only for migration compatibility and are not exposed as browser app state.
+Signed-in users store validated MoLife game state in MySQL/MariaDB-compatible storage. Authentication data is server-owned and separated from gameplay state:
 
-The modern database foundation uses:
+- `users` — identity, role, account status and verified email metadata
+- `user_state` — validated MoLife game state
+- `auth_sessions` — remembered-device credentials
+- `auth_tokens` — invitations and temporary one-use account tokens
+- `auth_rate_limits` — pseudonymized anti-abuse counters
 
-- `users`
-- `user_state`
-- `auth_sessions`
-- `auth_tokens`
-- `auth_rate_limits`
+Legacy remembered-device tokens and invitations remain readable only for migration compatibility.
 
-MoLife v4.5 uses gameplay state **v6** while deliberately retaining the existing browser storage keys. v2 and v3 still migrate forward, v4 migrates through the Pawnshop item model, and v5 required-action ID snapshots migrate to v6 requirement records with a count of 1. Existing IDs, progression, history, current-fight HP and current-fight damage are preserved.
+MoLife gameplay state remains **v6** and deliberately retains the existing browser storage keys.
 
 ## Security
 
 Highlights:
 
-- database credentials kept outside the public document root and outside Git
+- database and SMTP credentials kept outside the public document root and outside Git
 - restricted runtime database user
 - Argon2id where available, otherwise PHP's adaptive default password hashing
 - automatic password rehashing after successful login when parameters improve
 - Secure + HttpOnly + SameSite=Strict cookies
-- persistent-login cookies use random selectors/validators; only validator hashes are stored server-side
-- modern remembered-device credentials live in `auth_sessions`, independent of gameplay state
+- random selector/validator remembered-device credentials with only validator hashes stored server-side
 - persistent tokens rotate when they restore a session
-- one-use, expiring invite links; only secret hashes are stored
-- explicit owner role in the modern schema rather than permanently inferring ownership from the lowest user ID
-- registration kill switch that can close account creation without disabling existing accounts
-- independent account/IP login throttling and DB-backed rate-limit storage after the auth migration
+- one-use, expiring email-verification and invite tokens; only secret hashes are stored
+- verification secrets use URL fragments to reduce accidental server/log exposure
+- authenticated SMTP with certificate verification; no dependency on PHP `mail()`
+- explicit owner role and active/pending account status
+- registration kill switch (`public`, `invite`, `closed`)
+- independent account/IP login throttling plus public-registration and verification-resend throttling
+- HMAC-pseudonymized rate-limit bucket identifiers
+- privacy-preserving public-registration responses for email addresses
+- hidden bot-trap field as a low-friction supplemental anti-automation check
 - first-owner creation protected by a private high-entropy setup code
 - CSRF protection plus same-origin checks
 - PDO prepared statements
