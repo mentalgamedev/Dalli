@@ -1175,7 +1175,7 @@
       const raw = localStorage.getItem(storageKey);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      if (!parsed || ![2, 3, 4, 5, STATE_VERSION].includes(parsed.version)) return null;
+      if (!parsed || ![2, 3, 4, 5, 6, STATE_VERSION].includes(parsed.version)) return null;
       return normalizeState(parsed);
     } catch (error) {
       console.warn('Could not read cached MoLife data:', error);
@@ -1220,24 +1220,40 @@
     return clampInt(settings.fullEnemyHp, 20, 1000, 100);
   }
 
-  function categoryResistanceForCount(actionCount) {
+  function categoryResistanceForCount(actionCount, settings = state.settings) {
     const index = Math.min(CATEGORY_RESISTANCE.length - 1, Math.max(0, clampInt(actionCount, 0, 100000, 0)));
-    return CATEGORY_RESISTANCE[index];
+    const base = CATEGORY_RESISTANCE[index];
+    const buildup = clampNumber(settings.resistanceBuildup, 0, 2, DEFAULT_RESISTANCE_BUILDUP);
+    return Math.pow(base, buildup);
   }
 
   function getCategoryEfficiency(categoryId, actionCount = 0, settings = state.settings) {
     if (categoryId === UNCATEGORIZED_ID) {
-      return { focus: 0, resistance: 1, multiplier: UNCATEGORIZED_EFFICIENCY, tier: 0, nextResistance: null };
+      return { focused: false, focus: 0, resistance: 1, multiplier: UNCATEGORIZED_EFFICIENCY, tier: 0, nextResistance: null };
     }
     const category = settings.categories.find(item => item.id === categoryId);
-    if (!category) return { focus: 1, resistance: 1, multiplier: 1, tier: 0, nextResistance: null };
+    if (!category) return { focused: false, focus: 1, resistance: 1, multiplier: 1, tier: 0, nextResistance: null };
 
-    const focus = clampNumber(category.focus, 0.25, 10, 1);
+    const focused = settings.focusCategoryId === categoryId;
+    const focus = focused
+      ? clampNumber(settings.focusFactor, 1, 10, DEFAULT_FOCUS_FACTOR)
+      : 1;
     const count = Math.max(0, clampInt(actionCount, 0, 100000, 0));
     const tier = Math.min(CATEGORY_RESISTANCE.length - 1, count);
-    const resistance = categoryResistanceForCount(count);
-    const nextResistance = count + 1 < CATEGORY_RESISTANCE.length ? CATEGORY_RESISTANCE[count + 1] : null;
-    return { focus, resistance, multiplier: resistance / focus, tier, nextResistance };
+    const resistance = categoryResistanceForCount(count, settings);
+    const nextResistance = count + 1 < CATEGORY_RESISTANCE.length
+      ? categoryResistanceForCount(count + 1, settings)
+      : null;
+    return { focused, focus, resistance, multiplier: resistance / focus, tier, nextResistance };
+  }
+
+  function toggleFocusedCategory(categoryId) {
+    if (categoryId === UNCATEGORIZED_ID) return;
+    if (!state.settings.categories.some(category => category.id === categoryId)) return;
+
+    state.settings.focusCategoryId = state.settings.focusCategoryId === categoryId ? null : categoryId;
+    saveState();
+    render();
   }
 
   function currentCategoryIdForTransaction(tx) {
@@ -2865,6 +2881,8 @@
     settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
     settingsDraft.combos = Array.isArray(settingsDraft.combos) ? settingsDraft.combos : [];
     els.goalInput.value = settingsDraft.fullEnemyHp;
+    els.focusFactorInput.value = clampNumber(settingsDraft.focusFactor, 1, 10, DEFAULT_FOCUS_FACTOR);
+    els.resistanceBuildupInput.value = clampNumber(settingsDraft.resistanceBuildup, 0, 2, DEFAULT_RESISTANCE_BUILDUP);
     els.settingsMessage.textContent = 'Changes save automatically. Enemy HP and Required-for-victory changes apply to the next daily fight.';
     if (els.newCategoryColor) {
       const customCount = settingsDraft.categories.filter(
@@ -2890,12 +2908,6 @@
     if (!els.goalPreview || !settingsDraft) return;
     const nextHp = clampInt(els.goalInput.value, 20, 1000, settingsDraft.fullEnemyHp);
     els.goalPreview.textContent = `Every new fight starts at ${nextHp} HP. Today's ${state.current.maxHp} HP is already locked.`;
-  }
-
-  function previewFocusText(category) {
-    if (category.id === UNCATEGORIZED_ID) return 'Fixed 50% damage';
-    const focus = clampNumber(category.focus, 0.25, 10, 1);
-    return `First action ≈ ${Math.round(100 / focus)}% of base DMG before resistance`;
   }
 
   function renderCategoriesEditor() {
@@ -2950,20 +2962,6 @@
       });
       iconLabel.append(iconInput);
 
-      const focusLabel = document.createElement('label');
-      focusLabel.innerHTML = '<span>Focus</span>';
-      const focusInput = document.createElement('input');
-      focusInput.type = 'number';
-      focusInput.min = '0.25';
-      focusInput.max = '10';
-      focusInput.step = '0.25';
-      focusInput.value = category.focus;
-      focusInput.addEventListener('input', () => {
-        category.focus = clampNumber(focusInput.value, 0.25, 10, category.focus);
-        band.textContent = previewFocusText(category);
-      });
-      focusLabel.append(focusInput);
-
       const colorLabel = document.createElement('label');
       colorLabel.className = 'category-color-field';
       colorLabel.innerHTML = '<span>Color</span>';
@@ -2978,10 +2976,6 @@
       });
       colorLabel.append(colorInput);
 
-      const band = document.createElement('div');
-      band.className = 'category-band-preview';
-      band.textContent = previewFocusText(category);
-
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'delete-action';
@@ -2994,6 +2988,7 @@
         });
         settingsDraft.categories = settingsDraft.categories.filter(item => item.id !== category.id);
         settingsDraft.categories = ensureUncategorizedCategory(settingsDraft.categories);
+        if (settingsDraft.focusCategoryId === category.id) settingsDraft.focusCategoryId = null;
         renderCategoriesEditor();
         renderActionsEditor();
         populateCategorySelect();
@@ -3004,7 +2999,7 @@
       });
 
       row.style.setProperty('--editor-category-color', categoryColor(category));
-      grid.append(nameLabel, iconLabel, focusLabel, colorLabel, band, remove);
+      grid.append(nameLabel, iconLabel, colorLabel, remove);
       row.append(grid);
       els.categoriesEditor.append(row);
     });
@@ -3331,7 +3326,6 @@
   function addCategoryFromForm() {
     const name = els.newCategoryName.value.trim();
     const icon = els.newCategoryIcon.value.trim() || '•';
-    const focus = clampNumber(els.newCategoryFocus.value, 0.25, 10, 1);
     const color = normalizeHexColor(
       els.newCategoryColor?.value,
       CUSTOM_CATEGORY_COLORS[settingsDraft.categories.length % CUSTOM_CATEGORY_COLORS.length]
@@ -3354,13 +3348,12 @@
       return;
     }
 
-    const category = { id: makeId('category'), name, icon, focus, color };
+    const category = { id: makeId('category'), name, icon, color };
     const fallbackIndex = settingsDraft.categories.findIndex(item => item.id === UNCATEGORIZED_ID);
     settingsDraft.categories.splice(fallbackIndex < 0 ? settingsDraft.categories.length : fallbackIndex, 0, category);
 
     els.newCategoryName.value = '';
     els.newCategoryIcon.value = '';
-    els.newCategoryFocus.value = '1';
     if (els.newCategoryColor) {
       const customCount = settingsDraft.categories.filter(
         item => item.id !== UNCATEGORIZED_ID && !DEFAULT_CATEGORY_COLORS[item.id]
