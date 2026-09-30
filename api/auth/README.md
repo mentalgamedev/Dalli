@@ -5,9 +5,11 @@ This directory is the reusable authentication boundary for MoLife.
 ## Structure
 
 - `bootstrap.php` — auth loader and lifecycle constants
+- `foundation.php` — auth-schema capability checks, registration mode, and password hashing
+- `rate-limit.php` — HMAC-pseudonymized auth throttling and login rate limits
 - `identity.php` — user/owner lookup and authenticated PHP-session activation
 - `sessions.php` — remembered-device credentials and cookie rotation
-- `tokens.php` — email normalization, one-use auth tokens, verification URLs, housekeeping and auth throttling helpers
+- `tokens.php` — email normalization, one-use auth tokens, verification URLs, housekeeping, and verification/registration throttle policies
 - `invites.php` — owner invitation lifecycle
 - `mailer.php` — authenticated SMTP transport and transactional account emails
 - `state-bridge.php` — **MoLife compatibility adapter only** for remembered sessions/invites created before the dedicated auth tables existed
