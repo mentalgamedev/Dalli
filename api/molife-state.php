@@ -1321,7 +1321,7 @@ function dalli_validate_state_v5_v7(mixed $state): array
             && $item['damage'] === $expectedDamage;
     };
 
-    $validateTransaction = static function (mixed $tx) use ($itemBases, $conditionMultipliers, $isV6Plus): bool {
+    $validateTransaction = static function (mixed $tx) use ($itemBases, $conditionMultipliers, $isV6Plus, $isV7): bool {
         if (!is_array($tx) || !is_string($tx['type'] ?? null)) return false;
 
         if ($tx['type'] === 'action') {
@@ -1340,7 +1340,7 @@ function dalli_validate_state_v5_v7(mixed $state): array
                 && dalli_string_ok($tx['categoryName'] ?? null, 1, 80)
                 && is_int($tx['baseDamage'] ?? null) && $tx['baseDamage'] >= 1 && $tx['baseDamage'] <= 200
                 && is_int($tx['damage'] ?? null) && $tx['damage'] >= 1 && $tx['damage'] <= ($isV6Plus ? 800 : 200)
-                && dalli_number_between($tx['efficiency'] ?? null, 0.01, $isV6Plus ? 4 : 1)
+                && dalli_number_between($tx['efficiency'] ?? null, $isV7 ? 0.001 : 0.01, $isV6Plus ? 4 : 1)
                 && (is_int($tx['timestamp'] ?? null) || is_float($tx['timestamp'] ?? null))
                 && (float) $tx['timestamp'] > 0;
         }
