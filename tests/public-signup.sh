@@ -85,7 +85,7 @@ TOKEN_ONE="$(last_verification_token)"
 test -n "$TOKEN_ONE"
 
 WRONG_PASSWORD_RESULT="$(post_json verify-email.php "{\"token\":\"$TOKEN_ONE\",\"password\":\"definitely wrong password\"}")"
-WRONG_PASSWORD_CODE="$(printf '%s\\n' "$WRONG_PASSWORD_RESULT" | tail -n1)"
+WRONG_PASSWORD_CODE="$(printf '%s\n' "$WRONG_PASSWORD_RESULT" | tail -n1)"
 test "$WRONG_PASSWORD_CODE" = "401"
 
 VERIFY_RESULT="$(post_json verify-email.php "{\"token\":\"$TOKEN_ONE\",\"password\":\"correct horse battery staple\"}")"
