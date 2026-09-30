@@ -17,7 +17,7 @@ $honeypot = trim((string) ($body['website'] ?? ''));
 $remember = ($body['remember'] ?? true) !== false;
 
 if ($honeypot !== '') {
-    usleep(120000);
+    dalli_registration_rate_failure();
     dalli_fail('Could not create account.', 422);
 }
 
@@ -35,13 +35,16 @@ $pdo = dalli_pdo();
 $initialOwnerId = dalli_owner_id($pdo);
 $registrationMode = dalli_registration_mode();
 $parsedInvite = dalli_parse_invite_token($inviteRaw);
-$isOwnerSetup = $initialOwnerId === null;
+$isOwnerSetup = $initialOwnerId === null && dalli_owner_setup_available($pdo);
+$ownerMissingAfterInitialization = $initialOwnerId === null && !$isOwnerSetup;
 $isInviteAttempt = $initialOwnerId !== null && $parsedInvite !== null;
 $isPublicAttempt = $initialOwnerId !== null
     && !$isInviteAttempt
     && $registrationMode === 'public';
 
-if ($isOwnerSetup) {
+if ($ownerMissingAfterInitialization) {
+    dalli_fail('Account creation is temporarily unavailable.', 503);
+} elseif ($isOwnerSetup) {
     $expectedSetupToken = dalli_owner_setup_token();
     if ($expectedSetupToken === '') {
         dalli_fail('Owner account setup is not configured.', 503);
@@ -49,7 +52,6 @@ if ($isOwnerSetup) {
 
     if ($ownerSetupRaw === '' || !hash_equals($expectedSetupToken, $ownerSetupRaw)) {
         dalli_registration_rate_failure();
-        usleep(150000);
         dalli_fail('Invalid owner setup code.', 403);
     }
 } elseif ($registrationMode === 'closed') {
@@ -57,8 +59,13 @@ if ($isOwnerSetup) {
     dalli_fail('Account creation is currently closed.', 403);
 } elseif (!$isInviteAttempt && !$isPublicAttempt) {
     dalli_registration_rate_failure();
-    usleep(100000);
     dalli_fail('A valid invite link is required to create an account.', 403);
+}
+
+if ($isInviteAttempt && is_array($parsedInvite)
+    && !dalli_invite_is_valid($pdo, (int) $initialOwnerId, $parsedInvite)) {
+    dalli_registration_rate_failure();
+    dalli_fail('Invite link is invalid or expired.', 403);
 }
 
 $email = null;
@@ -72,9 +79,10 @@ if ($isPublicAttempt) {
         dalli_fail('Enter a valid email address.', 422);
     }
 
-    dalli_public_registration_rate_check($email);
-    dalli_public_registration_rate_hit($email);
     dalli_cleanup_auth_housekeeping($pdo);
+    dalli_public_capacity_check($pdo);
+    dalli_public_registration_guard($email);
+    dalli_public_mail_budget_guard();
 }
 
 try {
@@ -173,7 +181,9 @@ if ($isPublicAttempt && is_string($email)) {
 
     try {
         if ($existingActive) {
-            dalli_send_existing_account_email($email, $mailUsername);
+            if (dalli_existing_account_notice_allowed($email)) {
+                dalli_send_existing_account_email($email, $mailUsername);
+            }
         } elseif (is_string($verificationUrl)) {
             dalli_send_verification_email($email, $username, $verificationUrl);
         }
@@ -211,6 +221,10 @@ try {
     $role = 'user';
 
     if ($ownerId === null) {
+        if (!dalli_owner_setup_available($pdo)) {
+            $pdo->rollBack();
+            dalli_fail('Account creation is temporarily unavailable.', 503);
+        }
         $expectedSetupToken = dalli_owner_setup_token();
         if ($ownerSetupRaw === '' || $expectedSetupToken === '' || !hash_equals($expectedSetupToken, $ownerSetupRaw)) {
             $pdo->rollBack();
@@ -229,7 +243,6 @@ try {
         if ($inviteToken === null || !dalli_consume_invite($pdo, $ownerId, $inviteToken)) {
             $pdo->rollBack();
             dalli_registration_rate_failure();
-            usleep(100000);
             dalli_fail('Invite link is invalid or expired.', 403);
         }
     }
