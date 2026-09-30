@@ -12,12 +12,19 @@ function dalli_mail_value(string $key): string
 
 function dalli_mail_configured(): bool
 {
+    $from = dalli_mail_value('from_email');
+    $transport = strtolower(dalli_mail_value('transport'));
+
+    if (defined('MOLIFE_TESTING') && MOLIFE_TESTING === true && $transport === 'test') {
+        return filter_var($from, FILTER_VALIDATE_EMAIL) !== false
+            && dalli_mail_value('test_sink') !== '';
+    }
+
     $host = dalli_mail_value('host');
     $port = dalli_mail_value('port');
     $encryption = strtolower(dalli_mail_value('encryption'));
     $username = dalli_mail_value('username');
     $password = dalli_mail_value('password');
-    $from = dalli_mail_value('from_email');
 
     return $host !== ''
         && ctype_digit($port)
@@ -129,6 +136,21 @@ function dalli_send_transactional_email(
 ): void {
     if (!dalli_mail_configured()) {
         throw new RuntimeException('Transactional email is not configured.');
+    }
+
+    if (defined('MOLIFE_TESTING') && MOLIFE_TESTING === true && strtolower(dalli_mail_value('transport')) === 'test') {
+        $record = json_encode([
+            'to' => $toEmail,
+            'name' => $toName,
+            'subject' => $subject,
+            'plain' => $plain,
+            'html' => $html,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        $sink = dalli_mail_value('test_sink');
+        if (file_put_contents($sink, $record . PHP_EOL, FILE_APPEND | LOCK_EX) === false) {
+            throw new RuntimeException('Could not write test mail sink.');
+        }
+        return;
     }
 
     $host = dalli_mail_value('host');
