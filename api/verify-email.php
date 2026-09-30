@@ -15,7 +15,6 @@ $token = dalli_parse_auth_token((string) ($body['token'] ?? ''));
 
 if ($token === null) {
     dalli_verification_attempt_rate_failure();
-    usleep(100000);
     dalli_fail('Activation link is invalid or expired.', 400);
 }
 
@@ -28,7 +27,6 @@ try {
     if ($consumed === null) {
         $pdo->rollBack();
         dalli_verification_attempt_rate_failure();
-        usleep(100000);
         dalli_fail('Activation link is invalid or expired.', 400);
     }
 
