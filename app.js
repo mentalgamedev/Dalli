@@ -4236,7 +4236,7 @@
     window.setTimeout(() => URL.revokeObjectURL(href), 1000);
 
     if (els.templateStatus) {
-      els.templateStatus.textContent = 'Template exported. Progress, history and Phat Ed’s Pawnshop inventory were intentionally excluded.';
+      els.templateStatus.textContent = 'Template exported. One-offs, progress, history and Phat Ed’s Pawnshop inventory were intentionally excluded.';
     }
   }
 
@@ -4249,7 +4249,7 @@
       const importedName = typeof payload.name === 'string' ? payload.name.slice(0, 60) : '';
 
       const confirmed = window.confirm(
-        'Switch to this MoLife settings template?\n\nThis replaces difficulty, focused-category tuning, resistance buildup, categories/colors, actions, ordering, Required-for-victory flags and combos. Your fight history, Level, Street Cred, streak, today’s recorded damage and Pawnshop items stay untouched.'
+        'Switch to this MoLife settings template?\n\nThis replaces difficulty, focused-category tuning, resistance buildup, categories/colors, reusable actions, ordering, Required-for-victory flags and combos. Your One-offs, fight history, Level, Street Cred, streak, today’s recorded damage and Pawnshop items stay untouched.'
       );
       if (!confirmed) return;
 
