@@ -297,6 +297,12 @@ Attack feedback now frames a completed action as damage **dealt** rather than he
 
 The attack report also becomes another deliberately light-touch **Cosmic Trouble** crossover point. The existing Steam CTA style from Settings is reused in a compact block. It is guaranteed on the first attack report seen by a browser/install, then appears only occasionally afterwards (deterministically about one in eleven attack reports). The promo does not affect gameplay state or cloud sync and remains separate from the normal report when not selected.
 
+## v4.15 — Office of Complimentary Violence
+
+Attack reports now display plain damage values such as **15 DMG** rather than **+15 DMG**. The **DAMAGE DEALT** label already communicates direction, so the extra plus sign was unnecessary.
+
+New MoLife states now begin with one **Standard MoLight Pro** in Phat Ed's Pawnshop: 10 DMG, the weakest base item in the normal item ladder. Existing v8 states receive the same starter item exactly once during the v9 state migration. The grant uses a stable item-instance ID so it cannot duplicate during repeated normalization, and signed-in accounts automatically save the migrated v9 state back to the server through the existing cloud-version migration path.
+
 ## Self-hosting
 
 See [DEPLOY.md](DEPLOY.md) for the provider-neutral self-hosting guide.
