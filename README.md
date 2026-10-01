@@ -275,6 +275,10 @@ Track-o-Tron now supports persistent **One-offs** for procrastinated tasks that 
 
 Public activation email is intentionally more conventional: the subject is **Confirm your email for MoLife**, the primary copy clearly describes account confirmation, and generated Message-IDs use the configured sender domain rather than the web-server hostname. Owner security status now exposes SPF/DMARC presence and optional DKIM-selector diagnostics. This improves the signals under MoLife's control, while acknowledging that spam-folder placement still depends heavily on the SMTP provider, DNS authentication, reputation and the recipient's filters.
 
+## v4.12.1 — Bureau of Adequate Elbow Room
+
+A tiny Track-o-Tron polish pass: One-off helper copy is shortened to **“Disappears when done”**, and One-off damage values get a few extra pixels of right-side breathing room.
+
 ## Self-hosting
 
 See [DEPLOY.md](DEPLOY.md) for the provider-neutral self-hosting guide.
