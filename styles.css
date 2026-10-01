@@ -5423,6 +5423,15 @@ button.inventory-slot:focus-visible {
   color: #ffe071;
 }
 
+button.inventory-slot.is-selected {
+  border-color: rgba(247,211,104,.90);
+  box-shadow:
+    inset 0 0 0 1px rgba(247,211,104,.22),
+    inset 0 1px rgba(255,255,255,.05),
+    0 0 24px rgba(241,202,90,.13),
+    3px 4px 0 rgba(0,0,0,.26);
+}
+
 .inventory-slot.is-new {
   animation: contrabandReveal .62s cubic-bezier(.18,.86,.2,1);
 }
