@@ -74,5 +74,12 @@ return [
         'password' => 'YOUR_SMTP_PASSWORD',
         'from_email' => 'molife@example.com',
         'from_name' => 'MoLife',
+
+        /*
+         * Optional diagnostics-only DKIM selector. Your SMTP provider performs
+         * the actual DKIM signing; set this only if you know the selector so
+         * MoLife can check the corresponding DNS record in owner diagnostics.
+         */
+        'dkim_selector' => '',
     ],
 ];
