@@ -84,6 +84,16 @@ assert_json_true "$REGISTER_BODY" "pending"
 TOKEN_ONE="$(last_verification_token)"
 test -n "$TOKEN_ONE"
 
+php -r '
+  $path = $argv[1];
+  $lines = @file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+  if (!$lines) exit(1);
+  $mail = json_decode($lines[count($lines)-1], true);
+  if (!is_array($mail)) exit(1);
+  if (($mail["subject"] ?? "") !== "Confirm your email for MoLife") exit(1);
+  if (strpos((string)($mail["plain"] ?? ""), "You created a MoLife account.") === false) exit(1);
+' "$MAIL_SINK"
+
 WRONG_PASSWORD_RESULT="$(post_json verify-email.php "{\"token\":\"$TOKEN_ONE\",\"password\":\"definitely wrong password\"}")"
 WRONG_PASSWORD_CODE="$(printf '%s\n' "$WRONG_PASSWORD_RESULT" | tail -n1)"
 test "$WRONG_PASSWORD_CODE" = "401"
