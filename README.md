@@ -4,8 +4,8 @@ MoLife is a small daily XP game from the deeply questionable civic ecosystem of 
 
 ## Core loop
 
-1. Do actions to deal **Damage**.
-2. Each action has a base Damage value.
+1. Do reusable **Actions** or clear temporary **One-offs** to deal **Damage**.
+2. Each attack has a base Damage value.
 3. One category can be marked **FOCUSED** directly in Track-o-Tron. Its action damage is divided by the global Focus factor, so that area demands more real activity.
 4. Repeating actions from the same category builds resistance along the familiar **100% → 65% → 40% → 25%** base curve, with a global Resistance buildup setting controlling how strongly that curve is applied.
 5. Reduce today's **Dark Doppelgänger** to 0 HP.
@@ -41,7 +41,7 @@ Current ranks:
 
 ## Tenacious & Phat Ed's Pawnshop
 
-Actions can be marked **Required for victory**. Repeatable actions can also define a **Required repetitions** count of 1–1000; once-per-day actions always require exactly one completion. At the start of each daily fight, MoLife snapshots each required action together with its required count. Changing those settings later affects the next daily fight rather than rewriting today's rules. Deleting an action removes it from today's snapshot so a fight can never become impossible.
+Actions can be marked **Required for victory**. Repeatable actions can also define a **Required repetitions** count of 1–1000; **Daily** actions always require exactly one completion. At the start of each daily fight, MoLife snapshots each required action together with its required count. Changing those settings later affects the next daily fight rather than rewriting today's rules. Deleting an action removes it from today's snapshot so a fight can never become impossible.
 
 While any required repetitions remain unfinished, Dark Doppelgänger is **TENACIOUS**. Normal action and combo damage can still accumulate, but it cannot finish the fight: once lethal damage has been reached, the displayed HP is held at 1 until all required repetitions have been completed. Track-o-Tron shows per-action progress such as **REQUIRED · 1 / 3**, keeps unfinished required actions at the top of their category, and visually marks them with a gold treatment. If the last outstanding requirement is completed after lethal damage is already banked, the enemy immediately goes down.
 
@@ -109,7 +109,7 @@ The header contains a reactive fake news feed that comments on the current fight
 
 MoLife deliberately uses a non-reactive dark ambient background with soft purple, light-blue and muted-orange radial glows. There is no device-tilt or pointer-reactive Motion FX system. Installed PWAs still request **portrait-primary** orientation in the web app manifest; MoLife also opportunistically asks the Screen Orientation API for portrait when running standalone.
 
-## Track-o-Tron## Track-o-Tron
+## Track-o-Tron
 
 The main action area is branded **Track-o-Tron**. Category action decks keep a consistent height. They only become independent scroll surfaces when their actions actually overflow; otherwise swiping through the action area continues to scroll the page normally. Scrollable decks allow normal scroll chaining at their edges.
 
@@ -127,9 +127,12 @@ The main action area is branded **Track-o-Tron**. Category action decks keep a c
 - the Actions section has one-shot sorting by **category**, **Damage (high to low)** or **name (A to Z)**
 - action editor rows inherit the same derived category tint system as the front-page action area
 - actions have editable base Damage values
-- actions can be repeatable or once-per-day
-- every action has a **Show in Track-o-Tron** toggle and a **Required for victory** toggle; required actions are forced visible and promoted to the top of their Track-o-Tron category
-- repeatable Required actions have an editable integer **Required repetitions** value; once-per-day actions are fixed at 1
+- reusable actions can be **Repeatable** or **Daily**; the internal legacy `once` identifier remains unchanged for compatibility
+- every reusable action has a **Show in Track-o-Tron** toggle and a **Required for victory** toggle; required actions are forced visible and promoted to the top of their Track-o-Tron category
+- repeatable Required actions have an editable integer **Required repetitions** value; Daily actions are fixed at 1
+- each category has a quick **+ ONE-OFF** control for temporary unfinished business such as calls, forms or errands
+- One-offs persist across days until completed, use the normal category Focus/resistance damage calculation, never participate in Combos or Required-for-victory rules, and disappear immediately after use
+- undoing a One-off transaction restores the pending One-off so accidental taps are reversible
 - combos are user-defined ordered sequences of 2–8 action IDs with configurable ×1.05–×3.00 multipliers; unrelated actions do not break progress and repeated action IDs are allowed
 - combo bonuses use the matched actions' actual effective damage, are logged as separate damage events, and can repeat after a sequence resets
 - default action wording is intentionally qualitative rather than timed: **Quick movement / stretch**, **Walk / fresh air**, **Proper workout**, **Proper healthy meal**, **Focus session**, **Deep focus session**, **Practice / skill**, **Annoying admin task**, **Tiny chore**, **Proper chore / cleaning**, **Laundry**, **Big chore / deep clean**
@@ -139,9 +142,9 @@ The main action area is branded **Track-o-Tron**. Category action decks keep a c
 
 ## Settings templates
 
-Settings can be exported as a small JSON **template** and imported later to swap between different challenge setups. A template contains the configured enemy HP plus focused-category selection/factor, Resistance buildup, categories, colors, actions, ordering, visibility, Required-for-victory flags and repetition counts, damage values, category links, combos and combo action links.
+Settings can be exported as a small JSON **template** and imported later to swap between different challenge setups. A template contains the configured enemy HP plus focused-category selection/factor, Resistance buildup, categories, colors, reusable actions, ordering, visibility, Required-for-victory flags and repetition counts, damage values, category links, combos and combo action links.
 
-Templates deliberately do **not** behave like save-game backups. Importing one leaves Level, Victory XP, Street Cred, streak/history, today's already-recorded damage and Phat Ed's Pawnshop inventory untouched. Current combo progress is reset because the imported combo definitions may differ; today's Required snapshot only loses requirements whose action IDs no longer exist.
+Templates deliberately do **not** behave like save-game backups. Pending One-offs are intentionally excluded because they are unfinished tasks rather than challenge rules. Importing a template leaves One-offs, Level, Victory XP, Street Cred, streak/history, today's already-recorded damage and Phat Ed's Pawnshop inventory untouched. Current combo progress is reset because the imported combo definitions may differ; today's Required snapshot only loses requirements whose action IDs no longer exist.
 
 ## History and statistics foundation
 
@@ -167,7 +170,7 @@ MoLife v4.7 adds an optional **verified-email public signup** flow on top of the
 
 Public signup is operationally fail-closed. It is exposed only when all three conditions are true: the modern auth schema is present, `registration_mode` is `public`, and authenticated SMTP is fully configured. Setting registration to `invite` or `closed` immediately removes public account creation without disabling existing accounts.
 
-MoLife v4.7.1 adds an **owner-only SMTP diagnostic** in the Account dialog. The signed-in owner can send a real test message through the configured transactional mail transport while registration remains in `invite` mode. The endpoint requires the owner role, same-origin requests and a valid CSRF token; SMTP failures are written to the server error log while the browser receives only a generic failure message.
+MoLife provides owner-only mail diagnostics in the Account dialog. The signed-in owner can send a real test message through the configured transactional mail transport while registration remains in `invite` mode. The security status also checks the configured sender domain for SPF and DMARC records; if an optional `dkim_selector` is configured, it checks the corresponding DKIM TXT record too. These checks are diagnostics rather than a guarantee of inbox placement: provider reputation and recipient filtering remain external to MoLife.
 
 To avoid turning registration into an email-address lookup service, registration and resend use the same outward success response whether an address is new, pending, or already attached to an active account. An existing account receives a private informational email instead.
 
@@ -263,6 +266,14 @@ This pass is presentation-only: it does not change the state schema, damage calc
 Fix public-account activation on browsers that enforce native form constraint validation before dispatching the submit event. The verification screen now disables and un-requires every hidden registration/login control, so the password-only activation request cannot be silently blocked by the hidden required username field.
 
 The auth dialog also explicitly enforces `display: none` for elements carrying `hidden`, preventing authored flex/grid rules from making the login/register tabs or remembered-device row reappear on the activation screen.
+
+## v4.12 — Department of Unfinished Business
+
+The action-feedback popup is now deliberately compact. It keeps only the action name, direct damage, target HP, short Crestfallen incident copy, and conditional Combo/Tenacious information. The dialog resets to the top whenever it opens and is sized to stay comfortably within a normal phone viewport; the full *Crestfallen Daily* remains the detailed victory report.
+
+Track-o-Tron now supports persistent **One-offs** for procrastinated tasks that should disappear when completed rather than become permanent habit definitions. One-offs are created directly inside a category with a name and base Damage value, persist across daily rollover, use normal Focus/resistance damage, never join Combos or Required rules, and are removed after their hit. Undo restores them. Existing once-per-day reusable actions are presented as **Daily** actions to distinguish the two concepts.
+
+Public activation email is intentionally more conventional: the subject is **Confirm your email for MoLife**, the primary copy clearly describes account confirmation, and generated Message-IDs use the configured sender domain rather than the web-server hostname. Owner security status now exposes SPF/DMARC presence and optional DKIM-selector diagnostics. This improves the signals under MoLife's control, while acknowledging that spam-folder placement still depends heavily on the SMTP provider, DNS authentication, reputation and the recipient's filters.
 
 ## Self-hosting
 
