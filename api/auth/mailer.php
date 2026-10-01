@@ -8,6 +8,85 @@ function dalli_mail_value(string $key): string
     return trim(dalli_config('mail', $key));
 }
 
+function dalli_mail_sender_domain(): string
+{
+    $from = dalli_mail_value('from_email');
+    if (filter_var($from, FILTER_VALIDATE_EMAIL) === false) {
+        return '';
+    }
+    $parts = explode('@', strtolower($from), 2);
+    return count($parts) === 2 ? preg_replace('/[^a-z0-9.-]/', '', $parts[1]) : '';
+}
+
+function dalli_mail_txt_records(string $host): ?array
+{
+    if ($host === '' || !function_exists('dns_get_record') || !defined('DNS_TXT')) {
+        return null;
+    }
+
+    $records = @dns_get_record($host, DNS_TXT);
+    if (!is_array($records)) return null;
+
+    $values = [];
+    foreach ($records as $record) {
+        $txt = $record['txt'] ?? null;
+        if (is_string($txt) && $txt !== '') $values[] = $txt;
+    }
+    return $values;
+}
+
+function dalli_mail_deliverability_snapshot(): array
+{
+    $domain = dalli_mail_sender_domain();
+    $selector = preg_replace('/[^A-Za-z0-9_-]/', '', dalli_mail_value('dkim_selector')) ?: '';
+
+    if ($domain === '') {
+        return [
+            'senderDomain' => '',
+            'dnsAvailable' => false,
+            'spfFound' => null,
+            'dmarcFound' => null,
+            'dkimSelector' => $selector,
+            'dkimFound' => null,
+        ];
+    }
+
+    // Integration tests should not depend on external DNS availability.
+    if (defined('MOLIFE_TESTING') && MOLIFE_TESTING === true) {
+        return [
+            'senderDomain' => $domain,
+            'dnsAvailable' => false,
+            'spfFound' => null,
+            'dmarcFound' => null,
+            'dkimSelector' => $selector,
+            'dkimFound' => null,
+        ];
+    }
+
+    $spfRecords = dalli_mail_txt_records($domain);
+    $dmarcRecords = dalli_mail_txt_records('_dmarc.' . $domain);
+    $dkimRecords = $selector !== ''
+        ? dalli_mail_txt_records($selector . '._domainkey.' . $domain)
+        : null;
+
+    $startsWith = static function (?array $records, string $prefix): ?bool {
+        if ($records === null) return null;
+        foreach ($records as $record) {
+            if (stripos(trim($record), $prefix) === 0) return true;
+        }
+        return false;
+    };
+
+    return [
+        'senderDomain' => $domain,
+        'dnsAvailable' => $spfRecords !== null || $dmarcRecords !== null || $dkimRecords !== null,
+        'spfFound' => $startsWith($spfRecords, 'v=spf1'),
+        'dmarcFound' => $startsWith($dmarcRecords, 'v=DMARC1'),
+        'dkimSelector' => $selector,
+        'dkimFound' => $selector !== '' ? $startsWith($dkimRecords, 'v=DKIM1') : null,
+    ];
+}
+
 function dalli_mail_configured(): bool
 {
     $from = dalli_mail_value('from_email');
@@ -107,21 +186,22 @@ function dalli_build_verification_email(string $username, string $verificationUr
     $safeName = htmlspecialchars($username, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     $safeUrl = htmlspecialchars($verificationUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
-    $subject = 'Activate your MoLife account';
-    $plain = "MoLife // mo.les.tech identity transmission\n\n"
+    $subject = 'Confirm your email for MoLife';
+    $plain = "Confirm your email for MoLife\n\n"
         . "Hello {$username},\n\n"
-        . "Activate your MoLife account using this link:\n{$verificationUrl}\n\n"
-        . "The link expires in 60 minutes and works once. MoLife will also ask for the password you chose when registering.\n\n"
-        . "If you did not request this account, you can ignore this message.\n";
+        . "You created a MoLife account. Confirm your email address using this link:\n{$verificationUrl}\n\n"
+        . "This link expires in 60 minutes and works once. MoLife will also ask for the password you chose when registering.\n\n"
+        . "If you did not create this account, you can ignore this email.\n";
 
-    $html = '<!doctype html><html><body style="margin:0;background:#0d1016;color:#f3f4f7;font-family:Arial,sans-serif;">'
+    $html = '<!doctype html><html><body style="margin:0;background:#f4f5f7;color:#171a20;font-family:Arial,sans-serif;">'
         . '<div style="max-width:560px;margin:0 auto;padding:32px 24px;">'
-        . '<div style="font-size:11px;letter-spacing:.18em;color:#8b94a4;text-transform:uppercase;">mo.les.tech // identity department</div>'
-        . '<h1 style="margin:10px 0 8px;font-size:30px;">TRANSMISSION RECEIVED</h1>'
-        . '<p style="color:#b8bfca;line-height:1.55;">Hello ' . $safeName . '. Your MoLife cloud identity is waiting for activation.</p>'
-        . '<p style="margin:28px 0;"><a href="' . $safeUrl . '" style="display:inline-block;padding:13px 18px;border-radius:10px;background:#d8b95e;color:#101217;text-decoration:none;font-weight:800;">ACTIVATE MOLIFE ACCOUNT</a></p>'
-        . '<p style="color:#8f98a6;font-size:13px;line-height:1.5;">This one-use link expires in 60 minutes. MoLife will also ask for the password you chose when registering. If you did not request a MoLife account, ignore this message.</p>'
-        . '<p style="margin-top:28px;color:#68717f;font-size:11px;">powered by MoThink-6.7</p>'
+        . '<div style="font-size:12px;font-weight:700;color:#666f7d;">MoLife account</div>'
+        . '<h1 style="margin:10px 0 8px;font-size:28px;">Confirm your email</h1>'
+        . '<p style="color:#454c58;line-height:1.55;">Hello ' . $safeName . '. You created a MoLife account. Confirm this email address to finish activating it.</p>'
+        . '<p style="margin:26px 0;"><a href="' . $safeUrl . '" style="display:inline-block;padding:13px 18px;border-radius:9px;background:#6557e8;color:#ffffff;text-decoration:none;font-weight:800;">Confirm email</a></p>'
+        . '<p style="color:#626a77;font-size:13px;line-height:1.5;">The link expires in 60 minutes and works once. MoLife will also ask for the password you chose during registration.</p>'
+        . '<p style="color:#626a77;font-size:13px;line-height:1.5;">If you did not create a MoLife account, you can ignore this email.</p>'
+        . '<p style="margin-top:28px;color:#8b93a0;font-size:11px;">MoLife · mo.les.tech Department of Reasonably Legitimate Identity</p>'
         . '</div></body></html>';
 
     return [
@@ -221,9 +301,10 @@ function dalli_send_transactional_email(
         dalli_smtp_command($socket, 'DATA', [354]);
 
         $boundary = 'molife-' . bin2hex(random_bytes(12));
+        $messageIdDomain = dalli_mail_sender_domain() ?: $helo;
         $headers = [
             'Date: ' . date(DATE_RFC2822),
-            'Message-ID: <' . bin2hex(random_bytes(16)) . '@' . $helo . '>',
+            'Message-ID: <' . bin2hex(random_bytes(16)) . '@' . $messageIdDomain . '>',
             'From: ' . dalli_mailbox($fromEmail, $fromName),
             'To: ' . dalli_mailbox($toEmail, $toName),
             'Subject: ' . dalli_mail_header_text($subject),
