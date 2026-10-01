@@ -96,6 +96,8 @@ return [
         'password' => 'SMTP_PASSWORD',
         'from_email' => 'molife@example.com',
         'from_name' => 'MoLife',
+        // Optional, diagnostics only; your provider still performs DKIM signing.
+        'dkim_selector' => '',
     ],
 ];
 ```
@@ -134,8 +136,9 @@ Public signup remains disabled unless the auth migration is present and SMTP is 
 
 1. Configure authenticated SMTP in the private `molife-config.php`.
 2. Sign in as the MoLife owner, open **Account → Email system**, and send a test message to an address you control while registration is still `invite`.
-3. Confirm that the message arrives with the expected sender, then verify that the sender domain has the appropriate SPF/DKIM/DMARC setup for the mail service you use.
-4. Change `registration_mode` to `public`.
+3. Open **Account → Public registration firewall** and review the sender-domain checks. MoLife can detect SPF and DMARC TXT records automatically. If you know your provider's DKIM selector, add it as `dkim_selector` in the private mail config so MoLife can check that record too.
+4. Confirm the test message arrives with the expected sender. A successful SMTP send only proves the provider accepted the message; inbox placement still depends on SPF/DKIM/DMARC alignment, provider reputation and recipient filtering.
+5. Change `registration_mode` to `public`.
 
 MoLife supports STARTTLS (`tls`, commonly port 587) and implicit TLS (`ssl`, commonly port 465). TLS certificates are verified. Public activation links expire after 60 minutes, work once, and require the password chosen during registration before the account is activated.
 
