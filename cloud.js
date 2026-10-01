@@ -530,7 +530,7 @@
   const mailTestHelp = makeElement(
     'p',
     'muted',
-    'Send a real transactional email through the configured SMTP account. This does not enable public registration.'
+    'Send a real transactional email through the configured SMTP account. Delivery proves SMTP acceptance, not inbox placement; SPF, DKIM and DMARC still matter.'
   );
   const mailTestInput = document.createElement('input');
   mailTestInput.type = 'email';
@@ -666,15 +666,25 @@
       });
 
       const limits = result.limits || {};
+      const mail = result.mailDeliverability || {};
       const registrationState = result.publicSignupReady ? 'OPEN' : 'SAFE MODE';
+      const dnsState = value => value === true ? 'FOUND' : value === false ? 'MISSING' : 'UNKNOWN';
       const lines = [
         `Public registration: ${registrationState}`,
         `Accounts: ${result.activeAccounts ?? 0} active · ${result.pendingAccounts ?? 0} pending / ${limits.maxPendingAccounts ?? '?'} max`,
         `Registrations: ${limits.registrationHour?.used ?? 0}/${limits.registrationHour?.limit ?? '?'} this hour · ${limits.registrationDay?.used ?? 0}/${limits.registrationDay?.limit ?? '?'} / 24h`,
         `Account mail: ${limits.mailHour?.used ?? 0}/${limits.mailHour?.limit ?? '?'} this hour · ${limits.mailDay?.used ?? 0}/${limits.mailDay?.limit ?? '?'} / 24h`
       ];
+      if (mail.senderDomain) {
+        lines.push(`Sender domain: ${mail.senderDomain}`);
+        lines.push(`SPF: ${dnsState(mail.spfFound)} · DMARC: ${dnsState(mail.dmarcFound)}`);
+        lines.push(mail.dkimSelector
+          ? `DKIM (${mail.dkimSelector}): ${dnsState(mail.dkimFound)}`
+          : 'DKIM: selector not configured in MoLife · verify signing with your SMTP provider');
+      }
       securityStatus.replaceChildren(...lines.map(line => makeElement('div', 'security-status-line', line)));
-      securityStatus.dataset.kind = result.publicSignupReady ? 'ok' : 'warning';
+      const deliverabilityWarning = mail.spfFound === false || mail.dmarcFound === false || mail.dkimFound === false;
+      securityStatus.dataset.kind = result.publicSignupReady && !deliverabilityWarning ? 'ok' : 'warning';
     } catch (error) {
       securityStatus.dataset.kind = 'error';
       securityStatus.textContent = error instanceof ApiError
@@ -919,9 +929,10 @@
       && candidate.current.transactions.length > 0;
     const hasHistory = Array.isArray(candidate.history) && candidate.history.length > 0;
     const hasItems = Array.isArray(candidate.inventory?.items) && candidate.inventory.items.length > 0;
+    const hasOneOffs = Array.isArray(candidate.oneOffs) && candidate.oneOffs.length > 0;
     const customizedSettings = JSON.stringify(candidate.settings) !== JSON.stringify(fresh.settings);
 
-    return hasTransactions || hasHistory || hasItems || customizedSettings;
+    return hasTransactions || hasHistory || hasItems || hasOneOffs || customizedSettings;
   }
 
   async function activateSession(session, options = {}) {
