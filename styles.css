@@ -4945,3 +4945,173 @@ body {
     width: 100%;
   }
 }
+
+
+
+/* -------------------------------------------------------------------------- */
+/* MoLife v4.13 — Bureau of Consolidated Reputation                           */
+/* -------------------------------------------------------------------------- */
+
+/* Street Cred, Level and Streak now read as one dossier instead of three
+   separate cards. */
+.progression-panel {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(190px, .65fr) minmax(220px, .8fr);
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  border-color: rgba(241,202,90,.16);
+  background:
+    radial-gradient(circle at 0 0, rgba(241,202,90,.055), transparent 18rem),
+    linear-gradient(135deg, rgba(122,108,255,.055), transparent 60%),
+    var(--panel);
+}
+
+.progression-panel .rank-card,
+.progression-panel .mini-stat-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.progression-panel .rank-card {
+  min-height: 126px;
+  padding: 18px 128px 17px 20px;
+}
+
+.progression-panel .mini-stat-card {
+  min-height: 126px;
+  padding: 18px 20px;
+  border-left: 1px solid rgba(255,255,255,.075);
+}
+
+.progression-panel .rank-stamp {
+  top: 36px;
+}
+
+.progression-panel .streak-caption {
+  margin-top: 4px;
+}
+
+/* Signed-in account control gets a compact profile treatment with the current
+   Level surfaced as a small badge. */
+.account-button.profile-button {
+  position: relative;
+  min-width: 116px;
+  padding: 7px 32px 7px 11px;
+  display: grid;
+  gap: 1px;
+  justify-items: start;
+  overflow: visible;
+  border-color: rgba(137,124,239,.28);
+  background:
+    linear-gradient(135deg, rgba(137,124,239,.12), rgba(255,255,255,.025)),
+    rgba(255,255,255,.035);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.045);
+  text-align: left;
+}
+
+.account-button.profile-button:hover {
+  border-color: rgba(137,124,239,.46);
+  background:
+    linear-gradient(135deg, rgba(137,124,239,.18), rgba(255,255,255,.04)),
+    rgba(255,255,255,.045);
+}
+
+.profile-button-kicker {
+  color: #8f98aa;
+  font-size: .49rem;
+  font-weight: 950;
+  letter-spacing: .12em;
+  line-height: 1;
+}
+
+.profile-button-name {
+  max-width: 10rem;
+  overflow: hidden;
+  color: var(--text);
+  font-size: .76rem;
+  font-weight: 850;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-level-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #171a22;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8175ed, #d1ad4f);
+  color: #0d0f14;
+  box-shadow: 0 3px 10px rgba(0,0,0,.42);
+  font-size: .66rem;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+@media (max-width: 900px) {
+  .progression-panel {
+    grid-template-columns: minmax(0, 1.5fr) minmax(170px, .75fr);
+  }
+
+  .progression-panel .streak-card {
+    grid-column: 1 / -1;
+    min-height: 0;
+    border-top: 1px solid rgba(255,255,255,.075);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .progression-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .progression-panel .rank-card {
+    min-height: 118px;
+    padding: 16px 88px 15px 16px;
+  }
+
+  .progression-panel .mini-stat-card,
+  .progression-panel .streak-card {
+    grid-column: auto;
+    min-height: 0;
+    padding: 14px 16px;
+    border-top: 1px solid rgba(255,255,255,.075);
+    border-left: 0;
+  }
+
+  .progression-panel .mini-stat-card {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .progression-panel .mini-stat-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    font-size: .82rem;
+  }
+
+  .progression-panel .rank-stamp {
+    width: 96px;
+    right: -19px;
+    top: 34px;
+  }
+
+  .account-zone .account-button.profile-button {
+    max-width: min(46vw, 180px);
+    overflow: visible;
+  }
+
+  .profile-button-name {
+    max-width: min(26vw, 110px);
+  }
+}
