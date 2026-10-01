@@ -2935,7 +2935,7 @@
           badge.className = 'one-off-badge';
           badge.textContent = 'ONE-OFF';
           const small = document.createElement('small');
-          small.textContent = 'Unfinished business · disappears when completed';
+          small.textContent = 'Disappears when done';
           nameWrap.append(strong, badge, small);
 
           const damage = document.createElement('span');
