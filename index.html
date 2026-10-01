@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="preload" href="fonts/PunkKid.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=4.13.1">
+  <link rel="stylesheet" href="styles.css?v=4.14.0">
 </head>
 <body>
   <div class="city-noise" aria-hidden="true"></div>
@@ -28,7 +28,7 @@
       <div class="brand-block">
         <h1 class="brand-title" aria-label="MoLife"><span class="brand-mo">Mo</span><span class="brand-life">Life</span><span class="brand-tm">™</span></h1>
         <div class="brand-subline"><strong>Daily Struggle Assistant</strong><span> · powered by MoThink-6.7</span></div>
-        <div class="app-version" aria-label="MoLife version 4.13.1">v4.13.1 · Department of False Alarms</div>
+        <div class="app-version" aria-label="MoLife version 4.14.0">v4.14.0 · Department of Positive Reinforcement</div>
         <div id="todayLabel" class="muted"></div>
       </div>
       <button id="settingsButton" class="icon-button" type="button" aria-label="Open settings" title="Settings">⚙</button>
@@ -235,8 +235,9 @@
           <div id="attackReportCategory" class="attack-report-category">CATEGORY</div>
           <div id="attackReportHp" class="attack-report-hp">Target: 0 / 0 HP</div>
         </div>
-        <div class="attack-report-impact" aria-label="Direct attack damage">
-          <strong id="attackReportDamage">-0 HP</strong>
+        <div class="attack-report-impact" aria-label="Damage dealt">
+          <span>DAMAGE DEALT</span>
+          <strong id="attackReportDamage">+0 DMG</strong>
         </div>
       </div>
 
@@ -251,6 +252,11 @@
       </div>
 
       <p id="attackReportMessage" class="attack-report-message"></p>
+
+      <div id="attackReportSteamPromo" class="attack-steam-promo" hidden>
+        <span>FROM THE WORLD OF CRESTFALLEN</span>
+        <a class="steam-link-button" href="https://store.steampowered.com/app/3214490/Cosmic_Trouble/" target="_blank" rel="noopener noreferrer">Cosmic Trouble (Steam) ↗</a>
+      </div>
 
       <button id="closeAttackReportButton" class="attack-report-button" type="button">Continue</button>
     </article>
@@ -496,7 +502,7 @@
     </article>
   </template>
 
-  <script src="app.js?v=4.13.1" defer></script>
-  <script src="cloud.js?v=4.13.1" defer></script>
+  <script src="app.js?v=4.14.0" defer></script>
+  <script src="cloud.js?v=4.14.0" defer></script>
 </body>
 </html>

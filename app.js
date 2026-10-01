@@ -19,6 +19,8 @@
   const COMBO_MAX_MULTIPLIER = 3;
   const COMBO_DEFAULT_MULTIPLIER = 1.25;
   const COMBO_MAX_STEPS = 8;
+  const ATTACK_PROMO_SEEN_KEY = 'molife.cosmicTroubleAttackPromoSeen.v1';
+  const ATTACK_PROMO_REPEAT_MODULUS = 11;
 
 
   const ITEM_DEFINITIONS = Object.freeze([
@@ -294,6 +296,7 @@
     attackReportRequiredRow: document.querySelector('#attackReportRequiredRow'),
     attackReportRequired: document.querySelector('#attackReportRequired'),
     attackReportMessage: document.querySelector('#attackReportMessage'),
+    attackReportSteamPromo: document.querySelector('#attackReportSteamPromo'),
     closeAttackReportButton: document.querySelector('#closeAttackReportButton'),
 
     settingsButton: document.querySelector('#settingsButton'),
@@ -2453,14 +2456,32 @@
 
   function attackReportFlavor(report) {
     const lines = [
-      () => `${report.actionName} connected. A nearby excuse has been detained for questioning.`,
-      () => `Darkness objected to ${report.actionName}; the damage department overruled it.`,
-      () => `${report.actionName} was accepted as a weapon after an unnecessarily short hearing.`,
-      () => `Impact confirmed. The hostile internal entity has filed a complaint with itself.`,
-      () => `${report.categoryName} activity entered the record as “surprisingly effective violence.”`,
-      () => `No weapon was recovered. Investigators are treating ${report.actionName} as the weapon.`
+      () => `Clean hit. ${report.actionName} has been entered into the record as a successful act of resistance.`,
+      () => `${report.actionName} connected. Darkness has been asked to revise its expectations downward.`,
+      () => `Impact confirmed. The hostile internal entity briefly lost control of the meeting.`,
+      () => `${report.categoryName} activity landed successfully. A nearby excuse has withdrawn its statement.`,
+      () => `Solid blow. Investigators remain unable to explain why ${report.actionName} works this well.`,
+      () => `Direct hit. Internal sabotage has been advised that today's proceedings are not going its way.`
     ];
     return deterministicPick(lines, `${state.current.date}|${report.transactionId}|attack-report`)();
+  }
+
+  function shouldShowAttackSteamPromo(report) {
+    let seenFirstPromo = false;
+    try {
+      seenFirstPromo = localStorage.getItem(ATTACK_PROMO_SEEN_KEY) === '1';
+      if (!seenFirstPromo) {
+        localStorage.setItem(ATTACK_PROMO_SEEN_KEY, '1');
+        return true;
+      }
+    } catch (error) {
+      console.warn('Could not persist Cosmic Trouble promo impression:', error);
+    }
+
+    // After the guaranteed first impression, keep the crossover occasional.
+    // The transaction ID makes the choice stable for a given hit without
+    // introducing state or affecting gameplay.
+    return stringHash(`${report.transactionId}|cosmic-trouble-promo`) % ATTACK_PROMO_REPEAT_MODULUS === 0;
   }
 
   function openAttackReport(report) {
@@ -2470,12 +2491,12 @@
     const status = report.isVictory
       ? 'HOSTILE DOWN'
       : report.tenaciousHolding
-        ? 'TENACIOUS HOLD'
+        ? 'HIT LANDED · TENACIOUS'
         : healthRatio <= 0.25
-          ? 'TARGET CRITICAL'
+          ? 'HEAVY HIT'
           : healthRatio <= 0.60
-            ? 'TARGET WOUNDED'
-            : 'TARGET ACTIVE';
+            ? 'SOLID HIT'
+            : 'DIRECT HIT';
 
     els.attackReportDialog.classList.toggle('is-victory', report.isVictory);
     els.attackReportDialog.classList.toggle('is-tenacious', report.tenaciousHolding);
@@ -2483,7 +2504,7 @@
     els.attackReportStatus.textContent = status;
     els.attackReportAction.textContent = report.actionName;
     els.attackReportCategory.textContent = report.categoryName.toUpperCase();
-    els.attackReportDamage.textContent = `-${report.damage} HP`;
+    els.attackReportDamage.textContent = `+${report.damage} DMG`;
     els.attackReportHp.textContent = report.isVictory
       ? 'Target: 0 HP'
       : `Target: ${report.currentHp} / ${report.maxHp} HP`;
@@ -2501,6 +2522,9 @@
         : '';
 
     els.attackReportMessage.textContent = attackReportFlavor(report);
+    if (els.attackReportSteamPromo) {
+      els.attackReportSteamPromo.hidden = !shouldShowAttackSteamPromo(report);
+    }
     els.closeAttackReportButton.textContent = report.justDefeated
       ? 'File victory report'
       : 'Continue';

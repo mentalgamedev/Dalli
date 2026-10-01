@@ -291,6 +291,12 @@ Attack reports use the shorter topline label **ATTACK** instead of **ATTACK REGI
 
 The signed-in account button keeps its slightly more deliberate styling, but the **PROFILE** kicker and circular Level badge are removed. The button now shows only the username, avoiding the Level indicator reading like an unread-notification badge.
 
+## v4.14 — Department of Positive Reinforcement
+
+Attack feedback now frames a completed action as damage **dealt** rather than health lost: the impact block shows a positive value such as **+15 DMG** with the enemy's remaining HP kept separate underneath the action name. Non-Tenacious attack reports move away from danger-red toward teal/violet reward accents, use more successful-hit status wording, and draw from a slightly more triumphant Crestfallen incident-copy pool.
+
+The attack report also becomes another deliberately light-touch **Cosmic Trouble** crossover point. The existing Steam CTA style from Settings is reused in a compact block. It is guaranteed on the first attack report seen by a browser/install, then appears only occasionally afterwards (deterministically about one in eleven attack reports). The promo does not affect gameplay state or cloud sync and remains separate from the normal report when not selected.
+
 ## Self-hosting
 
 See [DEPLOY.md](DEPLOY.md) for the provider-neutral self-hosting guide.
