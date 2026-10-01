@@ -313,6 +313,14 @@ At those defaults, the resistance portion of repeated actions is approximately *
 
 Track-o-Tron copy now makes the slower focused resistance visible, and Settings explains that the Focus factor controls both workload and focused Resistance protection.
 
+## v4.17 — Office of Questionable Loadouts
+
+Phat Ed's Pawnshop now presents its eight-item capacity as a compact RPG-style equipment case instead of a list of full-size cards. Owned items fill fixed visual compartments in the existing damage-first order, unused capacity remains visible as numbered empty slots, and the Rite Of Illumination retains an exceptional legendary treatment. Pathological migrated over-capacity inventories remain fully accessible rather than hiding items.
+
+Selecting an occupied slot reveals one shared inspection plate below the grid with condition, item name, damage, flavor text and the existing **USE ITEM** action. Selection is deliberately temporary UI state: it is never saved or cloud-synced, toggles off when the same slot is selected again, switches directly between items, and clears on normal app renders or clicks outside the inventory/detail area. Native buttons and `aria-pressed` preserve keyboard and assistive-technology behavior.
+
+The combat and persistence model is unchanged: item damage, consumption, Tenacious bypass, victory handling, undo behavior, loot/drop behavior, the starter MoLight migration and state schema v9 all remain intact.
+
 ## Self-hosting
 
 See [DEPLOY.md](DEPLOY.md) for the provider-neutral self-hosting guide.
