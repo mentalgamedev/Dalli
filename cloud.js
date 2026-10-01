@@ -130,11 +130,8 @@
   const accountButton = makeElement('button', 'account-button profile-button');
   accountButton.type = 'button';
   accountButton.hidden = true;
-  const profileButtonKicker = makeElement('span', 'profile-button-kicker', 'PROFILE');
   const profileButtonName = makeElement('span', 'profile-button-name', 'Account');
-  const profileLevelBadge = makeElement('span', 'profile-level-badge', '1');
-  profileLevelBadge.setAttribute('aria-hidden', 'true');
-  accountButton.append(profileButtonKicker, profileButtonName, profileLevelBadge);
+  accountButton.append(profileButtonName);
 
   accountZone.append(syncStatus, signInButton, createAccountButton, accountButton);
   const settingsButton = document.querySelector('#settingsButton');
@@ -147,24 +144,6 @@
   function setSyncStatus(text, kind = '') {
     syncStatus.textContent = text;
     syncStatus.dataset.kind = kind;
-  }
-
-  function syncProfileLevel() {
-    const levelText = document.querySelector('#levelNumber')?.textContent?.trim() || '1';
-    profileLevelBadge.textContent = levelText;
-    const username = user?.username || 'Account';
-    accountButton.setAttribute('aria-label', `Open profile for ${username}, Level ${levelText}`);
-    accountButton.title = `Profile · Level ${levelText}`;
-  }
-
-  const levelNumberElement = document.querySelector('#levelNumber');
-  if (levelNumberElement && typeof MutationObserver !== 'undefined') {
-    const profileLevelObserver = new MutationObserver(syncProfileLevel);
-    profileLevelObserver.observe(levelNumberElement, {
-      childList: true,
-      subtree: true,
-      characterData: true
-    });
   }
 
   function setSignedOutUi() {
@@ -183,7 +162,8 @@
     createAccountButton.hidden = true;
     accountButton.hidden = false;
     profileButtonName.textContent = user?.username || 'Account';
-    syncProfileLevel();
+    accountButton.setAttribute('aria-label', `Open account for ${profileButtonName.textContent}`);
+    accountButton.title = 'Account';
   }
 
   // ---------------------------------------------------------------------------
