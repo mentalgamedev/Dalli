@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="preload" href="fonts/PunkKid.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=4.11.1">
+  <link rel="stylesheet" href="styles.css?v=4.12.0">
 </head>
 <body>
   <div class="city-noise" aria-hidden="true"></div>
@@ -28,7 +28,7 @@
       <div class="brand-block">
         <h1 class="brand-title" aria-label="MoLife"><span class="brand-mo">Mo</span><span class="brand-life">Life</span><span class="brand-tm">™</span></h1>
         <div class="brand-subline"><strong>Daily Struggle Assistant</strong><span> · powered by MoThink-6.7</span></div>
-        <div class="app-version" aria-label="MoLife version 4.11.1">v4.11.1 · Department of Invisible Bureaucracy</div>
+        <div class="app-version" aria-label="MoLife version 4.12.0">v4.12.0 · Department of Unfinished Business</div>
         <div id="todayLabel" class="muted"></div>
       </div>
       <button id="settingsButton" class="icon-button" type="button" aria-label="Open settings" title="Settings">⚙</button>
@@ -225,53 +225,34 @@
   <dialog id="attackReportDialog" class="attack-report-dialog" aria-labelledby="attackReportAction" aria-describedby="attackReportMessage">
     <article id="attackReportCard" class="attack-report-card">
       <div class="attack-report-topline">
-        <span>MO.LIFE // INTERNAL HOSTILITY REPORT</span>
+        <span>ATTACK REGISTERED</span>
         <strong id="attackReportStatus">TARGET ACTIVE</strong>
       </div>
 
       <div class="attack-report-main">
         <div class="attack-report-copy">
-          <div class="attack-report-kicker">ATTACK REGISTERED</div>
           <h2 id="attackReportAction">Action</h2>
-          <div id="attackReportCategory" class="attack-report-category">CATEGORY DIVISION</div>
+          <div id="attackReportCategory" class="attack-report-category">CATEGORY</div>
+          <div id="attackReportHp" class="attack-report-hp">Target: 0 / 0 HP</div>
         </div>
         <div class="attack-report-impact" aria-label="Direct attack damage">
-          <span>DIRECT HIT</span>
           <strong id="attackReportDamage">-0 HP</strong>
         </div>
       </div>
 
-      <div class="attack-report-grid" aria-label="Attack data">
-        <div>
-          <span>Base damage</span>
-          <strong id="attackReportBaseDamage">0 DMG</strong>
-        </div>
-        <div>
-          <span>Efficiency</span>
-          <strong id="attackReportEfficiency">100%</strong>
-        </div>
-        <div>
-          <span>Target HP</span>
-          <strong id="attackReportHp">0 / 0</strong>
-        </div>
-      </div>
-
       <div id="attackReportComboRow" class="attack-report-extra is-combo" hidden>
-        <span>COMBO FOLLOW-UP</span>
+        <span>COMBO</span>
         <strong id="attackReportCombo"></strong>
       </div>
 
       <div id="attackReportRequiredRow" class="attack-report-extra is-required" hidden>
-        <span>TENACIOUS PAPERWORK</span>
+        <span>TENACIOUS</span>
         <strong id="attackReportRequired"></strong>
       </div>
 
       <p id="attackReportMessage" class="attack-report-message"></p>
 
-      <div class="attack-report-footer">
-        <span>Incident automatically filed with nobody important.</span>
-        <button id="closeAttackReportButton" class="attack-report-button" type="button">Continue hostilities</button>
-      </div>
+      <button id="closeAttackReportButton" class="attack-report-button" type="button">Continue</button>
     </article>
   </dialog>
 
@@ -345,7 +326,7 @@
         <div class="settings-section-head action-settings-head">
           <div>
             <h3>Actions</h3>
-            <p>Drag the handle to set the normal action order. Required actions are automatically promoted to the top of their Track-o-Tron category. Repeatable Required actions can demand multiple completions before normal damage may finish the next daily fight.</p>
+            <p>Reusable attacks live here. <strong>Daily</strong> actions can be used once per day; Repeatable actions can be used freely. Temporary procrastination jobs belong in Track-o-Tron as One-offs instead of cluttering this list.</p>
           </div>
           <label class="action-sort-control">
             <span>Sort</span>
@@ -378,7 +359,7 @@
               <span>Type</span>
               <select id="newActionType">
                 <option value="repeatable">Repeatable</option>
-                <option value="once">Once per day</option>
+                <option value="once">Daily</option>
               </select>
             </label>
             <label class="new-action-required">
@@ -448,7 +429,7 @@
           <button id="importTemplateButton" class="secondary-button" type="button">Import template</button>
           <input id="importTemplateInput" type="file" accept=".json,application/json" hidden>
         </div>
-        <p class="category-fallback-note">Templates include enemy HP, focused-category tuning, resistance buildup, categories, colors, actions, ordering, visibility, Required-for-victory flags and repetition counts, values and combo links. They do not include Level, Street Cred, streak/history, today's logged damage or Pawnshop items.</p>
+        <p class="category-fallback-note">Templates include enemy HP, focused-category tuning, resistance buildup, categories, reusable actions, ordering, visibility, Required-for-victory flags and repetition counts, values and combo links. They do not include One-offs, Level, Street Cred, streak/history, today's logged damage or Pawnshop items.</p>
         <div id="templateStatus" class="template-status" role="status" aria-live="polite"></div>
       </section>
 
@@ -500,10 +481,22 @@
         <div class="efficiency-next"></div>
       </div>
       <div class="action-deck"><div class="actions-list"></div></div>
+      <div class="one-off-tools">
+        <button class="one-off-toggle" type="button">+ ONE-OFF</button>
+        <div class="one-off-form" hidden>
+          <input class="one-off-name" type="text" maxlength="100" placeholder="Unfinished business…" aria-label="One-off task name">
+          <label>
+            <span>DMG</span>
+            <input class="one-off-damage" type="number" min="1" max="200" step="1" value="10" inputmode="numeric" aria-label="One-off base damage">
+          </label>
+          <button class="one-off-create" type="button">Add</button>
+          <button class="one-off-cancel" type="button" aria-label="Cancel One-off">×</button>
+        </div>
+      </div>
     </article>
   </template>
 
-  <script src="app.js?v=4.11.1" defer></script>
-  <script src="cloud.js?v=4.11.1" defer></script>
+  <script src="app.js?v=4.12.0" defer></script>
+  <script src="cloud.js?v=4.12.0" defer></script>
 </body>
 </html>
