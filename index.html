@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="preload" href="fonts/PunkKid.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=4.12.1">
+  <link rel="stylesheet" href="styles.css?v=4.13.0">
 </head>
 <body>
   <div class="city-noise" aria-hidden="true"></div>
@@ -28,7 +28,7 @@
       <div class="brand-block">
         <h1 class="brand-title" aria-label="MoLife"><span class="brand-mo">Mo</span><span class="brand-life">Life</span><span class="brand-tm">™</span></h1>
         <div class="brand-subline"><strong>Daily Struggle Assistant</strong><span> · powered by MoThink-6.7</span></div>
-        <div class="app-version" aria-label="MoLife version 4.12.1">v4.12.1 · Bureau of Adequate Elbow Room</div>
+        <div class="app-version" aria-label="MoLife version 4.13.0">v4.13.0 · Bureau of Consolidated Reputation</div>
         <div id="todayLabel" class="muted"></div>
       </div>
       <button id="settingsButton" class="icon-button" type="button" aria-label="Open settings" title="Settings">⚙</button>
@@ -72,41 +72,6 @@
         </div>
       </section>
 
-      <section class="progression-grid underworld-grid" aria-label="Long-term record">
-        <article class="rank-card dossier-card street-card">
-          <div class="rank-card-copy">
-            <div class="eyebrow rank-eyebrow">STREET CRED // 30-DAY RAP SHEET</div>
-            <div class="rank-line">
-              <strong id="rankName" class="rank-name">Nobody</strong>
-              <span id="streetCred" class="street-cred">0 / 30</span>
-            </div>
-            <div class="rank-meter case-meter" aria-hidden="true"><div id="rankProgress" class="rank-meter-fill"></div></div>
-            <div id="rankHint" class="rank-hint">Victories build a reputation. Overkill does not.</div>
-          </div>
-          <div id="rankStamp" class="rank-stamp" aria-hidden="true">NOBODY</div>
-        </article>
-
-        <article class="mini-stat-card dossier-card level-card">
-          <div class="mini-stat-icon dossier-mark">LV</div>
-          <div>
-            <div class="eyebrow">LEVEL</div>
-            <strong id="levelNumber" class="mini-stat-value">1</strong>
-            <div id="levelProgressText" class="mini-stat-note">0 / 60 Victory XP</div>
-          </div>
-          <div class="mini-meter case-meter"><div id="levelProgress" class="mini-meter-fill"></div></div>
-        </article>
-
-        <article class="mini-stat-card dossier-card streak-card">
-          <div class="mini-stat-icon dossier-mark">×</div>
-          <div>
-            <div class="eyebrow">WIN STREAK</div>
-            <strong id="streakCount" class="mini-stat-value">0 days</strong>
-            <div id="bestStreak" class="mini-stat-note">Best: 0</div>
-          </div>
-          <div class="streak-caption">Consecutive daily wins. No extra credit for beating a corpse.</div>
-        </article>
-      </section>
-
       <section id="victoryBanner" class="victory-banner" hidden>
         <div class="victory-icon">★</div>
         <div class="victory-copy">
@@ -148,6 +113,41 @@
         <div id="lootDropMessage" class="loot-drop-message" role="status" aria-live="polite">Each victory has a 40% chance to attract one questionable item while you have room.</div>
         <div id="arsenalList" class="arsenal-list"></div>
         <div class="arsenal-note">Carry up to 8 items. Better items are rarer; better condition is rarer. Items are consumed when used, and a lethal Pawnshop item can punch through Tenacious. Unopened crates are automatically stashed at day rollover.</div>
+      </section>
+
+      <section class="progression-panel underworld-grid panel" aria-label="Profile progress">
+        <article class="rank-card dossier-card street-card">
+          <div class="rank-card-copy">
+            <div class="eyebrow rank-eyebrow">STREET CRED // 30-DAY RAP SHEET</div>
+            <div class="rank-line">
+              <strong id="rankName" class="rank-name">Nobody</strong>
+              <span id="streetCred" class="street-cred">0 / 30</span>
+            </div>
+            <div class="rank-meter case-meter" aria-hidden="true"><div id="rankProgress" class="rank-meter-fill"></div></div>
+            <div id="rankHint" class="rank-hint">Victories build a reputation. Overkill does not.</div>
+          </div>
+          <div id="rankStamp" class="rank-stamp" aria-hidden="true">NOBODY</div>
+        </article>
+
+        <article class="mini-stat-card dossier-card level-card">
+          <div class="mini-stat-icon dossier-mark">LV</div>
+          <div>
+            <div class="eyebrow">LEVEL</div>
+            <strong id="levelNumber" class="mini-stat-value">1</strong>
+            <div id="levelProgressText" class="mini-stat-note">0 / 60 Victory XP</div>
+          </div>
+          <div class="mini-meter case-meter"><div id="levelProgress" class="mini-meter-fill"></div></div>
+        </article>
+
+        <article class="mini-stat-card dossier-card streak-card">
+          <div class="mini-stat-icon dossier-mark">×</div>
+          <div>
+            <div class="eyebrow">WIN STREAK</div>
+            <strong id="streakCount" class="mini-stat-value">0 days</strong>
+            <div id="bestStreak" class="mini-stat-note">Best: 0</div>
+          </div>
+          <div class="streak-caption">Consecutive daily wins. No extra credit for beating a corpse.</div>
+        </article>
       </section>
 
       <section id="combosPanel" class="combos-panel panel" hidden></section>
@@ -225,7 +225,7 @@
   <dialog id="attackReportDialog" class="attack-report-dialog" aria-labelledby="attackReportAction" aria-describedby="attackReportMessage">
     <article id="attackReportCard" class="attack-report-card">
       <div class="attack-report-topline">
-        <span>ATTACK REGISTERED</span>
+        <span>ATTACK</span>
         <strong id="attackReportStatus">TARGET ACTIVE</strong>
       </div>
 
@@ -496,7 +496,7 @@
     </article>
   </template>
 
-  <script src="app.js?v=4.12.1" defer></script>
-  <script src="cloud.js?v=4.12.1" defer></script>
+  <script src="app.js?v=4.13.0" defer></script>
+  <script src="cloud.js?v=4.13.0" defer></script>
 </body>
 </html>
