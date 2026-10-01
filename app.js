@@ -1297,11 +1297,13 @@
     return clampInt(settings.fullEnemyHp, 20, 1000, 100);
   }
 
-  function categoryResistanceForCount(actionCount, settings = state.settings) {
+  function categoryResistanceForCount(actionCount, settings = state.settings, focusFactor = 1) {
     const index = Math.min(CATEGORY_RESISTANCE.length - 1, Math.max(0, clampInt(actionCount, 0, 100000, 0)));
     const base = CATEGORY_RESISTANCE[index];
     const buildup = clampNumber(settings.resistanceBuildup, 0, 2, DEFAULT_RESISTANCE_BUILDUP);
-    return Math.pow(base, buildup);
+    const focusDivisor = Math.max(1, clampNumber(focusFactor, 1, 10, 1));
+    const effectiveBuildup = buildup / focusDivisor;
+    return Math.pow(base, effectiveBuildup);
   }
 
   function getCategoryEfficiency(categoryId, actionCount = 0, settings = state.settings) {
@@ -1317,9 +1319,9 @@
       : 1;
     const count = Math.max(0, clampInt(actionCount, 0, 100000, 0));
     const tier = Math.min(CATEGORY_RESISTANCE.length - 1, count);
-    const resistance = categoryResistanceForCount(count, settings);
+    const resistance = categoryResistanceForCount(count, settings, focus);
     const nextResistance = count + 1 < CATEGORY_RESISTANCE.length
-      ? categoryResistanceForCount(count + 1, settings)
+      ? categoryResistanceForCount(count + 1, settings, focus)
       : null;
     return { focused, focus, resistance, multiplier: resistance / focus, tier, nextResistance };
   }
@@ -2881,13 +2883,13 @@
         focusToggle.addEventListener('click', () => toggleFocusedCategory(category.id));
 
         subtitle.textContent = efficiency.focused
-          ? `Focused · ${focusFactor.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}× workload`
+          ? `Focused · ${focusFactor.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}× workload · slower resistance`
           : 'Standard priority';
         efficiencyValue.textContent = `${overallPercent}%`;
         fill.style.width = `${resistancePercent}%`;
         next.textContent = efficiency.nextResistance === null
-          ? `Resistance floor reached · category stays at ${resistancePercent}%${efficiency.focused ? ' before Focus' : ''}`
-          : `Category resistance ${resistancePercent}% · next action drops to ${Math.round(efficiency.nextResistance * 100)}%${efficiency.focused ? ' before Focus' : ''}`;
+          ? `${efficiency.focused ? 'Focused resistance' : 'Resistance'} floor reached · category stays at ${resistancePercent}%`
+          : `${efficiency.focused ? 'Focused resistance' : 'Category resistance'} ${resistancePercent}% · next action drops to ${Math.round(efficiency.nextResistance * 100)}%`;
       }
 
       const originalOrder = new Map(state.settings.actions.map((action, actionIndex) => [action.id, actionIndex]));

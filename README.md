@@ -303,6 +303,16 @@ Attack reports now display plain damage values such as **15 DMG** rather than **
 
 New MoLife states now begin with one **Standard MoLight Pro** in Phat Ed's Pawnshop: 10 DMG, the weakest base item in the normal item ladder. Existing v8 states receive the same starter item exactly once during the v9 state migration. The grant uses a stable item-instance ID so it cannot duplicate during repeated normalization, and signed-in accounts automatically save the migrated v9 state back to the server through the existing cloud-version migration path.
 
+## v4.16 — Department of Productive Obsession
+
+Focus now reinforces the behavior it asks for instead of immediately fighting against it. A focused category still has its action damage divided by the configured Focus factor, so choosing a priority means doing more real work in that area. However, the same factor now also slows that category's Resistance buildup.
+
+The rule is deliberately simple: **effective Resistance buildup = configured Resistance buildup ÷ Focus factor**. With the default 0.75 Resistance buildup and 1.5× Focus factor, a focused category behaves as though its Resistance buildup were 0.50. Normal categories are unchanged.
+
+At those defaults, the resistance portion of repeated actions is approximately **100% → 81% → 63% → 50%** for the focused category, versus **100% → 72% → 50% → 35%** normally. The final damage still includes the 1.5× workload division, so Focus remains a difficulty increase rather than a damage bonus.
+
+Track-o-Tron copy now makes the slower focused resistance visible, and Settings explains that the Focus factor controls both workload and focused Resistance protection.
+
 ## Self-hosting
 
 See [DEPLOY.md](DEPLOY.md) for the provider-neutral self-hosting guide.
