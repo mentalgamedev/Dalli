@@ -15,7 +15,9 @@ function dalli_mail_sender_domain(): string
         return '';
     }
     $parts = explode('@', strtolower($from), 2);
-    return count($parts) === 2 ? preg_replace('/[^a-z0-9.-]/', '', $parts[1]) : '';
+    if (count($parts) !== 2) return '';
+    $domain = preg_replace('/[^a-z0-9.-]/', '', $parts[1]);
+    return is_string($domain) ? $domain : '';
 }
 
 function dalli_mail_txt_records(string $host): ?array
