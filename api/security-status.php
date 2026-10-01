@@ -33,6 +33,7 @@ try {
             && $snapshot['mailOpen'],
         'hmacReady' => dalli_auth_hmac_ready(),
         'mailConfigured' => dalli_mail_configured(),
+        'mailDeliverability' => dalli_mail_deliverability_snapshot(),
         'activeAccounts' => (int) ($counts['active_accounts'] ?? 0),
         'pendingAccounts' => (int) ($counts['pending_accounts'] ?? 0),
         'limits' => $snapshot,

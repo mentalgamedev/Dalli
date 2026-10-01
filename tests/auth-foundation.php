@@ -61,6 +61,35 @@ test_assert(($validatedV7['version'] ?? null) === 7, 'v7 selected-focus state sh
 test_assert(($validatedV7['settings']['focusCategoryId'] ?? null) === 'work', 'v7 focused category should survive validation');
 test_assert(($validatedV7['settings']['resistanceBuildup'] ?? null) === 0.75, 'v7 resistance tuning should survive validation');
 
+$v8State = $v7State;
+$v8State['version'] = 8;
+$v8State['oneOffs'] = [[
+    'id' => 'oneoff-test',
+    'categoryId' => 'work',
+    'name' => 'Finish the annoying form',
+    'baseDamage' => 15,
+    'createdAt' => 1700000000000,
+]];
+$v8State['current']['date'] = '2026-01-01';
+$v8State['current']['maxHp'] = 100;
+$v8State['current']['transactions'] = [[
+    'type' => 'action',
+    'id' => 'tx-oneoff-test',
+    'actionId' => 'completed-oneoff',
+    'actionName' => 'Call the bureaucracy',
+    'categoryId' => 'work',
+    'categoryName' => 'Work',
+    'baseDamage' => 10,
+    'damage' => 10,
+    'efficiency' => 1.0,
+    'oneOff' => true,
+    'timestamp' => 1700000001000,
+]];
+$validatedV8 = dalli_validate_state($v8State);
+test_assert(($validatedV8['version'] ?? null) === 8, 'v8 One-off state should validate');
+test_assert(count($validatedV8['oneOffs'] ?? []) === 1, 'v8 should preserve pending One-offs');
+test_assert(($validatedV8['oneOffs'][0]['name'] ?? null) === 'Finish the annoying form', 'v8 One-off data should survive validation');
+
 $pdo = dalli_pdo();
 test_assert(dalli_auth_schema_ready($pdo), 'modern auth schema should be detected');
 test_assert(dalli_registration_mode() === 'invite', 'registration mode should default from test config');
