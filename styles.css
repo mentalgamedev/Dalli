@@ -4995,22 +4995,19 @@ body {
   margin-top: 4px;
 }
 
-/* Signed-in account control gets a compact profile treatment with the current
-   Level surfaced as a small badge. */
+/* Signed-in account control keeps the slightly more deliberate treatment,
+   without looking like it has a notification waiting. */
 .account-button.profile-button {
-  position: relative;
-  min-width: 116px;
-  padding: 7px 32px 7px 11px;
-  display: grid;
-  gap: 1px;
-  justify-items: start;
-  overflow: visible;
+  min-width: 0;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
   border-color: rgba(137,124,239,.28);
   background:
     linear-gradient(135deg, rgba(137,124,239,.12), rgba(255,255,255,.025)),
     rgba(255,255,255,.035);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.045);
-  text-align: left;
 }
 
 .account-button.profile-button:hover {
@@ -5018,14 +5015,6 @@ body {
   background:
     linear-gradient(135deg, rgba(137,124,239,.18), rgba(255,255,255,.04)),
     rgba(255,255,255,.045);
-}
-
-.profile-button-kicker {
-  color: #8f98aa;
-  font-size: .49rem;
-  font-weight: 950;
-  letter-spacing: .12em;
-  line-height: 1;
 }
 
 .profile-button-name {
@@ -5037,24 +5026,6 @@ body {
   line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.profile-level-badge {
-  position: absolute;
-  top: -7px;
-  right: -7px;
-  width: 25px;
-  height: 25px;
-  display: grid;
-  place-items: center;
-  border: 2px solid #171a22;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #8175ed, #d1ad4f);
-  color: #0d0f14;
-  box-shadow: 0 3px 10px rgba(0,0,0,.42);
-  font-size: .66rem;
-  font-weight: 1000;
-  line-height: 1;
 }
 
 @media (max-width: 900px) {
@@ -5108,10 +5079,10 @@ body {
 
   .account-zone .account-button.profile-button {
     max-width: min(46vw, 180px);
-    overflow: visible;
+    overflow: hidden;
   }
 
   .profile-button-name {
-    max-width: min(26vw, 110px);
+    max-width: min(34vw, 130px);
   }
 }
