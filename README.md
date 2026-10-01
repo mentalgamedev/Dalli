@@ -287,6 +287,10 @@ The signed-in Profile button now has a stronger dossier-style treatment and show
 
 Attack reports use the shorter topline label **ATTACK** instead of **ATTACK REGISTERED**.
 
+## v4.13.1 — Department of False Alarms
+
+The signed-in account button keeps its slightly more deliberate styling, but the **PROFILE** kicker and circular Level badge are removed. The button now shows only the username, avoiding the Level indicator reading like an unread-notification badge.
+
 ## Self-hosting
 
 See [DEPLOY.md](DEPLOY.md) for the provider-neutral self-hosting guide.
