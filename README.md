@@ -279,6 +279,14 @@ Public activation email is intentionally more conventional: the subject is **Con
 
 A tiny Track-o-Tron polish pass: One-off helper copy is shortened to **“Disappears when done”**, and One-off damage values get a few extra pixels of right-side breathing room.
 
+## v4.13 — Bureau of Consolidated Reputation
+
+The three separate **Street Cred**, **Level** and **Win Streak** cards are consolidated into a single profile dossier and moved below Phat Ed's Pawnshop, reducing the amount of long-term progression UI competing with the daily fight near the top of the page. Desktop keeps the three records side by side inside one frame; narrower layouts collapse them within that same dossier.
+
+The signed-in Profile button now has a stronger dossier-style treatment and shows the current Level in a small circular badge at its upper-right corner. The badge follows the live Level display as Victory XP changes.
+
+Attack reports use the shorter topline label **ATTACK** instead of **ATTACK REGISTERED**.
+
 ## Self-hosting
 
 See [DEPLOY.md](DEPLOY.md) for the provider-neutral self-hosting guide.
