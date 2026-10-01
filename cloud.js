@@ -6,6 +6,7 @@
   const USER_STORAGE_PREFIX = 'dailyXpGame.v2.user.';
   const INVITE_SESSION_KEY = 'dalli.pendingInvite.v1';
   const VERIFY_SESSION_KEY = 'molife.pendingVerification.v1';
+  const STARTER_ITEM_INSTANCE_ID = 'starter-molight-pro-v9';
   const SAVE_DELAY_MS = 450;
   const RETRY_DELAY_MS = 5000;
 
@@ -930,7 +931,8 @@
     const hasTransactions = Array.isArray(candidate.current?.transactions)
       && candidate.current.transactions.length > 0;
     const hasHistory = Array.isArray(candidate.history) && candidate.history.length > 0;
-    const hasItems = Array.isArray(candidate.inventory?.items) && candidate.inventory.items.length > 0;
+    const hasItems = Array.isArray(candidate.inventory?.items)
+      && candidate.inventory.items.some(item => item?.id !== STARTER_ITEM_INSTANCE_ID);
     const hasOneOffs = Array.isArray(candidate.oneOffs) && candidate.oneOffs.length > 0;
     const customizedSettings = JSON.stringify(candidate.settings) !== JSON.stringify(fresh.settings);
 
