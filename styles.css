@@ -5233,3 +5233,282 @@ body {
     padding: 6px 8px;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* MoLife v4.17 — Office of Questionable Loadouts                             */
+/* -------------------------------------------------------------------------- */
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.inventory-slot {
+  position: relative;
+  min-width: 0;
+  min-height: 116px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto 1fr auto;
+  align-items: start;
+  gap: 5px 8px;
+  padding: 10px 11px;
+  overflow: hidden;
+  border: 1px solid rgba(182,190,204,.18);
+  border-radius: 5px;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.035), transparent 42%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 4px),
+    #171a20;
+  box-shadow:
+    inset 0 1px rgba(255,255,255,.03),
+    3px 4px 0 rgba(0,0,0,.20);
+  color: #e8ebf0;
+  font: inherit;
+  text-align: left;
+}
+
+button.inventory-slot {
+  cursor: pointer;
+}
+
+button.inventory-slot:hover {
+  border-color: rgba(232,190,76,.48);
+  transform: translateY(-1px);
+}
+
+button.inventory-slot:focus-visible {
+  outline: 2px solid rgba(247,211,104,.90);
+  outline-offset: 2px;
+}
+
+.inventory-slot.is-empty {
+  place-items: center;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr auto;
+  border-style: dashed;
+  border-color: rgba(255,255,255,.085);
+  background:
+    linear-gradient(135deg, transparent 49.5%, rgba(255,255,255,.022) 50%, transparent 50.5%),
+    linear-gradient(45deg, transparent 49.5%, rgba(255,255,255,.018) 50%, transparent 50.5%),
+    rgba(10,12,16,.34);
+  box-shadow: inset 0 0 18px rgba(0,0,0,.20);
+  color: #555d68;
+}
+
+.inventory-slot-number {
+  grid-column: 1;
+  grid-row: 1;
+  color: #626b77;
+  font-size: .53rem;
+  font-weight: 950;
+  letter-spacing: .12em;
+}
+
+.inventory-slot-condition {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  color: #858d99;
+  font-size: .54rem;
+  font-weight: 950;
+  letter-spacing: .12em;
+  line-height: 1.15;
+}
+
+.inventory-slot-name {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  align-self: start;
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: .84rem;
+  font-weight: 900;
+  line-height: 1.12;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.inventory-slot-damage {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  align-self: end;
+  justify-self: end;
+  color: #f0c84f;
+  font-size: .72rem;
+  font-weight: 1000;
+  letter-spacing: .05em;
+}
+
+.inventory-slot-empty-label {
+  grid-row: 2;
+  font-size: .58rem;
+  font-weight: 950;
+  letter-spacing: .16em;
+}
+
+.inventory-slot.is-locked {
+  filter: saturate(.62);
+}
+
+.inventory-slot.is-overflow::after {
+  content: "OVER CAP";
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  color: #b97478;
+  font-size: .46rem;
+  font-weight: 1000;
+  letter-spacing: .08em;
+}
+
+.inventory-slot.condition-questionable,
+.inventory-detail.condition-questionable {
+  border-color: rgba(167,108,69,.32);
+  background:
+    radial-gradient(circle at 92% 13%, rgba(150,75,36,.12), transparent 7rem),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 4px),
+    #171818;
+}
+
+.inventory-slot.condition-standard,
+.inventory-detail.condition-standard {
+  border-color: rgba(175,184,199,.26);
+}
+
+.inventory-slot.condition-pimped,
+.inventory-detail.condition-pimped {
+  border-color: rgba(180,81,191,.42);
+  box-shadow:
+    inset 0 1px rgba(255,255,255,.04),
+    0 0 18px rgba(171,65,189,.07),
+    3px 4px 0 rgba(0,0,0,.20);
+}
+
+.inventory-slot.condition-over-engineered,
+.inventory-detail.condition-over-engineered {
+  border-color: rgba(255,91,45,.52);
+  background:
+    linear-gradient(135deg, rgba(150,22,14,.13), transparent 45%),
+    #191719;
+}
+
+.inventory-slot.is-rite,
+.inventory-detail.is-rite {
+  border-color: rgba(255,212,72,.78);
+  color: #ffe186;
+  background:
+    radial-gradient(circle at 80% 10%, rgba(255,220,92,.20), transparent 8rem),
+    linear-gradient(145deg, rgba(121,87,9,.18), transparent 48%),
+    #1b1912;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,231,139,.12),
+    0 0 30px rgba(255,199,34,.12),
+    3px 4px 0 rgba(0,0,0,.25);
+}
+
+.inventory-slot.is-rite .inventory-slot-condition,
+.inventory-slot.is-rite .inventory-slot-damage,
+.inventory-detail.is-rite .inventory-detail-condition,
+.inventory-detail.is-rite .inventory-detail-damage {
+  color: #ffe071;
+}
+
+button.inventory-slot.is-selected {
+  border-color: rgba(247,211,104,.90);
+  box-shadow:
+    inset 0 0 0 1px rgba(247,211,104,.22),
+    inset 0 1px rgba(255,255,255,.05),
+    0 0 24px rgba(241,202,90,.13),
+    3px 4px 0 rgba(0,0,0,.26);
+}
+
+.inventory-slot.is-new {
+  animation: contrabandReveal .62s cubic-bezier(.18,.86,.2,1);
+}
+
+.inventory-detail {
+  margin-top: 11px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 18px;
+  padding: 13px 14px 12px;
+  border: 1px solid rgba(232,190,76,.28);
+  border-radius: 5px;
+  background:
+    linear-gradient(100deg, rgba(232,190,76,.055), transparent 48%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 5px),
+    #15171c;
+  box-shadow:
+    inset 4px 0 0 rgba(232,190,76,.20),
+    3px 4px 0 rgba(0,0,0,.20);
+}
+
+.inventory-detail[hidden] {
+  display: none !important;
+}
+
+.inventory-detail-copy {
+  min-width: 0;
+}
+
+.inventory-detail-condition {
+  display: block;
+  margin-bottom: 3px;
+  color: #8e96a3;
+  font-size: .57rem;
+  font-weight: 1000;
+  letter-spacing: .14em;
+}
+
+.inventory-detail-name {
+  display: block;
+  font-size: 1.04rem;
+  line-height: 1.1;
+}
+
+.inventory-detail-damage {
+  align-self: center;
+  color: #f0c84f;
+  font-size: .92rem;
+  font-weight: 1000;
+  white-space: nowrap;
+}
+
+.inventory-detail-description {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #a9afb8;
+  font-size: .72rem;
+  line-height: 1.45;
+}
+
+.inventory-use {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+  padding: 9px 2px 1px;
+  text-align: left;
+}
+
+@media (max-width: 620px) {
+  .inventory-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .inventory-slot {
+    min-height: 104px;
+    padding: 9px 10px;
+  }
+
+  .inventory-detail {
+    gap: 7px 12px;
+    padding: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inventory-slot.is-new {
+    animation: none !important;
+  }
+}
+

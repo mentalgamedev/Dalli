@@ -240,6 +240,12 @@
     combosPanel: document.querySelector('#combosPanel'),
     arsenalPanel: document.querySelector('#arsenalPanel'),
     arsenalList: document.querySelector('#arsenalList'),
+    inventoryDetail: document.querySelector('#inventoryDetail'),
+    inventoryDetailCondition: document.querySelector('#inventoryDetailCondition'),
+    inventoryDetailName: document.querySelector('#inventoryDetailName'),
+    inventoryDetailDamage: document.querySelector('#inventoryDetailDamage'),
+    inventoryDetailDescription: document.querySelector('#inventoryDetailDescription'),
+    inventoryUseButton: document.querySelector('#inventoryUseButton'),
     arsenalCount: document.querySelector('#arsenalCount'),
     arsenalStatus: document.querySelector('#arsenalStatus'),
     lootDrop: document.querySelector('#lootDrop'),
@@ -339,6 +345,7 @@
   let state = loadState();
   let settingsDraft = null;
   let wasVictory = false;
+  let selectedPawnshopItemId = null;
   let newswireMessages = [];
   let newswireIndex = 0;
   let newswireSignature = '';
@@ -2419,6 +2426,7 @@
 
 
   function render(options = {}) {
+    selectedPawnshopItemId = null;
     ensureToday();
     const summary = getSummary();
 
@@ -2714,6 +2722,59 @@
     ], `${state.current.date}|crate-flavor`);
   }
 
+  function selectedPawnshopItem() {
+    if (!selectedPawnshopItemId) return null;
+    return state.inventory.items.find(item => item.id === selectedPawnshopItemId) || null;
+  }
+
+  function renderPawnshopSelection(summary = getSummary()) {
+    if (!els.arsenalList || !els.inventoryDetail) return;
+
+    const item = selectedPawnshopItem();
+    const definition = item ? itemDefinition(item.itemId) : null;
+
+    if (!item || !definition) {
+      selectedPawnshopItemId = null;
+    }
+
+    els.arsenalList.querySelectorAll('.inventory-slot[data-item-instance-id]').forEach(slot => {
+      const selected = Boolean(selectedPawnshopItemId) && slot.dataset.itemInstanceId === selectedPawnshopItemId;
+      slot.classList.toggle('is-selected', selected);
+      slot.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    });
+
+    if (!item || !definition) {
+      els.inventoryDetail.hidden = true;
+      els.inventoryDetail.className = 'inventory-detail';
+      return;
+    }
+
+    const conditionName = definition.special
+      ? 'LEGENDARY'
+      : (itemCondition(item.conditionId)?.name || 'Unknown').toUpperCase();
+
+    els.inventoryDetail.className = `inventory-detail condition-${item.conditionId || 'rite'}${definition.special ? ' is-rite' : ''}`;
+    els.inventoryDetailCondition.textContent = conditionName;
+    els.inventoryDetailName.textContent = definition.name;
+    els.inventoryDetailDamage.textContent = `${item.damage} DMG`;
+    els.inventoryDetailDescription.textContent = definition.flavor;
+    els.inventoryUseButton.disabled = summary.isVictory;
+    els.inventoryUseButton.textContent = summary.isVictory ? 'SAVE ITEM' : 'USE ITEM';
+    els.inventoryDetail.hidden = false;
+  }
+
+  function togglePawnshopSelection(itemInstanceId) {
+    if (!state.inventory.items.some(item => item.id === itemInstanceId)) return;
+    selectedPawnshopItemId = selectedPawnshopItemId === itemInstanceId ? null : itemInstanceId;
+    renderPawnshopSelection();
+  }
+
+  function clearPawnshopSelection() {
+    if (!selectedPawnshopItemId) return;
+    selectedPawnshopItemId = null;
+    renderPawnshopSelection();
+  }
+
   function renderPawnshop(summary, newlyClaimedId = '') {
     if (!els.arsenalPanel || !els.arsenalList) return;
 
@@ -2745,75 +2806,73 @@
       : inventory.length >= ITEM_CAPACITY
         ? 'Storage full · use something before Phat Ed “finds” another item.'
         : inventory.length
-          ? 'Items are consumed when used. A lethal item can punch through Tenacious.'
+          ? 'Select an item to inspect Phat Ed’s questionable merchandise.'
           : 'Empty. Win fights for a chance to acquire questionable merchandise.';
+
+    const sortedInventory = [...inventory]
+      .sort((a, b) => b.damage - a.damage || b.acquiredAt - a.acquiredAt);
+    const slotCount = Math.max(ITEM_CAPACITY, sortedInventory.length);
 
     els.arsenalList.replaceChildren();
 
-    if (!inventory.length) {
-      const empty = document.createElement('div');
-      empty.className = 'arsenal-empty';
-      empty.textContent = 'NO QUESTIONABLE MERCHANDISE ON FILE';
-      els.arsenalList.append(empty);
-      return;
+    for (let index = 0; index < slotCount; index += 1) {
+      const item = sortedInventory[index];
+      const slotNumber = String(index + 1).padStart(2, '0');
+
+      if (!item) {
+        const empty = document.createElement('div');
+        empty.className = 'inventory-slot is-empty';
+        empty.setAttribute('aria-hidden', 'true');
+
+        const marker = document.createElement('span');
+        marker.className = 'inventory-slot-number';
+        marker.textContent = slotNumber;
+
+        const label = document.createElement('span');
+        label.className = 'inventory-slot-empty-label';
+        label.textContent = 'EMPTY';
+
+        empty.append(marker, label);
+        els.arsenalList.append(empty);
+        continue;
+      }
+
+      const definition = itemDefinition(item.itemId);
+      if (!definition) continue;
+
+      const conditionName = definition.special
+        ? 'LEGENDARY'
+        : (itemCondition(item.conditionId)?.name || 'Unknown').toUpperCase();
+
+      const slot = document.createElement('button');
+      slot.type = 'button';
+      slot.className = `inventory-slot condition-${item.conditionId || 'rite'}${definition.special ? ' is-rite' : ''}${item.id === newlyClaimedId ? ' is-new' : ''}${summary.isVictory ? ' is-locked' : ''}${index >= ITEM_CAPACITY ? ' is-overflow' : ''}`;
+      slot.dataset.itemInstanceId = item.id;
+      slot.setAttribute('aria-pressed', 'false');
+      slot.setAttribute('aria-label', `${itemDisplayName(item)}, ${item.damage} damage. Select item for details.`);
+
+      const marker = document.createElement('span');
+      marker.className = 'inventory-slot-number';
+      marker.textContent = slotNumber;
+
+      const condition = document.createElement('span');
+      condition.className = 'inventory-slot-condition';
+      condition.textContent = conditionName;
+
+      const name = document.createElement('strong');
+      name.className = 'inventory-slot-name';
+      name.textContent = definition.name;
+
+      const damage = document.createElement('span');
+      damage.className = 'inventory-slot-damage';
+      damage.textContent = `${item.damage} DMG`;
+
+      slot.append(marker, condition, name, damage);
+      slot.addEventListener('click', () => togglePawnshopSelection(item.id));
+      els.arsenalList.append(slot);
     }
 
-    [...inventory]
-      .sort((a, b) => b.damage - a.damage || b.acquiredAt - a.acquiredAt)
-      .forEach(item => {
-        const definition = itemDefinition(item.itemId);
-        if (!definition) return;
-
-        const card = document.createElement('article');
-        card.className = `weapon-card item-card condition-${item.conditionId || 'rite'}${definition.special ? ' is-rite' : ''}${item.id === newlyClaimedId ? ' is-new' : ''}${summary.isVictory ? ' is-locked' : ''}`;
-        card.tabIndex = 0;
-        card.dataset.itemInstanceId = item.id;
-        card.setAttribute('aria-label', `${itemDisplayName(item)}, ${item.damage} damage. Inspect item details.`);
-
-        const condition = document.createElement('span');
-        condition.className = 'weapon-condition';
-        condition.textContent = definition.special
-          ? 'LEGENDARY'
-          : (itemCondition(item.conditionId)?.name || 'Unknown').toUpperCase();
-
-        const name = document.createElement('strong');
-        name.className = 'weapon-name';
-        name.textContent = definition.name;
-
-        const damage = document.createElement('span');
-        damage.className = 'weapon-damage';
-        damage.textContent = `${item.damage} DMG`;
-
-        const description = document.createElement('p');
-        description.className = 'item-description';
-        description.textContent = definition.flavor;
-
-        const use = document.createElement('button');
-        use.type = 'button';
-        use.className = 'weapon-fire item-use';
-        use.disabled = summary.isVictory;
-        use.textContent = summary.isVictory ? 'SAVE ITEM' : 'USE ITEM';
-        use.addEventListener('click', event => {
-          event.stopPropagation();
-          usePawnshopItem(item.id);
-        });
-
-        const toggleInspect = () => {
-          card.classList.toggle('is-inspected');
-        };
-        card.addEventListener('click', event => {
-          if (event.target.closest('button')) return;
-          toggleInspect();
-        });
-        card.addEventListener('keydown', event => {
-          if (event.key !== 'Enter' && event.key !== ' ') return;
-          event.preventDefault();
-          toggleInspect();
-        });
-
-        card.append(condition, name, damage, description, use);
-        els.arsenalList.append(card);
-      });
+    renderPawnshopSelection(summary);
   }
 
   function renderCategories(summary) {
@@ -4461,6 +4520,9 @@
   els.addActionButton.addEventListener('click', addActionFromForm);
   els.addComboButton?.addEventListener('click', addComboFromForm);
   els.lootCrateButton?.addEventListener('click', claimVictoryLoot);
+  els.inventoryUseButton?.addEventListener('click', () => {
+    if (selectedPawnshopItemId) usePawnshopItem(selectedPawnshopItemId);
+  });
   els.exportTemplateButton?.addEventListener('click', exportSettingsTemplate);
   els.importTemplateButton?.addEventListener('click', () => els.importTemplateInput?.click());
   els.importTemplateInput?.addEventListener('change', () => {
@@ -4477,6 +4539,14 @@
 
   els.attackReportDialog?.addEventListener('click', event => {
     if (event.target === els.attackReportDialog) closeAttackReport();
+  });
+
+  document.addEventListener('click', event => {
+    if (!selectedPawnshopItemId) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest('#arsenalList, #inventoryDetail')) return;
+    clearPawnshopSelection();
   });
 
   els.attackReportDialog?.addEventListener('close', () => {
