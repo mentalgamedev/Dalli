@@ -344,40 +344,6 @@ function dalli_validate_state_v3(mixed $state): array
         $actionIds[$id] = true;
     }
 
-    if ($isV8) {
-        if (!is_array($oneOffs) || count($oneOffs) > 500) {
-            dalli_fail('Invalid One-offs.', 422);
-        }
-
-        $oneOffIds = [];
-        foreach ($oneOffs as $oneOff) {
-            if (!is_array($oneOff)
-                || !dalli_keys_allowed($oneOff, ['id', 'categoryId', 'name', 'baseDamage', 'createdAt'])) {
-                dalli_fail('Invalid One-off.', 422);
-            }
-
-            $oneOffId = $oneOff['id'] ?? null;
-            $oneOffCategoryId = $oneOff['categoryId'] ?? null;
-            if (!is_string($oneOffId)
-                || strlen($oneOffId) < 1
-                || strlen($oneOffId) > 128
-                || isset($oneOffIds[$oneOffId])
-                || !is_string($oneOffCategoryId)
-                || !isset($categoryIds[$oneOffCategoryId])
-                || !dalli_string_ok($oneOff['name'] ?? null, 1, 100)
-                || !is_int($oneOff['baseDamage'] ?? null)
-                || $oneOff['baseDamage'] < 1
-                || $oneOff['baseDamage'] > 200
-                || (is_int($oneOff['createdAt'] ?? null) || is_float($oneOff['createdAt'] ?? null)) === false
-                || (float) $oneOff['createdAt'] <= 0) {
-                dalli_fail('Invalid One-off data.', 422);
-            }
-            $oneOffIds[$oneOffId] = true;
-        }
-    } elseif ($oneOffs !== null) {
-        dalli_fail('One-offs are not valid for this state version.', 422);
-    }
-
     $combos = $settings['combos'] ?? null;
     if (!is_array($combos) || count($combos) > 100) {
         dalli_fail('Invalid combos.', 422);
@@ -459,16 +425,10 @@ function dalli_validate_state_v3(mixed $state): array
         if (!is_array($tx) || !is_string($tx['type'] ?? null)) return false;
 
         if ($tx['type'] === 'action') {
-            $allowedActionTxKeys = $isV8
-                ? [
-                    'type', 'id', 'actionId', 'actionName', 'categoryId', 'categoryName',
-                    'baseDamage', 'damage', 'efficiency', 'oneOff', 'timestamp'
-                ]
-                : [
-                    'type', 'id', 'actionId', 'actionName', 'categoryId', 'categoryName',
-                    'baseDamage', 'damage', 'efficiency', 'timestamp'
-                ];
-            if (!dalli_keys_allowed($tx, $allowedActionTxKeys)) {
+            if (!dalli_keys_allowed($tx, [
+                'type', 'id', 'actionId', 'actionName', 'categoryId', 'categoryName',
+                'baseDamage', 'damage', 'efficiency', 'timestamp'
+            ])) {
                 return false;
             }
             $categoryId = $tx['categoryId'] ?? null;
@@ -1236,6 +1196,40 @@ function dalli_validate_state_v5_v8(mixed $state): array
         $actionIds[$id] = true;
     }
 
+    if ($isV8) {
+        if (!is_array($oneOffs) || count($oneOffs) > 500) {
+            dalli_fail('Invalid One-offs.', 422);
+        }
+
+        $oneOffIds = [];
+        foreach ($oneOffs as $oneOff) {
+            if (!is_array($oneOff)
+                || !dalli_keys_allowed($oneOff, ['id', 'categoryId', 'name', 'baseDamage', 'createdAt'])) {
+                dalli_fail('Invalid One-off.', 422);
+            }
+
+            $oneOffId = $oneOff['id'] ?? null;
+            $oneOffCategoryId = $oneOff['categoryId'] ?? null;
+            if (!is_string($oneOffId)
+                || strlen($oneOffId) < 1
+                || strlen($oneOffId) > 128
+                || isset($oneOffIds[$oneOffId])
+                || !is_string($oneOffCategoryId)
+                || !isset($categoryIds[$oneOffCategoryId])
+                || !dalli_string_ok($oneOff['name'] ?? null, 1, 100)
+                || !is_int($oneOff['baseDamage'] ?? null)
+                || $oneOff['baseDamage'] < 1
+                || $oneOff['baseDamage'] > 200
+                || (is_int($oneOff['createdAt'] ?? null) || is_float($oneOff['createdAt'] ?? null)) === false
+                || (float) $oneOff['createdAt'] <= 0) {
+                dalli_fail('Invalid One-off data.', 422);
+            }
+            $oneOffIds[$oneOffId] = true;
+        }
+    } elseif ($oneOffs !== null) {
+        dalli_fail('One-offs are not valid for this state version.', 422);
+    }
+
     $combos = $settings['combos'] ?? null;
     if (!is_array($combos) || count($combos) > 100) {
         dalli_fail('Invalid combos.', 422);
@@ -1370,10 +1364,16 @@ function dalli_validate_state_v5_v8(mixed $state): array
         if (!is_array($tx) || !is_string($tx['type'] ?? null)) return false;
 
         if ($tx['type'] === 'action') {
-            if (!dalli_keys_allowed($tx, [
-                'type', 'id', 'actionId', 'actionName', 'categoryId', 'categoryName',
-                'baseDamage', 'damage', 'efficiency', 'timestamp'
-            ])) {
+            $allowedActionTxKeys = $isV8
+                ? [
+                    'type', 'id', 'actionId', 'actionName', 'categoryId', 'categoryName',
+                    'baseDamage', 'damage', 'efficiency', 'oneOff', 'timestamp'
+                ]
+                : [
+                    'type', 'id', 'actionId', 'actionName', 'categoryId', 'categoryName',
+                    'baseDamage', 'damage', 'efficiency', 'timestamp'
+                ];
+            if (!dalli_keys_allowed($tx, $allowedActionTxKeys)) {
                 return false;
             }
             $categoryId = $tx['categoryId'] ?? null;
