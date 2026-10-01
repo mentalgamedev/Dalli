@@ -4845,6 +4845,7 @@ body {
 }
 
 .one-off-action {
+  padding-right: 16px;
   border-style: dashed;
   border-color: color-mix(in srgb, var(--category-color) 36%, rgba(255,255,255,.08));
   background:
