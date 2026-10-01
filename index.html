@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="preload" href="fonts/PunkKid.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=4.15.0">
+  <link rel="stylesheet" href="styles.css?v=4.16.0">
 </head>
 <body>
   <div class="city-noise" aria-hidden="true"></div>
@@ -28,7 +28,7 @@
       <div class="brand-block">
         <h1 class="brand-title" aria-label="MoLife"><span class="brand-mo">Mo</span><span class="brand-life">Life</span><span class="brand-tm">™</span></h1>
         <div class="brand-subline"><strong>Daily Struggle Assistant</strong><span> · powered by MoThink-6.7</span></div>
-        <div class="app-version" aria-label="MoLife version 4.15.0">v4.15.0 · Office of Complimentary Violence</div>
+        <div class="app-version" aria-label="MoLife version 4.16.0">v4.16.0 · Department of Productive Obsession</div>
         <div id="todayLabel" class="muted"></div>
       </div>
       <button id="settingsButton" class="icon-button" type="button" aria-label="Open settings" title="Settings">⚙</button>
@@ -285,14 +285,14 @@
         <label class="field-row">
           <span>
             <strong>Focused category factor</strong>
-            <small>The one category marked FOCUSED divides its action damage by this factor. 1.5× means it needs roughly 50% more real activity before resistance.</small>
+            <small>The one category marked FOCUSED divides its action damage by this factor. The same factor also slows resistance buildup there, so focused work stays useful for longer.</small>
           </span>
           <input id="focusFactorInput" type="number" min="1" max="10" step="0.05" value="1.5" inputmode="decimal">
         </label>
         <label class="field-row">
           <span>
             <strong>Resistance buildup</strong>
-            <small>Controls how aggressively repeated actions from the same category follow the resistance curve. 0 = off, 1 = original curve, values below 1 are gentler.</small>
+            <small>Controls how aggressively repeated actions from the same category follow the resistance curve. 0 = off, 1 = original curve, values below 1 are gentler. Focus softens this buildup further.</small>
           </span>
           <input id="resistanceBuildupInput" type="number" min="0" max="2" step="0.05" value="0.75" inputmode="decimal">
         </label>
@@ -502,7 +502,7 @@
     </article>
   </template>
 
-  <script src="app.js?v=4.15.0" defer></script>
-  <script src="cloud.js?v=4.15.0" defer></script>
+  <script src="app.js?v=4.16.0" defer></script>
+  <script src="cloud.js?v=4.16.0" defer></script>
 </body>
 </html>
