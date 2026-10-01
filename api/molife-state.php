@@ -1067,7 +1067,7 @@ function dalli_validate_state_v5_v9(mixed $state): array
     $version = is_array($state) ? ($state['version'] ?? null) : null;
     $isV6Plus = in_array($version, [6, 7, 8, 9], true);
     $isV7Plus = in_array($version, [7, 8, 9], true);
-    $isV8PlusPlus = in_array($version, [8, 9], true);
+    $isV8Plus = in_array($version, [8, 9], true);
     $allowedTopLevel = $isV8Plus
         ? ['version', 'settings', 'progression', 'current', 'history', 'inventory', 'oneOffs']
         : ['version', 'settings', 'progression', 'current', 'history', 'inventory'];
