@@ -4256,6 +4256,11 @@
       settingsDraft = deepClone(importedSettings);
       state.settings = deepClone(importedSettings);
       state.current.comboProgress = {};
+      const importedCategoryIds = new Set(state.settings.categories.map(category => category.id));
+      state.oneOffs = state.oneOffs.map(oneOff => ({
+        ...oneOff,
+        categoryId: importedCategoryIds.has(oneOff.categoryId) ? oneOff.categoryId : UNCATEGORIZED_ID
+      }));
       const importedActionIds = new Set(state.settings.actions.map(action => action.id));
       state.current.requiredActions = (state.current.requiredActions || [])
         .filter(required => importedActionIds.has(required.actionId));
