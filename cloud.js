@@ -127,9 +127,14 @@
   const createAccountButton = makeElement('button', 'account-button account-button-secondary', 'Create account');
   createAccountButton.type = 'button';
 
-  const accountButton = makeElement('button', 'account-button');
+  const accountButton = makeElement('button', 'account-button profile-button');
   accountButton.type = 'button';
   accountButton.hidden = true;
+  const profileButtonKicker = makeElement('span', 'profile-button-kicker', 'PROFILE');
+  const profileButtonName = makeElement('span', 'profile-button-name', 'Account');
+  const profileLevelBadge = makeElement('span', 'profile-level-badge', '1');
+  profileLevelBadge.setAttribute('aria-hidden', 'true');
+  accountButton.append(profileButtonKicker, profileButtonName, profileLevelBadge);
 
   accountZone.append(syncStatus, signInButton, createAccountButton, accountButton);
   const settingsButton = document.querySelector('#settingsButton');
@@ -144,6 +149,24 @@
     syncStatus.dataset.kind = kind;
   }
 
+  function syncProfileLevel() {
+    const levelText = document.querySelector('#levelNumber')?.textContent?.trim() || '1';
+    profileLevelBadge.textContent = levelText;
+    const username = user?.username || 'Account';
+    accountButton.setAttribute('aria-label', `Open profile for ${username}, Level ${levelText}`);
+    accountButton.title = `Profile · Level ${levelText}`;
+  }
+
+  const levelNumberElement = document.querySelector('#levelNumber');
+  if (levelNumberElement && typeof MutationObserver !== 'undefined') {
+    const profileLevelObserver = new MutationObserver(syncProfileLevel);
+    profileLevelObserver.observe(levelNumberElement, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
+  }
+
   function setSignedOutUi() {
     signInButton.hidden = false;
     createAccountButton.hidden = false;
@@ -152,7 +175,6 @@
       ? 'New account creation is currently closed'
       : '';
     accountButton.hidden = true;
-    accountButton.textContent = '';
     setSyncStatus('Local');
   }
 
@@ -160,8 +182,8 @@
     signInButton.hidden = true;
     createAccountButton.hidden = true;
     accountButton.hidden = false;
-    accountButton.textContent = user?.username || 'Account';
-    accountButton.title = 'Account';
+    profileButtonName.textContent = user?.username || 'Account';
+    syncProfileLevel();
   }
 
   // ---------------------------------------------------------------------------
