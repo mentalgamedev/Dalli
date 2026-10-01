@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const STATE_VERSION = 7;
+  const STATE_VERSION = 8;
   const TEMPLATE_VERSION = 1;
   const ITEM_DROP_CHANCE = 0.40;
   const ITEM_CAPACITY = 8;
@@ -205,6 +205,7 @@
     inventory: {
       items: []
     },
+    oneOffs: [],
     current: {
       date: '',
       maxHp: 0,
@@ -287,8 +288,6 @@
     attackReportAction: document.querySelector('#attackReportAction'),
     attackReportCategory: document.querySelector('#attackReportCategory'),
     attackReportDamage: document.querySelector('#attackReportDamage'),
-    attackReportBaseDamage: document.querySelector('#attackReportBaseDamage'),
-    attackReportEfficiency: document.querySelector('#attackReportEfficiency'),
     attackReportHp: document.querySelector('#attackReportHp'),
     attackReportComboRow: document.querySelector('#attackReportComboRow'),
     attackReportCombo: document.querySelector('#attackReportCombo'),
@@ -882,12 +881,21 @@
   }
 
 
+  function migrateV7State(candidate) {
+    const migrated = deepClone(candidate);
+    migrated.version = STATE_VERSION;
+    migrated.oneOffs = Array.isArray(candidate.oneOffs) ? candidate.oneOffs : [];
+    return migrated;
+  }
+
+
   function normalizeState(candidate) {
     if (candidate?.version === 2) candidate = migrateV2State(candidate);
     if (candidate?.version === 3) candidate = migrateV3State(candidate);
     if (candidate?.version === 4) candidate = migrateV4State(candidate);
     if (candidate?.version === 5) candidate = migrateV5State(candidate);
     if (candidate?.version === 6) candidate = migrateV6State(candidate);
+    if (candidate?.version === 7) candidate = migrateV7State(candidate);
     if (!candidate || candidate.version !== STATE_VERSION) return freshState();
 
     const next = freshState();
@@ -968,6 +976,23 @@
     });
 
     const normalizedActionIds = new Set(next.settings.actions.map(action => action.id));
+
+    const oneOffIds = new Set();
+    next.oneOffs = (Array.isArray(candidate.oneOffs) ? candidate.oneOffs : [])
+      .slice(0, 500)
+      .map((oneOff, index) => {
+        let id = String(oneOff?.id || `oneoff-${index + 1}`).slice(0, 128);
+        if (!id || oneOffIds.has(id)) id = makeId('oneoff');
+        oneOffIds.add(id);
+        return {
+          id,
+          categoryId: categoryIds.has(String(oneOff?.categoryId)) ? String(oneOff.categoryId) : UNCATEGORIZED_ID,
+          name: String(oneOff?.name || 'Unfinished business').slice(0, 100),
+          baseDamage: clampInt(oneOff?.baseDamage, 1, 200, 10),
+          createdAt: normalizeTimestamp(oneOff?.createdAt) || Date.now()
+        };
+      });
+
     const comboIds = new Set();
     const enabledSequences = new Set();
     next.settings.combos = (Array.isArray(candidate.settings?.combos) ? candidate.settings.combos : [])
@@ -1123,7 +1148,8 @@
         categoryName: String(tx?.categoryName || 'Uncategorized').slice(0, 80),
         baseDamage: clampInt(tx?.baseDamage, 1, 200, 1),
         damage: clampInt(tx?.damage, 1, 800, 1),
-        efficiency: clampNumber(tx?.efficiency, 0.01, 4, 1),
+        efficiency: clampNumber(tx?.efficiency, 0.001, 4, 1),
+        oneOff: Boolean(tx?.oneOff),
         timestamp: normalizeTimestamp(tx?.timestamp) || Date.now()
       };
     }).filter(Boolean);
@@ -1192,7 +1218,7 @@
       const raw = localStorage.getItem(storageKey);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      if (!parsed || ![2, 3, 4, 5, 6, STATE_VERSION].includes(parsed.version)) return null;
+      if (!parsed || ![2, 3, 4, 5, 6, 7, STATE_VERSION].includes(parsed.version)) return null;
       return normalizeState(parsed);
     } catch (error) {
       console.warn('Could not read cached MoLife data:', error);
@@ -1963,6 +1989,7 @@
       baseDamage: action.baseDamage,
       damage: reward.damage,
       efficiency: Number(reward.efficiency.toFixed(4)),
+      oneOff: false,
       timestamp: Date.now()
     };
     state.current.transactions.push(actionTx);
@@ -1971,24 +1998,7 @@
     const justDefeated = finalizeVictoryIfNeeded();
     const afterSummary = getSummary();
     const tenaciousResisted = !beforeSummary.tenaciousHolding && afterSummary.tenaciousHolding;
-    const attackReport = {
-      transactionId: actionTx.id,
-      actionName: actionTx.actionName,
-      categoryName: actionTx.categoryName,
-      baseDamage: actionTx.baseDamage,
-      damage: actionTx.damage,
-      efficiency: actionTx.efficiency,
-      currentHp: afterSummary.currentHp,
-      maxHp: afterSummary.maxHp,
-      comboName: comboEvent?.comboName || '',
-      comboDamage: comboEvent?.damage || 0,
-      requiredRemainingCount: afterSummary.requiredRemainingCount,
-      tenaciousHolding: afterSummary.tenaciousHolding,
-      isTenacious: afterSummary.isTenacious,
-      isVictory: afterSummary.isVictory,
-      justDefeated,
-      overkill: afterSummary.overkill
-    };
+    const attackReport = makeAttackReport(actionTx, afterSummary, comboEvent, justDefeated);
 
     saveState();
     render({
@@ -2002,9 +2012,115 @@
     });
   }
 
+  function makeAttackReport(actionTx, summary, comboEvent = null, justDefeated = false) {
+    return {
+      transactionId: actionTx.id,
+      actionName: actionTx.actionName,
+      categoryName: actionTx.categoryName,
+      damage: actionTx.damage,
+      currentHp: summary.currentHp,
+      maxHp: summary.maxHp,
+      comboName: comboEvent?.comboName || '',
+      comboDamage: comboEvent?.damage || 0,
+      requiredRemainingCount: summary.requiredRemainingCount,
+      tenaciousHolding: summary.tenaciousHolding,
+      isVictory: summary.isVictory,
+      justDefeated
+    };
+  }
+
+  function addOneOff(categoryId, name, baseDamage) {
+    const cleanName = String(name || '').trim().slice(0, 100);
+    if (!cleanName) return false;
+    if (state.oneOffs.length >= 500) return false;
+
+    const validCategoryId = state.settings.categories.some(category => category.id === categoryId)
+      ? categoryId
+      : UNCATEGORIZED_ID;
+
+    state.oneOffs.push({
+      id: makeId('oneoff'),
+      categoryId: validCategoryId,
+      name: cleanName,
+      baseDamage: clampInt(baseDamage, 1, 200, 10),
+      createdAt: Date.now()
+    });
+    saveState();
+    render();
+    return true;
+  }
+
+  function removeOneOff(oneOffId) {
+    const before = state.oneOffs.length;
+    state.oneOffs = state.oneOffs.filter(item => item.id !== oneOffId);
+    if (state.oneOffs.length === before) return;
+    saveState();
+    render();
+  }
+
+  function executeOneOff(oneOffId) {
+    ensureToday();
+
+    const oneOff = state.oneOffs.find(item => item.id === oneOffId);
+    if (!oneOff) return;
+
+    const beforeSummary = getSummary();
+    const category = state.settings.categories.find(item => item.id === oneOff.categoryId)
+      || uncategorizedCategory();
+    const reward = calculateDamage(oneOff);
+
+    const actionTx = {
+      type: 'action',
+      id: makeId('tx'),
+      actionId: oneOff.id,
+      actionName: oneOff.name,
+      categoryId: category.id,
+      categoryName: category.name,
+      baseDamage: oneOff.baseDamage,
+      damage: reward.damage,
+      efficiency: Number(reward.efficiency.toFixed(4)),
+      oneOff: true,
+      timestamp: Date.now()
+    };
+
+    state.current.transactions.push(actionTx);
+    state.oneOffs = state.oneOffs.filter(item => item.id !== oneOff.id);
+
+    // One-offs use normal damage/resistance, but deliberately never participate
+    // in combos or Required-for-victory rules.
+    const justDefeated = finalizeVictoryIfNeeded();
+    const afterSummary = getSummary();
+    const tenaciousResisted = !beforeSummary.tenaciousHolding && afterSummary.tenaciousHolding;
+    const attackReport = makeAttackReport(actionTx, afterSummary, null, justDefeated);
+
+    saveState();
+    render({
+      showDayCard: justDefeated,
+      justDefeated,
+      hitDamage: actionTx.damage,
+      hitName: actionTx.actionName,
+      comboEvent: null,
+      tenaciousResisted,
+      attackReport
+    });
+  }
+
   function undoTransaction(transactionId) {
     const target = state.current.transactions.find(tx => tx.id === transactionId && tx.type === 'action');
     if (!target) return;
+
+    if (target.oneOff && !state.oneOffs.some(item => item.id === target.actionId)) {
+      const categoryId = state.settings.categories.some(category => category.id === target.categoryId)
+        ? target.categoryId
+        : UNCATEGORIZED_ID;
+      state.oneOffs.push({
+        id: target.actionId,
+        categoryId,
+        name: target.actionName,
+        baseDamage: target.baseDamage,
+        createdAt: target.timestamp
+      });
+    }
 
     state.current.transactions = state.current.transactions.filter(tx => (
       tx.id !== transactionId
@@ -2336,47 +2452,20 @@
   }
 
   function attackReportFlavor(report) {
-    const baseLines = [
-      () => `${report.actionName} made contact. A nearby excuse was seen leaving Crestfallen without forwarding information.`,
-      () => `The attack was filed as “routine ${report.categoryName} activity” until investigators noticed ${report.damage} points of darkness missing.`,
-      () => `Witnesses describe ${report.actionName} as “surprisingly violent for something from a productivity app.”`,
-      () => `MoLife telemetry confirms ${report.actionName} connected with the hostile internal entity. The entity has requested less telemetry.`,
-      () => `The Department of Internal Hostilities has approved ${report.actionName} retroactively and denied doing so.`,
-      () => `Impact confirmed. Dark Doppelgänger attempted to absorb the hit emotionally; accounting still recorded ${report.damage} DMG.`,
-      () => `${report.categoryName} activity entered the scene and immediately made the situation less metaphorical.`,
-      () => `No weapon was recovered. Investigators are currently treating ${report.actionName} as the weapon.`
+    const lines = [
+      () => `${report.actionName} connected. A nearby excuse has been detained for questioning.`,
+      () => `Darkness objected to ${report.actionName}; the damage department overruled it.`,
+      () => `${report.actionName} was accepted as a weapon after an unnecessarily short hearing.`,
+      () => `Impact confirmed. The hostile internal entity has filed a complaint with itself.`,
+      () => `${report.categoryName} activity entered the record as “surprisingly effective violence.”`,
+      () => `No weapon was recovered. Investigators are treating ${report.actionName} as the weapon.`
     ];
-    const base = deterministicPick(
-      baseLines,
-      `${state.current.date}|${report.transactionId}|attack-report`
-    )();
-
-    const combo = report.comboDamage > 0
-      ? ` ${report.comboName} then added ${report.comboDamage} bonus DMG, which investigators are calling “needlessly coordinated.”`
-      : '';
-
-    let status;
-    if (report.tenaciousHolding) {
-      status = ` Target reached lethal damage. The Required Actions Office overruled medical staff and restored it to 1 HP; ${report.requiredRemainingCount} required move${report.requiredRemainingCount === 1 ? '' : 's'} remain.`;
-    } else if (report.isVictory) {
-      status = report.overkill > 0
-        ? ` Hostile internal entity has ceased operations with ${report.overkill} points of unnecessary additional paperwork.`
-        : ' Hostile internal entity has ceased operations. Victory paperwork is being generated against its wishes.';
-    } else if (report.requiredRemainingCount > 0) {
-      status = ` Darkness remains operational under the Tenacious clause: ${report.requiredRemainingCount} required move${report.requiredRemainingCount === 1 ? '' : 's'} still outstanding.`;
-    } else if (report.currentHp <= Math.max(1, Math.floor(report.maxHp * 0.25))) {
-      status = ` Target remains active at ${report.currentHp} HP and is now officially described as “administratively concerned.”`;
-    } else {
-      status = ` Target remains active at ${report.currentHp} HP. Further hostilities are authorized.`;
-    }
-
-    return `${base}${combo}${status}`;
+    return deterministicPick(lines, `${state.current.date}|${report.transactionId}|attack-report`)();
   }
 
   function openAttackReport(report) {
     if (!els.attackReportDialog || !report) return;
 
-    const efficiencyPercent = Math.round(report.efficiency * 100);
     const healthRatio = report.currentHp / Math.max(1, report.maxHp);
     const status = report.isVictory
       ? 'HOSTILE DOWN'
@@ -2393,11 +2482,11 @@
     els.attackReportCard?.classList.remove('attack-report-enter');
     els.attackReportStatus.textContent = status;
     els.attackReportAction.textContent = report.actionName;
-    els.attackReportCategory.textContent = `${report.categoryName.toUpperCase()} DIVISION`;
+    els.attackReportCategory.textContent = report.categoryName.toUpperCase();
     els.attackReportDamage.textContent = `-${report.damage} HP`;
-    els.attackReportBaseDamage.textContent = `${report.baseDamage} DMG`;
-    els.attackReportEfficiency.textContent = `${efficiencyPercent}%`;
-    els.attackReportHp.textContent = `${report.currentHp} / ${report.maxHp}`;
+    els.attackReportHp.textContent = report.isVictory
+      ? 'Target: 0 HP'
+      : `Target: ${report.currentHp} / ${report.maxHp} HP`;
 
     els.attackReportComboRow.hidden = report.comboDamage <= 0;
     els.attackReportCombo.textContent = report.comboDamage > 0
@@ -2405,22 +2494,28 @@
       : '';
 
     els.attackReportRequiredRow.hidden = report.requiredRemainingCount <= 0;
-    els.attackReportRequired.textContent = report.requiredRemainingCount > 0
-      ? `${report.requiredRemainingCount} required move${report.requiredRemainingCount === 1 ? '' : 's'} remain`
-      : '';
+    els.attackReportRequired.textContent = report.tenaciousHolding
+      ? `Lethal hit rejected · ${report.requiredRemainingCount} required move${report.requiredRemainingCount === 1 ? '' : 's'} remain · restored to 1 HP`
+      : report.requiredRemainingCount > 0
+        ? `${report.requiredRemainingCount} required move${report.requiredRemainingCount === 1 ? '' : 's'} remain`
+        : '';
 
     els.attackReportMessage.textContent = attackReportFlavor(report);
     els.closeAttackReportButton.textContent = report.justDefeated
       ? 'File victory report'
-      : 'Continue hostilities';
+      : 'Continue';
 
+    els.attackReportDialog.scrollTop = 0;
     if (typeof els.attackReportDialog.showModal === 'function') {
       els.attackReportDialog.showModal();
     } else {
       els.attackReportDialog.setAttribute('open', '');
     }
 
-    requestAnimationFrame(() => els.attackReportCard?.classList.add('attack-report-enter'));
+    requestAnimationFrame(() => {
+      els.attackReportDialog.scrollTop = 0;
+      els.attackReportCard?.classList.add('attack-report-enter');
+    });
   }
 
   function closeAttackReport() {
@@ -2674,8 +2769,9 @@
     const visibleCategories = state.settings.categories.filter(category => {
       if (category.id !== UNCATEGORIZED_ID) return true;
       const hasActions = state.settings.actions.some(action => action.categoryId === UNCATEGORIZED_ID && action.trackVisible !== false);
+      const hasOneOffs = state.oneOffs.some(oneOff => oneOff.categoryId === UNCATEGORIZED_ID);
       const hasDamage = (summary.categoryBaseDamage[UNCATEGORIZED_ID] || 0) > 0;
-      return hasActions || hasDamage;
+      return hasActions || hasOneOffs || hasDamage;
     });
 
     visibleCategories.forEach((category, index) => {
@@ -2691,6 +2787,12 @@
       const next = fragment.querySelector('.efficiency-next');
       const actionDeck = fragment.querySelector('.action-deck');
       const actionsList = fragment.querySelector('.actions-list');
+      const oneOffToggle = fragment.querySelector('.one-off-toggle');
+      const oneOffForm = fragment.querySelector('.one-off-form');
+      const oneOffName = fragment.querySelector('.one-off-name');
+      const oneOffDamage = fragment.querySelector('.one-off-damage');
+      const oneOffCreate = fragment.querySelector('.one-off-create');
+      const oneOffCancel = fragment.querySelector('.one-off-cancel');
 
       const dealtDamage = summary.categoryDamage[category.id] || 0;
       const actionCount = summary.categoryActionCount[category.id] || 0;
@@ -2744,13 +2846,17 @@
         .sort((a, b) => requirementRank(a) - requirementRank(b)
           || (originalOrder.get(a.id) ?? 0) - (originalOrder.get(b.id) ?? 0));
 
-      if (!actions.length) {
+      const oneOffs = state.oneOffs
+        .filter(oneOff => oneOff.categoryId === category.id)
+        .sort((a, b) => a.createdAt - b.createdAt);
+
+      if (!actions.length && !oneOffs.length) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
         const hasHiddenActions = state.settings.actions.some(action => action.categoryId === category.id && action.trackVisible === false);
         empty.textContent = category.id === UNCATEGORIZED_ID
-          ? 'Deleted-category actions will hide here.'
-          : hasHiddenActions ? 'No visible attacks. Unhide one in Settings.' : 'No actions yet. Add one in Settings.';
+          ? 'Deleted-category actions and unfinished business can land here.'
+          : hasHiddenActions ? 'No visible attacks. Unhide one in Settings or add a One-off.' : 'No attacks yet. Add a One-off or configure an Action.';
         actionsList.append(empty);
       } else {
         actions.forEach(action => {
@@ -2794,7 +2900,7 @@
             const typeText = action.type === 'once' && !isOnceLimitedToday(action)
               ? 'Repeatable for today’s requirement'
               : action.type === 'once'
-                ? 'Once per day'
+                ? 'Daily'
                 : 'Repeatable';
             small.textContent = payout === 100 ? `${typeText} · full base damage` : `${typeText} · ${payout}% of base damage`;
           }
@@ -2810,7 +2916,75 @@
           button.addEventListener('click', () => addDamage(action.id));
           actionsList.append(button);
         });
+
+        oneOffs.forEach(oneOff => {
+          const reward = calculateDamage(oneOff, actionCount);
+          const row = document.createElement('div');
+          row.className = 'one-off-row';
+
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'action-button one-off-action';
+          button.dataset.oneOffId = oneOff.id;
+
+          const nameWrap = document.createElement('span');
+          nameWrap.className = 'action-name';
+          const strong = document.createElement('strong');
+          strong.textContent = oneOff.name;
+          const badge = document.createElement('span');
+          badge.className = 'one-off-badge';
+          badge.textContent = 'ONE-OFF';
+          const small = document.createElement('small');
+          small.textContent = 'Unfinished business · disappears when completed';
+          nameWrap.append(strong, badge, small);
+
+          const damage = document.createElement('span');
+          damage.className = 'action-xp';
+          damage.textContent = `+${reward.damage} DMG`;
+          button.append(nameWrap, damage);
+          button.addEventListener('click', () => executeOneOff(oneOff.id));
+
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'one-off-remove';
+          remove.textContent = '×';
+          remove.title = 'Dismiss this One-off';
+          remove.setAttribute('aria-label', `Dismiss ${oneOff.name}`);
+          remove.addEventListener('click', () => removeOneOff(oneOff.id));
+
+          row.append(button, remove);
+          actionsList.append(row);
+        });
       }
+
+      const closeOneOffForm = () => {
+        oneOffForm.hidden = true;
+        oneOffToggle.hidden = false;
+        oneOffName.value = '';
+      };
+      oneOffToggle.addEventListener('click', () => {
+        oneOffToggle.hidden = true;
+        oneOffForm.hidden = false;
+        oneOffName.focus();
+      });
+      oneOffCancel.addEventListener('click', closeOneOffForm);
+      oneOffCreate.addEventListener('click', () => {
+        if (!oneOffName.value.trim()) {
+          oneOffName.focus();
+          return;
+        }
+        if (addOneOff(category.id, oneOffName.value, oneOffDamage.value)) {
+          closeOneOffForm();
+        }
+      });
+      oneOffName.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          oneOffCreate.click();
+        } else if (event.key === 'Escape') {
+          closeOneOffForm();
+        }
+      });
 
       actionsList.addEventListener('scroll', () => {
         categoryScrollPositions.set(category.id, actionsList.scrollTop);
@@ -3395,7 +3569,7 @@
       const typeLabel = document.createElement('label');
       typeLabel.innerHTML = '<span>Type</span>';
       const typeSelect = document.createElement('select');
-      typeSelect.innerHTML = '<option value="repeatable">Repeatable</option><option value="once">Once per day</option>';
+      typeSelect.innerHTML = '<option value="repeatable">Repeatable</option><option value="once">Daily</option>';
       typeSelect.value = action.type;
       typeLabel.append(typeSelect);
 
@@ -3960,6 +4134,12 @@
     const previousCombos = new Map(state.settings.combos.map(combo => [combo.id, combo]));
     state.settings = result.settings;
 
+    const nextCategoryIds = new Set(state.settings.categories.map(category => category.id));
+    state.oneOffs = state.oneOffs.map(oneOff => ({
+      ...oneOff,
+      categoryId: nextCategoryIds.has(oneOff.categoryId) ? oneOff.categoryId : UNCATEGORIZED_ID
+    }));
+
     const nextActionIds = new Set(state.settings.actions.map(action => action.id));
     state.current.requiredActions = (state.current.requiredActions || [])
       .filter(required => nextActionIds.has(required.actionId));
@@ -4130,7 +4310,7 @@
 
   function resetGameData() {
     const confirmed = window.confirm(
-      'Reset ALL MoLife game data?\n\nThis wipes categories, actions, combos, Pawnshop items, history, Level, Street Cred and streaks. Your login/account remains.\n\nThe Crestfallen Department of Records will pretend none of this ever happened.'
+      'Reset ALL MoLife game data?\n\nThis wipes categories, actions, One-offs, combos, Pawnshop items, history, Level, Street Cred and streaks. Your login/account remains.\n\nThe Crestfallen Department of Records will pretend none of this ever happened.'
     );
     if (!confirmed) return;
 
