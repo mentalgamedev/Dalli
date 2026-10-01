@@ -90,6 +90,24 @@ test_assert(($validatedV8['version'] ?? null) === 8, 'v8 One-off state should va
 test_assert(count($validatedV8['oneOffs'] ?? []) === 1, 'v8 should preserve pending One-offs');
 test_assert(($validatedV8['oneOffs'][0]['name'] ?? null) === 'Finish the annoying form', 'v8 One-off data should survive validation');
 
+$v9State = $v8State;
+$v9State['version'] = 9;
+$v9State['inventory']['items'] = [[
+    'id' => 'starter-molight-pro-v9',
+    'itemId' => 'molight-pro',
+    'conditionId' => 'standard',
+    'multiplier' => 1,
+    'damage' => 10,
+    'acquiredDate' => '2026-01-01',
+    'acquiredAt' => 1700000002000,
+]];
+$validatedV9 = dalli_validate_state($v9State);
+test_assert(($validatedV9['version'] ?? null) === 9, 'v9 starter-item state should validate');
+test_assert(count($validatedV9['inventory']['items'] ?? []) === 1, 'v9 should preserve the starter item');
+test_assert(($validatedV9['inventory']['items'][0]['itemId'] ?? null) === 'molight-pro', 'v9 starter item should be MoLight Pro');
+test_assert(($validatedV9['inventory']['items'][0]['conditionId'] ?? null) === 'standard', 'v9 starter MoLight Pro should be standard condition');
+test_assert(($validatedV9['inventory']['items'][0]['damage'] ?? null) === 10, 'v9 starter MoLight Pro should deal 10 damage');
+
 $pdo = dalli_pdo();
 test_assert(dalli_auth_schema_ready($pdo), 'modern auth schema should be detected');
 test_assert(dalli_registration_mode() === 'invite', 'registration mode should default from test config');

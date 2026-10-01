@@ -1062,18 +1062,18 @@ function dalli_validate_state_v4(mixed $state): array
 }
 
 
-function dalli_validate_state_v5_v8(mixed $state): array
+function dalli_validate_state_v5_v9(mixed $state): array
 {
     $version = is_array($state) ? ($state['version'] ?? null) : null;
-    $isV6Plus = in_array($version, [6, 7, 8], true);
-    $isV7Plus = in_array($version, [7, 8], true);
-    $isV8 = $version === 8;
-    $allowedTopLevel = $isV8
+    $isV6Plus = in_array($version, [6, 7, 8, 9], true);
+    $isV7Plus = in_array($version, [7, 8, 9], true);
+    $isV8Plus = in_array($version, [8, 9], true);
+    $allowedTopLevel = $isV8Plus
         ? ['version', 'settings', 'progression', 'current', 'history', 'inventory', 'oneOffs']
         : ['version', 'settings', 'progression', 'current', 'history', 'inventory'];
     if (!is_array($state)
         || !dalli_keys_allowed($state, $allowedTopLevel)
-        || !in_array($version, [5, 6, 7, 8], true)) {
+        || !in_array($version, [5, 6, 7, 8, 9], true)) {
         dalli_fail('Unsupported Dalli state.', 422);
     }
 
@@ -1196,7 +1196,7 @@ function dalli_validate_state_v5_v8(mixed $state): array
         $actionIds[$id] = true;
     }
 
-    if ($isV8) {
+    if ($isV8Plus) {
         if (!is_array($oneOffs) || count($oneOffs) > 500) {
             dalli_fail('Invalid One-offs.', 422);
         }
@@ -1360,11 +1360,11 @@ function dalli_validate_state_v5_v8(mixed $state): array
             && $item['damage'] === $expectedDamage;
     };
 
-    $validateTransaction = static function (mixed $tx) use ($itemBases, $conditionMultipliers, $isV6Plus, $isV7Plus, $isV8): bool {
+    $validateTransaction = static function (mixed $tx) use ($itemBases, $conditionMultipliers, $isV6Plus, $isV7Plus, $isV8Plus): bool {
         if (!is_array($tx) || !is_string($tx['type'] ?? null)) return false;
 
         if ($tx['type'] === 'action') {
-            $allowedActionTxKeys = $isV8
+            $allowedActionTxKeys = $isV8Plus
                 ? [
                     'type', 'id', 'actionId', 'actionName', 'categoryId', 'categoryName',
                     'baseDamage', 'damage', 'efficiency', 'oneOff', 'timestamp'
@@ -1386,7 +1386,7 @@ function dalli_validate_state_v5_v8(mixed $state): array
                 && is_int($tx['baseDamage'] ?? null) && $tx['baseDamage'] >= 1 && $tx['baseDamage'] <= 200
                 && is_int($tx['damage'] ?? null) && $tx['damage'] >= 1 && $tx['damage'] <= ($isV6Plus ? 800 : 200)
                 && dalli_number_between($tx['efficiency'] ?? null, $isV7Plus ? 0.001 : 0.01, $isV6Plus ? 4 : 1)
-                && (!$isV8 || is_bool($tx['oneOff'] ?? null))
+                && (!$isV8Plus || is_bool($tx['oneOff'] ?? null))
                 && (is_int($tx['timestamp'] ?? null) || is_float($tx['timestamp'] ?? null))
                 && (float) $tx['timestamp'] > 0;
         }
@@ -1675,7 +1675,7 @@ function dalli_validate_state(mixed $state): array
     if ($version === 2) return dalli_validate_state_v2($state);
     if ($version === 3) return dalli_validate_state_v3($state);
     if ($version === 4) return dalli_validate_state_v4($state);
-    if ($version === 5 || $version === 6 || $version === 7 || $version === 8) return dalli_validate_state_v5_v8($state);
+    if ($version === 5 || $version === 6 || $version === 7 || $version === 8 || $version === 9) return dalli_validate_state_v5_v9($state);
     dalli_fail('Unsupported Dalli state.', 422);
 }
 

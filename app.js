@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const STATE_VERSION = 8;
+  const STATE_VERSION = 9;
   const TEMPLATE_VERSION = 1;
   const ITEM_DROP_CHANCE = 0.40;
   const ITEM_CAPACITY = 8;
@@ -21,6 +21,7 @@
   const COMBO_MAX_STEPS = 8;
   const ATTACK_PROMO_SEEN_KEY = 'molife.cosmicTroubleAttackPromoSeen.v1';
   const ATTACK_PROMO_REPEAT_MODULUS = 11;
+  const STARTER_ITEM_INSTANCE_ID = 'starter-molight-pro-v9';
 
 
   const ITEM_DEFINITIONS = Object.freeze([
@@ -457,8 +458,22 @@
     return new Intl.DateTimeFormat(undefined, options).format(dateFromKey(dateKey));
   }
 
+  function starterPawnshopItem() {
+    return {
+      id: STARTER_ITEM_INSTANCE_ID,
+      itemId: 'molight-pro',
+      conditionId: 'standard',
+      multiplier: 1,
+      damage: 10,
+      acquiredDate: localDateKey(),
+      acquiredAt: Date.now()
+    };
+  }
+
   function freshState() {
-    return deepClone(DEFAULT_STATE);
+    const next = deepClone(DEFAULT_STATE);
+    next.inventory.items = [starterPawnshopItem()];
+    return next;
   }
 
   function uncategorizedCategory() {
@@ -891,14 +906,22 @@
     return migrated;
   }
 
+  function migrateV8State(candidate) {
+    const migrated = deepClone(candidate);
+    migrated.version = STATE_VERSION;
+    return migrated;
+  }
+
 
   function normalizeState(candidate) {
+    const shouldGrantStarterItem = Boolean(candidate && candidate.version !== STATE_VERSION);
     if (candidate?.version === 2) candidate = migrateV2State(candidate);
     if (candidate?.version === 3) candidate = migrateV3State(candidate);
     if (candidate?.version === 4) candidate = migrateV4State(candidate);
     if (candidate?.version === 5) candidate = migrateV5State(candidate);
     if (candidate?.version === 6) candidate = migrateV6State(candidate);
     if (candidate?.version === 7) candidate = migrateV7State(candidate);
+    if (candidate?.version === 8) candidate = migrateV8State(candidate);
     if (!candidate || candidate.version !== STATE_VERSION) return freshState();
 
     const next = freshState();
@@ -1032,6 +1055,14 @@
         itemInstanceIds.add(item.id);
         return true;
       });
+
+    if (shouldGrantStarterItem
+        && next.inventory.items.length < 500
+        && !itemInstanceIds.has(STARTER_ITEM_INSTANCE_ID)) {
+      const starter = starterPawnshopItem();
+      next.inventory.items.push(starter);
+      itemInstanceIds.add(starter.id);
+    }
 
     next.progression.victoryXp = clampInt(candidate.progression?.victoryXp, 0, 1000000000, 0);
     next.progression.bestStreak = clampInt(candidate.progression?.bestStreak, 0, 1000000, 0);
@@ -1221,7 +1252,7 @@
       const raw = localStorage.getItem(storageKey);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      if (!parsed || ![2, 3, 4, 5, 6, 7, STATE_VERSION].includes(parsed.version)) return null;
+      if (!parsed || ![2, 3, 4, 5, 6, 7, 8, STATE_VERSION].includes(parsed.version)) return null;
       return normalizeState(parsed);
     } catch (error) {
       console.warn('Could not read cached MoLife data:', error);
@@ -2504,7 +2535,7 @@
     els.attackReportStatus.textContent = status;
     els.attackReportAction.textContent = report.actionName;
     els.attackReportCategory.textContent = report.categoryName.toUpperCase();
-    els.attackReportDamage.textContent = `+${report.damage} DMG`;
+    els.attackReportDamage.textContent = `${report.damage} DMG`;
     els.attackReportHp.textContent = report.isVictory
       ? 'Target: 0 HP'
       : `Target: ${report.currentHp} / ${report.maxHp} HP`;
