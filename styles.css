@@ -4660,3 +4660,287 @@ body {
     animation: none !important;
   }
 }
+
+
+
+/* -------------------------------------------------------------------------- */
+/* MoLife v4.12 — Department of Unfinished Business                           */
+/* -------------------------------------------------------------------------- */
+
+/* Attack reports are intentionally small: the newspaper remains the detailed
+   victory presentation. */
+.attack-report-dialog {
+  width: min(520px, calc(100vw - 18px));
+  max-height: min(80dvh, 620px);
+  padding: 3px;
+}
+
+.attack-report-card {
+  width: calc(100% - 2px);
+  margin: 1px auto;
+  padding: 18px 20px 17px;
+  border-radius: 15px;
+}
+
+.attack-report-topline {
+  padding-bottom: 8px;
+  font-size: .58rem;
+}
+
+.attack-report-main {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 15px 0 12px;
+}
+
+.attack-report-copy h2 {
+  font-size: clamp(1.35rem, 5vw, 2rem);
+  line-height: 1;
+}
+
+.attack-report-category {
+  margin-top: 6px;
+  font-size: .62rem;
+}
+
+.attack-report-hp {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: .74rem;
+  font-weight: 800;
+}
+
+.attack-report-impact {
+  min-width: 108px;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.attack-report-impact strong {
+  margin: 0;
+  font-size: clamp(1.5rem, 6vw, 2.15rem);
+}
+
+.attack-report-extra {
+  grid-template-columns: 82px minmax(0, 1fr);
+  margin-top: 6px;
+  padding: 8px 10px;
+}
+
+.attack-report-extra strong {
+  font-size: .72rem;
+}
+
+.attack-report-message {
+  margin-top: 11px;
+  padding: 11px 12px 11px 14px;
+  font-size: .84rem;
+  line-height: 1.35;
+}
+
+.attack-report-message::before {
+  display: none;
+}
+
+.attack-report-button {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  min-height: 38px;
+}
+
+/* One-offs are temporary unfinished-business attacks. */
+.one-off-tools {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px dashed color-mix(in srgb, var(--category-color) 18%, rgba(255,255,255,.06));
+}
+
+.one-off-toggle {
+  appearance: none;
+  border: 1px dashed color-mix(in srgb, var(--category-color) 35%, rgba(255,255,255,.08));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--category-color) 5%, transparent);
+  color: color-mix(in srgb, var(--category-color) 72%, var(--text));
+  padding: 7px 10px;
+  font: inherit;
+  font-size: .64rem;
+  font-weight: 950;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+
+.one-off-toggle:hover {
+  border-color: color-mix(in srgb, var(--category-color) 60%, white 6%);
+  background: color-mix(in srgb, var(--category-color) 10%, transparent);
+}
+
+.one-off-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 74px auto auto;
+  align-items: end;
+  gap: 7px;
+}
+
+.one-off-form[hidden] {
+  display: none !important;
+}
+
+.one-off-form input {
+  min-width: 0;
+  height: 36px;
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--category-color) 18%, rgba(255,255,255,.08));
+  border-radius: 9px;
+  background: rgba(0,0,0,.14);
+  color: var(--text);
+}
+
+.one-off-form label {
+  display: grid;
+  gap: 3px;
+}
+
+.one-off-form label > span {
+  color: var(--muted);
+  font-size: .54rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.one-off-create,
+.one-off-cancel,
+.one-off-remove {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--category-color) 28%, rgba(255,255,255,.08));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--category-color) 9%, rgba(255,255,255,.025));
+  color: var(--text);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.one-off-create,
+.one-off-cancel {
+  min-height: 36px;
+  padding: 7px 10px;
+}
+
+.one-off-cancel {
+  width: 36px;
+  padding: 0;
+}
+
+.one-off-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.one-off-row .action-button {
+  min-width: 0;
+}
+
+.one-off-action {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--category-color) 36%, rgba(255,255,255,.08));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--category-color) 8%, transparent), transparent 65%),
+    var(--category-panel-alt);
+}
+
+.one-off-badge {
+  display: inline-block;
+  width: fit-content;
+  margin-top: 5px;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--category-color) 42%, rgba(255,255,255,.08));
+  border-radius: 999px;
+  color: var(--category-color);
+  font-size: .54rem;
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+
+.one-off-remove {
+  width: 34px;
+  min-height: 100%;
+  padding: 0;
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.one-off-remove:hover {
+  color: var(--text);
+  border-color: rgba(255,109,122,.45);
+  background: rgba(255,109,122,.08);
+}
+
+.one-off-toggle:focus-visible,
+.one-off-create:focus-visible,
+.one-off-cancel:focus-visible,
+.one-off-remove:focus-visible {
+  outline: 2px solid var(--category-color, var(--accent));
+  outline-offset: 2px;
+}
+
+@media (max-width: 620px) {
+  .attack-report-dialog {
+    width: calc(100vw - 12px);
+    max-height: 78dvh;
+  }
+
+  .attack-report-card {
+    padding: 14px 14px 13px;
+  }
+
+  .attack-report-topline {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .attack-report-main {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 12px 0 9px;
+  }
+
+  .attack-report-impact {
+    width: auto;
+    min-width: 94px;
+    text-align: center;
+    transform: rotate(.7deg);
+  }
+
+  .attack-report-extra {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .attack-report-extra strong {
+    text-align: right;
+  }
+
+  .attack-report-message {
+    margin-top: 9px;
+    padding: 9px 10px 9px 12px;
+    font-size: .8rem;
+  }
+
+  .attack-report-button {
+    margin-top: 9px;
+  }
+
+  .one-off-form {
+    grid-template-columns: minmax(0, 1fr) 68px;
+  }
+
+  .one-off-create,
+  .one-off-cancel {
+    width: 100%;
+  }
+}
