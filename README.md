@@ -321,6 +321,14 @@ Selecting an occupied slot reveals one shared inspection plate below the grid wi
 
 The combat and persistence model is unchanged: item damage, consumption, Tenacious bypass, victory handling, undo behavior, loot/drop behavior, the starter MoLight migration and state schema v9 all remain intact.
 
+## v4.18 — Bureau of Portable Contraband
+
+Pawnshop inspection now opens in a dedicated modal case file instead of expanding below the inventory grid. This fixes the mobile dead-feedback problem where tapping an upper inventory slot changed content below the fold with no immediately visible response. The overlay shows condition, item name, damage, Phat Ed's description, **USE ITEM** and **BACK**; clicking the backdrop, pressing Escape or using Back dismisses it.
+
+The inventory selection remains transient UI state and is never persisted. Item use still routes through the existing Pawnshop combat function, so damage, consumption, Tenacious bypass, victory handling, loot and schema v9 are unchanged.
+
+This pass also includes a conservative frontend-performance cleanup: the Newswire caches its text width instead of measuring layout every animation frame, limits visual updates to roughly 30 fps, stops its animation loop while hidden or reduced-motion is active, action-deck scroll measurements are throttled to animation frames, and narrow/mobile dialog backdrops avoid GPU-heavy blur. A code-audit report with larger follow-up opportunities is in [PERFORMANCE.md](PERFORMANCE.md).
+
 ## Self-hosting
 
 See [DEPLOY.md](DEPLOY.md) for the provider-neutral self-hosting guide.

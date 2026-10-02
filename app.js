@@ -22,6 +22,7 @@
   const ATTACK_PROMO_SEEN_KEY = 'molife.cosmicTroubleAttackPromoSeen.v1';
   const ATTACK_PROMO_REPEAT_MODULUS = 11;
   const STARTER_ITEM_INSTANCE_ID = 'starter-molight-pro-v9';
+  const NEWSWIRE_FRAME_INTERVAL_MS = 1000 / 30;
 
 
   const ITEM_DEFINITIONS = Object.freeze([
@@ -240,12 +241,14 @@
     combosPanel: document.querySelector('#combosPanel'),
     arsenalPanel: document.querySelector('#arsenalPanel'),
     arsenalList: document.querySelector('#arsenalList'),
-    inventoryDetail: document.querySelector('#inventoryDetail'),
-    inventoryDetailCondition: document.querySelector('#inventoryDetailCondition'),
-    inventoryDetailName: document.querySelector('#inventoryDetailName'),
-    inventoryDetailDamage: document.querySelector('#inventoryDetailDamage'),
-    inventoryDetailDescription: document.querySelector('#inventoryDetailDescription'),
-    inventoryUseButton: document.querySelector('#inventoryUseButton'),
+    pawnshopItemDialog: document.querySelector('#pawnshopItemDialog'),
+    pawnshopItemCard: document.querySelector('#pawnshopItemCard'),
+    pawnshopItemCondition: document.querySelector('#pawnshopItemCondition'),
+    pawnshopItemName: document.querySelector('#pawnshopItemName'),
+    pawnshopItemDamage: document.querySelector('#pawnshopItemDamage'),
+    pawnshopItemDescription: document.querySelector('#pawnshopItemDescription'),
+    pawnshopItemUseButton: document.querySelector('#pawnshopItemUseButton'),
+    closePawnshopItemButton: document.querySelector('#closePawnshopItemButton'),
     arsenalCount: document.querySelector('#arsenalCount'),
     arsenalStatus: document.querySelector('#arsenalStatus'),
     lootDrop: document.querySelector('#lootDrop'),
@@ -353,6 +356,7 @@
   let newswirePausedUntil = 0;
   let newswireLastFrame = 0;
   let newswireSpecialUntil = 0;
+  let newswireMessageWidth = 0;
   let visualFrame = null;
   let dayCardTimer = null;
   let pendingVictoryReport = false;
@@ -2346,6 +2350,7 @@
     els.newswireMessage.textContent = message;
     els.newswireMessage.title = message;
     resetNewswirePosition(options.pauseMs ?? 650);
+    newswireMessageWidth = Math.max(1, els.newswireMessage.scrollWidth);
 
     if (options.special) {
       newswireSpecialUntil = performance.now() + (options.holdMs ?? 2600);
@@ -2391,24 +2396,35 @@
   }
 
   function animateVisuals(timestamp) {
-    visualFrame = requestAnimationFrame(animateVisuals);
-    if (document.hidden) { newswireLastFrame = timestamp; return; }
-    if (!els.newswireViewport || !els.newswireMessage || reducedMotionQuery.matches) {
-      newswireLastFrame = timestamp; return;
+    visualFrame = null;
+    if (document.hidden || reducedMotionQuery.matches || !els.newswireViewport || !els.newswireMessage) {
+      newswireLastFrame = timestamp;
+      return;
     }
+
+    visualFrame = requestAnimationFrame(animateVisuals);
     if (!newswireLastFrame) newswireLastFrame = timestamp;
+    if (timestamp - newswireLastFrame < NEWSWIRE_FRAME_INTERVAL_MS) return;
+
     const deltaSeconds = Math.min(0.05, Math.max(0, (timestamp - newswireLastFrame) / 1000));
     newswireLastFrame = timestamp;
     if (timestamp < newswireSpecialUntil || timestamp < newswirePausedUntil) return;
 
     newswireOffset -= 36 * deltaSeconds;
     els.newswireMessage.style.transform = `translate3d(${Math.round(newswireOffset)}px,0,0)`;
-    if (newswireOffset + els.newswireMessage.scrollWidth < 0) advanceNewswire();
+    if (newswireOffset + newswireMessageWidth < 0) advanceNewswire();
   }
 
   function startVisualLoop() {
-    if (visualFrame) return;
+    if (visualFrame || document.hidden || reducedMotionQuery.matches) return;
+    newswireLastFrame = 0;
     visualFrame = requestAnimationFrame(animateVisuals);
+  }
+
+  function stopVisualLoop() {
+    if (visualFrame) cancelAnimationFrame(visualFrame);
+    visualFrame = null;
+    newswireLastFrame = 0;
   }
 
 
@@ -2426,6 +2442,7 @@
 
 
   function render(options = {}) {
+    if (els.pawnshopItemDialog?.open) closePawnshopItemDialog();
     selectedPawnshopItemId = null;
     ensureToday();
     const summary = getSummary();
@@ -2722,57 +2739,68 @@
     ], `${state.current.date}|crate-flavor`);
   }
 
-  function selectedPawnshopItem() {
-    if (!selectedPawnshopItemId) return null;
-    return state.inventory.items.find(item => item.id === selectedPawnshopItemId) || null;
-  }
-
-  function renderPawnshopSelection(summary = getSummary()) {
-    if (!els.arsenalList || !els.inventoryDetail) return;
-
-    const item = selectedPawnshopItem();
-    const definition = item ? itemDefinition(item.itemId) : null;
-
-    if (!item || !definition) {
-      selectedPawnshopItemId = null;
-    }
-
+  function syncPawnshopSelection() {
+    if (!els.arsenalList) return;
     els.arsenalList.querySelectorAll('.inventory-slot[data-item-instance-id]').forEach(slot => {
       const selected = Boolean(selectedPawnshopItemId) && slot.dataset.itemInstanceId === selectedPawnshopItemId;
       slot.classList.toggle('is-selected', selected);
       slot.setAttribute('aria-pressed', selected ? 'true' : 'false');
     });
+  }
 
-    if (!item || !definition) {
-      els.inventoryDetail.hidden = true;
-      els.inventoryDetail.className = 'inventory-detail';
-      return;
-    }
+  function openPawnshopItemDialog(itemInstanceId) {
+    if (!els.pawnshopItemDialog || !els.pawnshopItemCard) return;
+
+    const item = state.inventory.items.find(candidate => candidate.id === itemInstanceId);
+    const definition = item ? itemDefinition(item.itemId) : null;
+    if (!item || !definition) return;
+
+    selectedPawnshopItemId = item.id;
+    syncPawnshopSelection();
 
     const conditionName = definition.special
       ? 'LEGENDARY'
       : (itemCondition(item.conditionId)?.name || 'Unknown').toUpperCase();
 
-    els.inventoryDetail.className = `inventory-detail condition-${item.conditionId || 'rite'}${definition.special ? ' is-rite' : ''}`;
-    els.inventoryDetailCondition.textContent = conditionName;
-    els.inventoryDetailName.textContent = definition.name;
-    els.inventoryDetailDamage.textContent = `${item.damage} DMG`;
-    els.inventoryDetailDescription.textContent = definition.flavor;
-    els.inventoryUseButton.disabled = summary.isVictory;
-    els.inventoryUseButton.textContent = summary.isVictory ? 'SAVE ITEM' : 'USE ITEM';
-    els.inventoryDetail.hidden = false;
-  }
+    els.pawnshopItemCard.className = `pawnshop-item-card condition-${item.conditionId || 'rite'}${definition.special ? ' is-rite' : ''}`;
+    els.pawnshopItemCard.classList.remove('pawnshop-item-enter');
+    els.pawnshopItemCondition.textContent = conditionName;
+    els.pawnshopItemName.textContent = definition.name;
+    els.pawnshopItemDamage.textContent = `${item.damage} DMG`;
+    els.pawnshopItemDescription.textContent = definition.flavor;
 
-  function togglePawnshopSelection(itemInstanceId) {
-    if (!state.inventory.items.some(item => item.id === itemInstanceId)) return;
-    selectedPawnshopItemId = selectedPawnshopItemId === itemInstanceId ? null : itemInstanceId;
-    renderPawnshopSelection();
+    const summary = getSummary();
+    els.pawnshopItemUseButton.disabled = summary.isVictory;
+    els.pawnshopItemUseButton.textContent = summary.isVictory ? 'SAVE ITEM' : 'USE ITEM';
+
+    els.pawnshopItemDialog.scrollTop = 0;
+    if (typeof els.pawnshopItemDialog.showModal === 'function') {
+      els.pawnshopItemDialog.showModal();
+    } else {
+      els.pawnshopItemDialog.setAttribute('open', '');
+    }
+
+    requestAnimationFrame(() => {
+      els.pawnshopItemDialog.scrollTop = 0;
+      els.pawnshopItemCard.classList.add('pawnshop-item-enter');
+    });
   }
 
   function clearPawnshopSelection() {
     if (!selectedPawnshopItemId) return;
     selectedPawnshopItemId = null;
-    renderPawnshopSelection();
+    syncPawnshopSelection();
+  }
+
+  function closePawnshopItemDialog() {
+    if (els.pawnshopItemDialog?.open) {
+      if (typeof els.pawnshopItemDialog.close === 'function') {
+        els.pawnshopItemDialog.close();
+      } else {
+        els.pawnshopItemDialog.removeAttribute('open');
+      }
+    }
+    clearPawnshopSelection();
   }
 
   function renderPawnshop(summary, newlyClaimedId = '') {
@@ -2868,11 +2896,11 @@
       damage.textContent = `${item.damage} DMG`;
 
       slot.append(marker, condition, name, damage);
-      slot.addEventListener('click', () => togglePawnshopSelection(item.id));
+      slot.addEventListener('click', () => openPawnshopItemDialog(item.id));
       els.arsenalList.append(slot);
     }
 
-    renderPawnshopSelection(summary);
+    syncPawnshopSelection();
   }
 
   function renderCategories(summary) {
@@ -3102,9 +3130,14 @@
         }
       });
 
+      let actionDeckFrame = null;
       actionsList.addEventListener('scroll', () => {
         categoryScrollPositions.set(category.id, actionsList.scrollTop);
-        updateActionDeckState(actionDeck, actionsList);
+        if (actionDeckFrame) return;
+        actionDeckFrame = requestAnimationFrame(() => {
+          actionDeckFrame = null;
+          updateActionDeckState(actionDeck, actionsList);
+        });
       }, { passive: true });
 
       els.categoriesGrid.append(fragment);
@@ -4520,8 +4553,12 @@
   els.addActionButton.addEventListener('click', addActionFromForm);
   els.addComboButton?.addEventListener('click', addComboFromForm);
   els.lootCrateButton?.addEventListener('click', claimVictoryLoot);
-  els.inventoryUseButton?.addEventListener('click', () => {
-    if (selectedPawnshopItemId) usePawnshopItem(selectedPawnshopItemId);
+  els.closePawnshopItemButton?.addEventListener('click', closePawnshopItemDialog);
+  els.pawnshopItemUseButton?.addEventListener('click', () => {
+    const itemInstanceId = selectedPawnshopItemId;
+    if (!itemInstanceId) return;
+    closePawnshopItemDialog();
+    usePawnshopItem(itemInstanceId);
   });
   els.exportTemplateButton?.addEventListener('click', exportSettingsTemplate);
   els.importTemplateButton?.addEventListener('click', () => els.importTemplateInput?.click());
@@ -4541,13 +4578,10 @@
     if (event.target === els.attackReportDialog) closeAttackReport();
   });
 
-  document.addEventListener('click', event => {
-    if (!selectedPawnshopItemId) return;
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    if (target.closest('#arsenalList, #inventoryDetail')) return;
-    clearPawnshopSelection();
+  els.pawnshopItemDialog?.addEventListener('click', event => {
+    if (event.target === els.pawnshopItemDialog) closePawnshopItemDialog();
   });
+  els.pawnshopItemDialog?.addEventListener('close', clearPawnshopSelection);
 
   els.attackReportDialog?.addEventListener('close', () => {
     if (pendingVictoryReport && state.current.dayCard) {
@@ -4562,11 +4596,20 @@
   });
 
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-      const before = state.current.date;
-      ensureToday();
-      if (before !== state.current.date) render();
+    if (document.hidden) {
+      stopVisualLoop();
+      return;
     }
+
+    const before = state.current.date;
+    ensureToday();
+    if (before !== state.current.date) render();
+    startVisualLoop();
+  });
+
+  reducedMotionQuery.addEventListener?.('change', () => {
+    if (reducedMotionQuery.matches) stopVisualLoop();
+    else startVisualLoop();
   });
 
   window.addEventListener('resize', () => {
