@@ -2739,11 +2739,6 @@
     ], `${state.current.date}|crate-flavor`);
   }
 
-  function selectedPawnshopItem() {
-    if (!selectedPawnshopItemId) return null;
-    return state.inventory.items.find(item => item.id === selectedPawnshopItemId) || null;
-  }
-
   function syncPawnshopSelection() {
     if (!els.arsenalList) return;
     els.arsenalList.querySelectorAll('.inventory-slot[data-item-instance-id]').forEach(slot => {
