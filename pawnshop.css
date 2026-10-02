@@ -1,0 +1,227 @@
+/* MoLife v4.18 — Bureau of Portable Contraband */
+
+.pawnshop-item-dialog {
+  width: min(520px, calc(100vw - 18px));
+  max-height: min(82dvh, 620px);
+  padding: 3px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 17px;
+  background: transparent;
+  color: var(--text);
+  box-shadow: 0 30px 96px rgba(0,0,0,.70);
+}
+
+.pawnshop-item-dialog::backdrop {
+  background:
+    radial-gradient(circle at 50% 44%, rgba(241,202,90,.08), transparent 24rem),
+    rgba(4,5,8,.84);
+}
+
+.pawnshop-item-card {
+  --item-signal: #d6c274;
+  position: relative;
+  isolation: isolate;
+  width: calc(100% - 2px);
+  margin: 1px auto;
+  overflow: hidden;
+  padding: 19px 20px 18px;
+  border: 1px solid color-mix(in srgb, var(--item-signal) 42%, rgba(255,255,255,.10));
+  border-radius: 15px;
+  background:
+    radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--item-signal) 16%, transparent), transparent 16rem),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 5px),
+    #11141a;
+  box-shadow:
+    inset 4px 0 0 color-mix(in srgb, var(--item-signal) 65%, transparent),
+    inset 0 1px 0 rgba(255,255,255,.05),
+    0 22px 62px rgba(0,0,0,.40);
+}
+
+.pawnshop-item-card.condition-questionable { --item-signal: #aa704c; }
+.pawnshop-item-card.condition-standard { --item-signal: #b8c0cc; }
+.pawnshop-item-card.condition-pimped { --item-signal: #c263d0; }
+.pawnshop-item-card.condition-over-engineered { --item-signal: #ff6942; }
+.pawnshop-item-card.is-rite { --item-signal: #ffe071; }
+
+.pawnshop-item-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--item-signal) 28%, rgba(255,255,255,.08));
+  color: #8f97a3;
+  font-size: .59rem;
+  font-weight: 950;
+  letter-spacing: .13em;
+}
+
+.pawnshop-item-topline strong {
+  color: var(--item-signal);
+  font-size: .6rem;
+  letter-spacing: .12em;
+}
+
+.pawnshop-item-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 20px;
+  padding: 21px 0 17px;
+}
+
+.pawnshop-item-copy { min-width: 0; }
+
+.pawnshop-item-copy h2 {
+  margin: 0;
+  font-size: clamp(1.55rem, 6vw, 2.35rem);
+  line-height: .98;
+  letter-spacing: -.035em;
+}
+
+.pawnshop-item-category {
+  margin-top: 7px;
+  color: #7f8895;
+  font-size: .6rem;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.pawnshop-item-impact {
+  min-width: 122px;
+  padding: 11px 13px 10px;
+  border: 1px solid color-mix(in srgb, var(--item-signal) 40%, rgba(255,255,255,.08));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--item-signal) 8%, rgba(255,255,255,.02));
+  text-align: right;
+  transform: rotate(1deg);
+}
+
+.pawnshop-item-impact span {
+  display: block;
+  color: #8d95a1;
+  font-size: .54rem;
+  font-weight: 950;
+  letter-spacing: .12em;
+}
+
+.pawnshop-item-impact strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--item-signal);
+  font-size: clamp(1.45rem, 5vw, 2rem);
+  line-height: 1;
+}
+
+.pawnshop-item-description {
+  margin: 0;
+  padding: 14px 15px 14px 17px;
+  border-left: 3px solid var(--item-signal);
+  background: rgba(0,0,0,.18);
+  color: #d2d7df;
+  font-size: .84rem;
+  line-height: 1.5;
+}
+
+.pawnshop-item-description::before {
+  content: "PHAT ED'S NOTES";
+  display: block;
+  margin-bottom: 6px;
+  color: #7f8895;
+  font-size: .54rem;
+  font-weight: 950;
+  letter-spacing: .13em;
+}
+
+.pawnshop-item-actions {
+  display: grid;
+  grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr);
+  gap: 9px;
+  margin-top: 16px;
+}
+
+.pawnshop-item-back,
+.pawnshop-item-use {
+  min-height: 42px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  font: inherit;
+  font-size: .69rem;
+  font-weight: 950;
+  letter-spacing: .07em;
+  cursor: pointer;
+}
+
+.pawnshop-item-back {
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.035);
+  color: #aab1bc;
+}
+
+.pawnshop-item-use {
+  border: 1px solid color-mix(in srgb, var(--item-signal) 48%, rgba(255,255,255,.10));
+  background: color-mix(in srgb, var(--item-signal) 13%, rgba(255,255,255,.025));
+  color: #f1f2f5;
+}
+
+.pawnshop-item-back:hover {
+  border-color: rgba(255,255,255,.20);
+  background: rgba(255,255,255,.06);
+}
+
+.pawnshop-item-use:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--item-signal) 72%, white 8%);
+  background: color-mix(in srgb, var(--item-signal) 19%, rgba(255,255,255,.03));
+}
+
+.pawnshop-item-use:disabled {
+  cursor: default;
+  opacity: .5;
+}
+
+.pawnshop-item-card.pawnshop-item-enter {
+  animation: pawnshop-item-enter 210ms cubic-bezier(.18,.8,.2,1);
+}
+
+@keyframes pawnshop-item-enter {
+  from { opacity: 0; transform: translateY(10px) scale(.975); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 620px) {
+  .pawnshop-item-dialog {
+    width: calc(100vw - 12px);
+    max-height: calc(100dvh - 12px);
+  }
+
+  .pawnshop-item-card { padding: 16px 15px 15px; }
+
+  .pawnshop-item-main {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 17px 0 14px;
+  }
+
+  .pawnshop-item-impact {
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+    transform: none;
+  }
+
+  .pawnshop-item-actions { grid-template-columns: 1fr 1.35fr; }
+
+  .settings-dialog::backdrop,
+  .day-card-dialog::backdrop,
+  .attack-report-dialog::backdrop,
+  .pawnshop-item-dialog::backdrop {
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pawnshop-item-card.pawnshop-item-enter { animation: none !important; }
+}
